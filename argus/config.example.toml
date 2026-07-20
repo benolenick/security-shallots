@@ -1,0 +1,101 @@
+[argus]
+hostname = ""
+
+[argus.guard]
+inactivity_timeout_seconds = 600
+heartbeat_seconds = 300
+
+[argus.windows_events]
+enabled = true
+poll_seconds = 15
+watch_event_ids = [4625, 4720, 4728, 4732, 4740, 1102, 4648, 4672, 4688, 4698, 4702, 4719, 4624, 4756, 4757, 4769]
+
+[argus.sms]
+enabled = false
+twilio_account_sid = ""
+twilio_auth_token = ""
+from_number = ""
+to_number = ""
+
+[argus.jsonl]
+enabled = true
+directory = ".argus/events"
+
+[argus.metering]
+# standard preserves historical behavior closely; lite applies fleet-safe caps.
+profile = "standard" # "standard" or "lite"
+queue_max_signals = 4096
+max_signal_payload_bytes = 262144
+max_signals_per_minute = 0
+loop_jitter_percent = 0.0
+backoff_seconds = 0.0
+cycle_time_budget_seconds = 0.0
+cpu_max_load_per_core = 0.0
+disk_min_free_mb = 50
+disk_min_free_percent = 0.0
+reserve_severity = "high"
+
+[argus.process_monitor]
+enabled = false
+poll_seconds = 10
+allowlist = [
+  "C:\\Windows\\*",
+  "C:\\Program Files\\*",
+  "C:\\Program Files (x86)\\*",
+  "%USERPROFILE%\\AppData\\Local\\Programs\\*",
+]
+denylist = ["*mimikatz*", "*procdump*", "*rundll32* comsvcs.dll*"]
+alert_on_unknown = true
+
+[argus.file_sentinel]
+enabled = false
+poll_seconds = 5
+paths = [
+  "%USERPROFILE%\\Documents\\credentials.kdbx",
+  "%USERPROFILE%\\.ssh\\id_ed25519",
+]
+
+[argus.persistence_monitor]
+enabled = false
+poll_seconds = 30
+watch_paths = []
+
+[argus.anti_tamper]
+enabled = false
+poll_seconds = 15
+watch_files = [".argus/state.json", "config.toml"]
+required_tasks = ["Argus-OnLock", "Argus-OnUnlock"]
+
+[argus.session_monitor]
+enabled = false
+poll_seconds = 10
+logon_types = [3, 10]
+
+[argus.evidence]
+enabled = true
+output_dir = ".argus/evidence"
+recent_file_window_minutes = 5
+
+[argus.threat_response]
+lockdown_min_severity = "high"
+lockdown_min_confidence = 0.9
+
+[argus.webhook]
+enabled = false
+url = ""
+secret = ""
+timeout_seconds = 5
+
+[argus.syslog]
+enabled = false
+host = "127.0.0.1"
+port = 5514
+protocol = "udp"
+
+[argus.network_egress]
+# Disabled by default. Enable only after tuning allowlists; this watches host-observed outbound connections.
+enabled = false
+poll_seconds = 60
+suspicious_ports = [4444, 5555, 6666, 9001, 1234, 1337, 31337]
+suspicious_processes = ["nc", "ncat", "netcat", "socat", "plink", "chisel", "ligolo", "ngrok"]
+process_allowlist = ["qbittorrent", "qbittorrent-nox", "firefox", "chrome", "chromium", "brave", "curl", "wget", "syncthing", "tailscale", "tailscaled"]

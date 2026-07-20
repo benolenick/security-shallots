@@ -1,0 +1,14 @@
+﻿argus:
+  hostname: ""
+
+journalctl:
+  enabled: true
+  units:
+    - ssh
+    - sshd
+  min_severity: 1
+
+emitters:
+  jsonl:
+    enabled: true
+    path: "/var/log/argus/alerts.jsonl"

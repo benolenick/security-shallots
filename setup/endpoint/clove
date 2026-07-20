@@ -1,0 +1,747 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ============================================================
+# Clove — Security Shallots Endpoint Agent Installer
+# One-command deployment for Wazuh agent + optional CrowdSec
+# ============================================================
+# Usage:
+#   curl -fsSL https://raw.githubusercontent.com/benolenick/security-shallots/main/setup/endpoint/clove \
+#     | sudo bash -s -- --manager 192.168.0.224
+#
+#   Or download and run:
+#     chmod +x clove
+#     sudo ./clove --manager 192.168.0.224
+
+# --------------- Colors & formatting -----------------------
+RED='\033[0;31m'
+GRN='\033[0;32m'
+YLW='\033[1;33m'
+BLU='\033[0;34m'
+CYN='\033[0;36m'
+WHT='\033[1;37m'
+DIM='\033[2m'
+RST='\033[0m'
+
+ok()   { echo -e "${GRN}  [OK]${RST}  $*"; }
+warn() { echo -e "${YLW}  [!!]${RST}  $*"; }
+err()  { echo -e "${RED}  [XX]${RST}  $*"; }
+info() { echo -e "${BLU}  [>>]${RST}  $*"; }
+step() { echo -e "\n${CYN}━━━ $* ${RST}"; }
+die()  { err "$*"; exit 1; }
+
+# --------------- Banner ------------------------------------
+print_banner() {
+    echo -e "${YLW}"
+    cat <<'BANNER'
+    ____ _
+   / ___| | _____   _____
+  | |   | |/ _ \ \ / / _ \
+  | |___| | (_) \ V /  __/
+   \____|_|\___/ \_/ \___|
+   Security Shallots Endpoint Agent
+BANNER
+    echo -e "${RST}"
+}
+
+# --------------- Defaults ----------------------------------
+MANAGER_IP=""
+AGENT_NAME="$(hostname)"
+AGENT_GROUP="default"
+AUTH_PASSWORD=""
+INSTALL_CROWDSEC=false
+DO_UNINSTALL=false
+SKIP_HEALTHCHECK=false
+
+WAZUH_VERSION="4.x"
+WAZUH_GPG_URL="https://packages.wazuh.com/key/GPG-KEY-WAZUH"
+WAZUH_REPO_BASE="https://packages.wazuh.com/${WAZUH_VERSION}"
+
+# --------------- Argument parsing --------------------------
+usage() {
+    cat <<EOF
+Usage: $(basename "$0") [OPTIONS]
+
+Options:
+  -m, --manager IP       Wazuh manager IP (required)
+  -n, --name NAME        Agent display name (default: hostname)
+  -g, --group GROUP      Wazuh agent group (default: default)
+  -p, --password PW      Authd registration password
+      --crowdsec         Also install CrowdSec + firewall bouncer
+      --uninstall        Remove all endpoint agents
+      --skip-healthcheck Skip connectivity verification
+  -h, --help             Show this help
+
+Environment:
+  SHALLOTS_MANAGER_IP    Fallback for --manager if not specified
+EOF
+    exit 0
+}
+
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -m|--manager)    MANAGER_IP="$2";      shift 2 ;;
+            -n|--name)       AGENT_NAME="$2";      shift 2 ;;
+            -g|--group)      AGENT_GROUP="$2";     shift 2 ;;
+            -p|--password)   AUTH_PASSWORD="$2";   shift 2 ;;
+            --crowdsec)      INSTALL_CROWDSEC=true; shift ;;
+            --uninstall)     DO_UNINSTALL=true;    shift ;;
+            --skip-healthcheck) SKIP_HEALTHCHECK=true; shift ;;
+            -h|--help)       usage ;;
+            *)               die "Unknown option: $1 (use --help)" ;;
+        esac
+    done
+}
+
+resolve_manager_ip() {
+    # --manager flag takes priority
+    if [[ -n "$MANAGER_IP" ]]; then
+        return
+    fi
+
+    # Fallback: environment variable
+    if [[ -n "${SHALLOTS_MANAGER_IP:-}" ]]; then
+        MANAGER_IP="$SHALLOTS_MANAGER_IP"
+        info "Using manager IP from SHALLOTS_MANAGER_IP: ${MANAGER_IP}"
+        return
+    fi
+
+    # Fallback: interactive prompt (only works if stdin is a terminal)
+    if [[ -t 0 ]]; then
+        echo -en "  ${YLW}Enter Wazuh manager IP: ${RST}"
+        read -r MANAGER_IP
+        if [[ -n "$MANAGER_IP" ]]; then
+            return
+        fi
+    fi
+
+    die "Manager IP is required. Use --manager IP or set SHALLOTS_MANAGER_IP"
+}
+
+# --------------- OS detection -----------------------------
+DISTRO_FAMILY=""  # debian or rhel
+PKG_MGR=""        # apt-get or yum/dnf
+
+detect_os() {
+    if [[ ! -f /etc/os-release ]]; then
+        die "Cannot detect OS — /etc/os-release not found"
+    fi
+    # shellcheck disable=SC1091
+    source /etc/os-release
+
+    case "${ID:-}" in
+        debian|ubuntu|linuxmint|pop)
+            DISTRO_FAMILY="debian"
+            PKG_MGR="apt-get"
+            ;;
+        rhel|centos|rocky|almalinux|fedora|ol)
+            DISTRO_FAMILY="rhel"
+            if command -v dnf &>/dev/null; then
+                PKG_MGR="dnf"
+            else
+                PKG_MGR="yum"
+            fi
+            ;;
+        alpine)
+            die "Alpine Linux is not supported (no Wazuh packages). Use Debian/Ubuntu or RHEL."
+            ;;
+        *)
+            die "Unsupported distribution: ${ID:-unknown}. Supported: Debian/Ubuntu, RHEL/CentOS/Rocky/Alma"
+            ;;
+    esac
+
+    ok "Detected: ${PRETTY_NAME:-$ID} (${DISTRO_FAMILY})"
+}
+
+# --------------- Root check --------------------------------
+check_root() {
+    if [[ $EUID -ne 0 ]]; then
+        die "This script must be run as root (use sudo)"
+    fi
+}
+
+# --------------- Idempotency check -------------------------
+check_existing_install() {
+    # Prevent running on the manager itself
+    if dpkg -s wazuh-manager &>/dev/null 2>&1 || rpm -q wazuh-manager &>/dev/null 2>&1; then
+        die "Wazuh Manager is installed on this host. The endpoint script is for agent-only machines. The manager already monitors itself."
+    fi
+
+    if systemctl is-active wazuh-agent &>/dev/null; then
+        local current_mgr
+        current_mgr=$(grep -oP '(?<=<address>)[^<]+' /var/ossec/etc/ossec.conf 2>/dev/null | head -1 || echo "")
+        if [[ "$current_mgr" == "$MANAGER_IP" ]]; then
+            warn "Wazuh agent already running and pointed at ${MANAGER_IP}"
+            info "Reconfiguring agent (custom rules, syscheck paths)..."
+            return 0
+        else
+            warn "Wazuh agent running but pointed at ${current_mgr} (not ${MANAGER_IP})"
+            info "Reconfiguring to use ${MANAGER_IP}..."
+        fi
+    fi
+    return 0
+}
+
+# --------------- Manager reachability ----------------------
+check_manager() {
+    step "Checking manager reachability"
+
+    local reachable=false
+
+    # Try nc for port checks
+    if command -v nc &>/dev/null; then
+        if nc -z -w 3 "$MANAGER_IP" 1514 2>/dev/null; then
+            ok "Port 1514 (events) reachable"
+            reachable=true
+        else
+            warn "Port 1514 not reachable (manager may not be running yet)"
+        fi
+        if nc -z -w 3 "$MANAGER_IP" 1515 2>/dev/null; then
+            ok "Port 1515 (enrollment) reachable"
+            reachable=true
+        else
+            warn "Port 1515 not reachable (enrollment may require manual key exchange)"
+        fi
+    fi
+
+    # Fallback: ping
+    if [[ "$reachable" == false ]]; then
+        if ping -c 1 -W 3 "$MANAGER_IP" &>/dev/null; then
+            ok "Manager ${MANAGER_IP} responds to ping"
+        else
+            warn "Manager ${MANAGER_IP} not reachable — installation will proceed but agent may not connect"
+        fi
+    fi
+}
+
+# --------------- Install Wazuh agent ----------------------
+install_wazuh_agent() {
+    step "Installing Wazuh agent"
+
+    if dpkg -s wazuh-agent &>/dev/null 2>&1 || rpm -q wazuh-agent &>/dev/null 2>&1; then
+        info "Wazuh agent package already installed — skipping package install"
+    else
+        if [[ "$DISTRO_FAMILY" == "debian" ]]; then
+            install_wazuh_debian
+        else
+            install_wazuh_rhel
+        fi
+    fi
+
+    configure_wazuh_agent
+    deploy_custom_rules
+}
+
+install_wazuh_debian() {
+    info "Adding Wazuh GPG key and repository (apt)"
+
+    # Install prerequisites
+    $PKG_MGR -y install curl apt-transport-https gnupg2 >/dev/null 2>&1 || true
+
+    # GPG key
+    curl -fsSL "$WAZUH_GPG_URL" | gpg --dearmor -o /usr/share/keyrings/wazuh.gpg 2>/dev/null
+    chmod 644 /usr/share/keyrings/wazuh.gpg
+
+    # Repository
+    echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] ${WAZUH_REPO_BASE}/apt/ stable main" \
+        > /etc/apt/sources.list.d/wazuh.list
+
+    info "Installing wazuh-agent (this may take a minute)..."
+    $PKG_MGR -y update >/dev/null 2>&1
+    WAZUH_MANAGER="$MANAGER_IP" WAZUH_AGENT_NAME="$AGENT_NAME" WAZUH_AGENT_GROUP="$AGENT_GROUP" \
+        $PKG_MGR -y install wazuh-agent >/dev/null 2>&1
+
+    # Lock package version
+    echo "wazuh-agent hold" | dpkg --set-selections
+    ok "Wazuh agent installed (version locked)"
+}
+
+install_wazuh_rhel() {
+    info "Adding Wazuh repository (yum/dnf)"
+
+    rpm --import "$WAZUH_GPG_URL" 2>/dev/null || true
+
+    cat > /etc/yum.repos.d/wazuh.repo <<REPO
+[wazuh]
+gpgcheck=1
+gpgkey=${WAZUH_GPG_URL}
+enabled=1
+name=Wazuh repository
+baseurl=${WAZUH_REPO_BASE}/yum/
+protect=1
+REPO
+
+    info "Installing wazuh-agent (this may take a minute)..."
+    WAZUH_MANAGER="$MANAGER_IP" WAZUH_AGENT_NAME="$AGENT_NAME" WAZUH_AGENT_GROUP="$AGENT_GROUP" \
+        $PKG_MGR -y install wazuh-agent >/dev/null 2>&1
+
+    # Lock package version — disable repo after install
+    sed -i 's/^enabled=1/enabled=0/' /etc/yum.repos.d/wazuh.repo
+    ok "Wazuh agent installed (repo disabled to prevent auto-upgrades)"
+}
+
+# --------------- Configure agent --------------------------
+configure_wazuh_agent() {
+    step "Configuring Wazuh agent"
+
+    local ossec_conf="/var/ossec/etc/ossec.conf"
+
+    if [[ ! -f "$ossec_conf" ]]; then
+        die "ossec.conf not found at ${ossec_conf} — installation may have failed"
+    fi
+
+    # Set manager address (in case WAZUH_MANAGER env var didn't take effect)
+    sed -i "s|<address>.*</address>|<address>${MANAGER_IP}</address>|g" "$ossec_conf"
+    ok "Manager address set to ${MANAGER_IP}"
+
+    # Set agent name in enrollment block if present
+    if grep -q '<agent_name>' "$ossec_conf"; then
+        sed -i "s|<agent_name>.*</agent_name>|<agent_name>${AGENT_NAME}</agent_name>|g" "$ossec_conf"
+    elif grep -q '</enrollment>' "$ossec_conf"; then
+        sed -i "s|</enrollment>|  <agent_name>${AGENT_NAME}</agent_name>\n  </enrollment>|" "$ossec_conf"
+    fi
+    ok "Agent name set to ${AGENT_NAME}"
+
+    # Set group if provided
+    if [[ "$AGENT_GROUP" != "default" ]]; then
+        if grep -q '<groups>' "$ossec_conf"; then
+            sed -i "s|<groups>.*</groups>|<groups>${AGENT_GROUP}</groups>|g" "$ossec_conf"
+        elif grep -q '</enrollment>' "$ossec_conf"; then
+            sed -i "s|</enrollment>|  <groups>${AGENT_GROUP}</groups>\n  </enrollment>|" "$ossec_conf"
+        fi
+        ok "Agent group set to ${AGENT_GROUP}"
+    fi
+
+    # Set auth password if provided
+    if [[ -n "$AUTH_PASSWORD" ]]; then
+        local auth_pass_file="/var/ossec/etc/authd.pass"
+        echo "$AUTH_PASSWORD" > "$auth_pass_file"
+        chmod 640 "$auth_pass_file"
+        chown root:wazuh "$auth_pass_file" 2>/dev/null || true
+        ok "Enrollment password configured"
+    fi
+
+    # Add /home to syscheck monitoring if not already present
+    if ! grep -q '<directories>/home</directories>' "$ossec_conf"; then
+        sed -i '/<\/syscheck>/i\    <directories check_all="yes" realtime="yes">/home</directories>' "$ossec_conf"
+        ok "Added /home to file integrity monitoring"
+    fi
+}
+
+# --------------- Deploy custom OSSEC rules ----------------
+deploy_custom_rules() {
+    step "Deploying Security Shallots custom rules"
+
+    local rules_dir="/var/ossec/etc/rules"
+    local rules_file="${rules_dir}/shallots_local_rules.xml"
+
+    mkdir -p "$rules_dir"
+
+    cat > "$rules_file" <<'RULES_XML'
+<!-- Security Shallots — Custom OSSEC Rules -->
+<!-- Deployed by Clove endpoint agent installer -->
+
+<group name="shallots,">
+
+  <!-- ── File Integrity Monitoring ── -->
+  <rule id="900001" level="10">
+    <if_sid>554</if_sid>
+    <match>/etc/passwd|/etc/shadow|/etc/sudoers</match>
+    <description>Critical system file modified: $(file)</description>
+    <group>syscheck,pci_dss_11.5,</group>
+  </rule>
+
+  <rule id="900002" level="12">
+    <if_sid>554</if_sid>
+    <match>/etc/ssh/sshd_config</match>
+    <description>SSH configuration modified</description>
+    <group>syscheck,pci_dss_11.5,</group>
+  </rule>
+
+  <rule id="900003" level="10">
+    <if_sid>554</if_sid>
+    <match>/etc/crontab|/var/spool/cron</match>
+    <description>Crontab modified: possible persistence</description>
+    <group>syscheck,pci_dss_11.5,</group>
+  </rule>
+
+  <!-- ── Authentication ── -->
+  <rule id="900010" level="10" frequency="5" timeframe="120">
+    <if_matched_sid>5710</if_matched_sid>
+    <description>SSH brute force attack (5+ failures in 2 min)</description>
+    <group>authentication_failures,</group>
+  </rule>
+
+  <rule id="900011" level="12">
+    <if_sid>5715</if_sid>
+    <user>root</user>
+    <description>Successful SSH login as root</description>
+    <group>authentication_success,</group>
+  </rule>
+
+  <rule id="900012" level="10" frequency="3" timeframe="60">
+    <if_matched_sid>5503</if_matched_sid>
+    <description>Multiple sudo failures (possible privilege escalation attempt)</description>
+    <group>authentication_failures,</group>
+  </rule>
+
+  <!-- ── Process Monitoring ── -->
+  <rule id="900020" level="10">
+    <if_sid>533</if_sid>
+    <match>nc |ncat |netcat |socat </match>
+    <description>Network utility started (possible reverse shell)</description>
+    <group>process_monitor,</group>
+  </rule>
+
+  <rule id="900021" level="12">
+    <if_sid>533</if_sid>
+    <match>wget |curl </match>
+    <url>pastebin|transfer.sh|ngrok</url>
+    <description>Download from suspicious source</description>
+    <group>process_monitor,</group>
+  </rule>
+
+  <!-- ── Docker / Container Events ── -->
+  <rule id="900030" level="8">
+    <decoded_as>json</decoded_as>
+    <field name="type">container</field>
+    <match>privileged</match>
+    <description>Privileged container started</description>
+    <group>docker,</group>
+  </rule>
+
+  <!-- ── systemd Service Changes ── -->
+  <rule id="900040" level="8">
+    <if_sid>554</if_sid>
+    <match>/etc/systemd/system/|/lib/systemd/system/</match>
+    <description>Systemd service file modified: possible persistence</description>
+    <group>syscheck,</group>
+  </rule>
+
+</group>
+RULES_XML
+
+    chmod 640 "$rules_file"
+    chown root:wazuh "$rules_file" 2>/dev/null || true
+    ok "Custom rules deployed to ${rules_file}"
+}
+
+# --------------- Start agent ------------------------------
+start_wazuh_agent() {
+    step "Starting Wazuh agent"
+
+    systemctl daemon-reload
+    systemctl enable wazuh-agent >/dev/null 2>&1
+    systemctl restart wazuh-agent
+
+    info "Waiting for agent to initialize..."
+    sleep 5
+
+    if systemctl is-active wazuh-agent &>/dev/null; then
+        ok "Wazuh agent is running"
+    else
+        err "Wazuh agent failed to start"
+        warn "Check logs: journalctl -u wazuh-agent -n 30"
+        warn "Also check: /var/ossec/logs/ossec.log"
+    fi
+}
+
+# --------------- CrowdSec (optional) ----------------------
+install_crowdsec() {
+    step "Installing CrowdSec"
+
+    if command -v cscli &>/dev/null; then
+        info "CrowdSec already installed — skipping"
+    else
+        info "Running CrowdSec install script..."
+        curl -fsSL https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.deb.sh 2>/dev/null \
+            | bash >/dev/null 2>&1 || \
+        curl -fsSL https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.rpm.sh 2>/dev/null \
+            | bash >/dev/null 2>&1
+
+        $PKG_MGR -y install crowdsec >/dev/null 2>&1
+        ok "CrowdSec installed"
+    fi
+
+    # Install firewall bouncer
+    if ! command -v cs-firewall-bouncer &>/dev/null && \
+       ! dpkg -l crowdsec-firewall-bouncer-iptables &>/dev/null 2>&1 && \
+       ! rpm -q crowdsec-firewall-bouncer-iptables &>/dev/null 2>&1; then
+        info "Installing firewall bouncer..."
+        $PKG_MGR -y install crowdsec-firewall-bouncer-iptables >/dev/null 2>&1
+        ok "Firewall bouncer installed"
+    fi
+
+    # Install collections
+    info "Installing CrowdSec collections..."
+    cscli collections install crowdsecurity/linux >/dev/null 2>&1 || true
+    cscli collections install crowdsecurity/sshd >/dev/null 2>&1 || true
+    ok "CrowdSec collections installed (linux, sshd)"
+
+    # Enable and start
+    systemctl enable crowdsec >/dev/null 2>&1
+    systemctl restart crowdsec
+    systemctl enable crowdsec-firewall-bouncer >/dev/null 2>&1 || true
+    systemctl restart crowdsec-firewall-bouncer 2>/dev/null || true
+    ok "CrowdSec services started"
+}
+
+# --------------- Health check -----------------------------
+run_healthcheck() {
+    step "Running health check"
+
+    local all_good=true
+
+    # Service status
+    if systemctl is-active wazuh-agent &>/dev/null; then
+        ok "wazuh-agent service: active"
+    else
+        err "wazuh-agent service: NOT active"
+        all_good=false
+    fi
+
+    # Client keys (agent enrolled)
+    if [[ -s /var/ossec/etc/client.keys ]]; then
+        local agent_id
+        agent_id=$(awk '{print $1}' /var/ossec/etc/client.keys | head -1)
+        ok "Agent enrolled with ID: ${agent_id}"
+    else
+        warn "client.keys is empty — agent not yet enrolled (may need time or manual key)"
+        all_good=false
+    fi
+
+    # Log check for connection
+    if grep -q "Connected to the server" /var/ossec/logs/ossec.log 2>/dev/null; then
+        ok "Agent connected to manager"
+    else
+        warn "No 'Connected to the server' in ossec.log yet (may need a moment)"
+        all_good=false
+    fi
+
+    # Manager port reachability
+    if command -v nc &>/dev/null && nc -z -w 3 "$MANAGER_IP" 1514 2>/dev/null; then
+        ok "Manager port 1514 reachable"
+    fi
+
+    if [[ "$INSTALL_CROWDSEC" == true ]]; then
+        if systemctl is-active crowdsec &>/dev/null; then
+            ok "CrowdSec service: active"
+        else
+            warn "CrowdSec service: NOT active"
+            all_good=false
+        fi
+    fi
+
+    if [[ "$all_good" == true ]]; then
+        ok "All health checks passed"
+    else
+        warn "Some checks did not pass — agent may still be initializing"
+        info "Re-check in 30 seconds: systemctl status wazuh-agent"
+    fi
+}
+
+# --------------- Uninstall --------------------------------
+do_uninstall() {
+    step "Uninstalling endpoint agents"
+
+    # Stop and disable Wazuh agent
+    if systemctl is-active wazuh-agent &>/dev/null; then
+        systemctl stop wazuh-agent
+        systemctl disable wazuh-agent 2>/dev/null || true
+        ok "Wazuh agent stopped"
+    fi
+
+    # Remove Wazuh package
+    if [[ "$DISTRO_FAMILY" == "debian" ]]; then
+        echo "wazuh-agent install" | dpkg --set-selections 2>/dev/null || true
+        apt-get -y purge wazuh-agent >/dev/null 2>&1 || true
+        rm -f /etc/apt/sources.list.d/wazuh.list
+        rm -f /usr/share/keyrings/wazuh.gpg
+        apt-get -y autoremove >/dev/null 2>&1 || true
+    else
+        $PKG_MGR -y remove wazuh-agent >/dev/null 2>&1 || true
+        rm -f /etc/yum.repos.d/wazuh.repo
+    fi
+    ok "Wazuh agent package removed"
+
+    # Clean custom rules
+    rm -f /var/ossec/etc/rules/shallots_local_rules.xml
+    ok "Custom rules removed"
+
+    # Remove leftover directories
+    if [[ -d /var/ossec ]]; then
+        warn "/var/ossec directory still exists — remove manually if desired: rm -rf /var/ossec"
+    fi
+
+    # CrowdSec
+    if command -v cscli &>/dev/null || systemctl list-unit-files crowdsec.service &>/dev/null 2>&1; then
+        systemctl stop crowdsec 2>/dev/null || true
+        systemctl stop crowdsec-firewall-bouncer 2>/dev/null || true
+        systemctl disable crowdsec 2>/dev/null || true
+        systemctl disable crowdsec-firewall-bouncer 2>/dev/null || true
+        if [[ "$DISTRO_FAMILY" == "debian" ]]; then
+            apt-get -y purge crowdsec crowdsec-firewall-bouncer-iptables >/dev/null 2>&1 || true
+        else
+            $PKG_MGR -y remove crowdsec crowdsec-firewall-bouncer-iptables >/dev/null 2>&1 || true
+        fi
+        ok "CrowdSec removed"
+    fi
+
+    echo ""
+    ok "Endpoint agents uninstalled"
+    exit 0
+}
+
+# --------------- Clone repo for self-update ---------------
+clone_repo() {
+    local repo_dir="/opt/security-shallots"
+
+    if [[ -d "${repo_dir}/.git" ]]; then
+        info "Repo exists at ${repo_dir}, updating..."
+        if command -v git &>/dev/null; then
+            git -C "$repo_dir" pull --ff-only 2>/dev/null || true
+        fi
+        return
+    fi
+
+    step "Cloning Security Shallots repo"
+
+    if command -v git &>/dev/null; then
+        git clone --depth 1 https://github.com/benolenick/security-shallots.git "$repo_dir" 2>/dev/null
+        ok "Repo cloned to ${repo_dir}"
+    else
+        info "Git not found, downloading zip..."
+        local zip="/tmp/shallots.zip"
+        curl -fsSL "https://github.com/benolenick/security-shallots/archive/refs/heads/main.zip" -o "$zip"
+        unzip -qo "$zip" -d /tmp
+        mv /tmp/security-shallots-main "$repo_dir"
+        rm -f "$zip"
+        ok "Source downloaded to ${repo_dir} (no git — self-update requires git)"
+    fi
+}
+
+# --------------- Watchdog + Heartbeat ---------------------
+install_watchdog() {
+    step "Installing Clove watchdog"
+
+    local scheme="https"
+    local port="8844"
+    local repo_dir="/opt/security-shallots"
+    local watchdog_src="${repo_dir}/setup/endpoint/clove-watchdog"
+
+    # If repo exists, use the standalone watchdog from it
+    if [[ -f "$watchdog_src" ]]; then
+        cp "$watchdog_src" /usr/local/bin/clove-watchdog
+    else
+        # Download standalone watchdog from GitHub
+        info "Downloading clove-watchdog..."
+        curl -fsSL "https://raw.githubusercontent.com/benolenick/security-shallots/main/setup/endpoint/clove-watchdog" \
+            -o /usr/local/bin/clove-watchdog
+    fi
+
+    # Configure
+    sed -i "s|__MANAGER_URL__|${scheme}://${MANAGER_IP}:${port}|g" /usr/local/bin/clove-watchdog
+    sed -i "s|__REPO_DIR__|${repo_dir}|g" /usr/local/bin/clove-watchdog
+    chmod +x /usr/local/bin/clove-watchdog
+
+    # Create state directory
+    mkdir -p /var/lib/clove
+
+    # Install cron (every 2 minutes)
+    local cron_line="*/2 * * * * /usr/local/bin/clove-watchdog"
+    (crontab -l 2>/dev/null | grep -v "clove-watchdog"; echo "$cron_line") | crontab -
+
+    ok "Watchdog installed at /usr/local/bin/clove-watchdog"
+    ok "State directory: /var/lib/clove"
+    ok "Cron: every 2 minutes"
+
+    # Run once immediately
+    /usr/local/bin/clove-watchdog &
+    ok "Initial run triggered"
+}
+
+# --------------- Summary ----------------------------------
+print_summary() {
+    local agent_id="(pending)"
+    if [[ -s /var/ossec/etc/client.keys ]]; then
+        agent_id=$(awk '{print $1}' /var/ossec/etc/client.keys | head -1)
+    fi
+
+    local agent_status
+    agent_status=$(systemctl is-active wazuh-agent 2>/dev/null || echo "unknown")
+
+    echo ""
+    echo -e "${GRN}  ✓ Clove endpoint agent deployment complete${RST}"
+    echo ""
+    echo -e "  ${WHT}Manager:${RST}        ${MANAGER_IP}"
+    echo -e "  ${WHT}Agent name:${RST}     ${AGENT_NAME}"
+    echo -e "  ${WHT}Agent ID:${RST}       ${agent_id}"
+    echo -e "  ${WHT}Group:${RST}          ${AGENT_GROUP}"
+    echo -e "  ${WHT}Status:${RST}         ${agent_status}"
+    echo ""
+    echo -e "  ${WHT}Logs:${RST}"
+    echo -e "    Agent:     /var/ossec/logs/ossec.log"
+    echo -e "    Config:    /var/ossec/etc/ossec.conf"
+    echo -e "    Rules:     /var/ossec/etc/rules/shallots_local_rules.xml"
+
+    if [[ "$INSTALL_CROWDSEC" == true ]]; then
+        local cs_status
+        cs_status=$(systemctl is-active crowdsec 2>/dev/null || echo "unknown")
+        echo -e "    CrowdSec:  ${cs_status} (cscli metrics)"
+    fi
+
+    echo ""
+    echo -e "  ${WHT}Dashboard:${RST}      http://${MANAGER_IP}:8844"
+    echo ""
+    echo -e "  ${DIM}Useful commands:${RST}"
+    echo -e "  ${DIM}  systemctl status wazuh-agent        # agent status${RST}"
+    echo -e "  ${DIM}  tail -f /var/ossec/logs/ossec.log   # live agent log${RST}"
+    echo -e "  ${DIM}  sudo ./clove --uninstall            # remove agent${RST}"
+    echo ""
+}
+
+# --------------- Main -------------------------------------
+main() {
+    print_banner
+    parse_args "$@"
+
+    check_root
+    detect_os
+
+    # Uninstall mode (before resolving manager IP — uninstall doesn't need it)
+    if [[ "$DO_UNINSTALL" == true ]]; then
+        do_uninstall
+    fi
+
+    # Resolve manager IP (flag > env > prompt)
+    resolve_manager_ip
+
+    info "Manager: ${MANAGER_IP} | Agent: ${AGENT_NAME} | Group: ${AGENT_GROUP}"
+    echo ""
+
+    check_existing_install
+
+    if [[ "$SKIP_HEALTHCHECK" != true ]]; then
+        check_manager
+    fi
+
+    # Clone repo for watchdog + self-update
+    clone_repo
+
+    install_wazuh_agent
+    start_wazuh_agent
+    install_watchdog
+
+    if [[ "$INSTALL_CROWDSEC" == true ]]; then
+        install_crowdsec
+    fi
+
+    if [[ "$SKIP_HEALTHCHECK" != true ]]; then
+        run_healthcheck
+    fi
+
+    print_summary
+}
+
+main "$@"

@@ -1,0 +1,326 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_VICTORIALOGS",
+      "label": "VictoriaLogs",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "victoriametrics-logs-datasource",
+      "pluginName": "VictoriaLogs"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "datasource",
+      "id": "victoriametrics-logs-datasource",
+      "name": "VictoriaLogs",
+      "version": "0.1.0"
+    }
+  ],
+  "annotations": { "list": [] },
+  "description": "AI triage performance: verdicts, auto/manual split, model latency and confidence scores",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "Triage Summary",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }, "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 3, "w": 4, "x": 0, "y": 1 },
+      "id": 1,
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "area", "orientation": "auto", "textMode": "auto" },
+      "targets": [
+        {
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+          "expr": "_stream:{job=\"shallots\",component=\"ai\"} | json | count()",
+          "queryType": "instant",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Triaged (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 50 }] }, "unit": "percent" }, "overrides": [] },
+      "gridPos": { "h": 3, "w": 4, "x": 4, "y": 1 },
+      "id": 2,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "orientation": "auto", "textMode": "auto" },
+      "targets": [
+        {
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+          "expr": "_stream:{job=\"shallots\",component=\"ai\"} | json | verdict:\"benign\" | count()",
+          "queryType": "instant",
+          "refId": "A"
+        }
+      ],
+      "title": "Auto-Closed (Benign)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 5 }, { "color": "red", "value": 20 }] }, "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 3, "w": 4, "x": 8, "y": 1 },
+      "id": 3,
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "area", "orientation": "auto", "textMode": "auto" },
+      "targets": [
+        {
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+          "expr": "_stream:{job=\"shallots\",component=\"ai\"} | json | verdict:\"escalate\" | count()",
+          "queryType": "instant",
+          "refId": "A"
+        }
+      ],
+      "title": "Escalated to Human",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 2000 }, { "color": "red", "value": 5000 }] }, "unit": "ms" }, "overrides": [] },
+      "gridPos": { "h": 3, "w": 4, "x": 12, "y": 1 },
+      "id": 4,
+      "options": { "reduceOptions": { "calcs": ["mean"] }, "colorMode": "value", "graphMode": "area", "orientation": "auto", "textMode": "auto" },
+      "targets": [
+        {
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+          "expr": "_stream:{job=\"shallots\",component=\"ai\"} | json | avg(latency_ms)",
+          "queryType": "instant",
+          "refId": "A"
+        }
+      ],
+      "title": "Avg Model Latency",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 4 },
+      "id": 101,
+      "title": "Verdict Trends",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "bars", "fillOpacity": 80, "lineWidth": 1, "stacking": { "group": "A", "mode": "normal" } },
+          "unit": "short"
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "benign" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "suspicious" }, "properties": [{ "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "malicious" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "escalate" }, "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }] }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 14, "x": 0, "y": 5 },
+      "id": 5,
+      "options": {
+        "legend": { "calcs": ["sum"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+          "expr": "_stream:{job=\"shallots\",component=\"ai\"} | json | count() by (verdict)",
+          "legendFormat": "{{verdict}}",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Triage Verdicts Over Time (Stacked)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 5, "x": 14, "y": 5 },
+      "id": 6,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "values": ["percent"] }, "pieType": "pie", "tooltip": { "mode": "single" } },
+      "targets": [
+        {
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+          "expr": "_stream:{job=\"shallots\",component=\"ai\"} | json | count() by (verdict)",
+          "legendFormat": "{{verdict}}",
+          "queryType": "instant",
+          "refId": "A"
+        }
+      ],
+      "title": "Verdict Distribution",
+      "type": "piechart"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 5, "x": 19, "y": 5 },
+      "id": 7,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "values": ["percent"] }, "pieType": "donut", "tooltip": { "mode": "single" } },
+      "targets": [
+        {
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+          "expr": "_stream:{job=\"shallots\",component=\"ai\"} | json | count() by (auto_closed)",
+          "legendFormat": "{{auto_closed}}",
+          "queryType": "instant",
+          "refId": "A"
+        }
+      ],
+      "title": "Auto vs Manual Rate",
+      "type": "piechart"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 },
+      "id": 102,
+      "title": "Performance Metrics",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }, "unit": "ms" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "id": 8,
+      "options": {
+        "legend": { "calcs": ["mean", "max", "p95"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+          "expr": "_stream:{job=\"shallots\",component=\"ai\"} | json | avg(latency_ms)",
+          "legendFormat": "avg latency",
+          "queryType": "range",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+          "expr": "_stream:{job=\"shallots\",component=\"ai\"} | json | max(latency_ms)",
+          "legendFormat": "max latency",
+          "queryType": "range",
+          "refId": "B"
+        }
+      ],
+      "title": "Model Latency Over Time",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "custom": { "drawStyle": "line", "fillOpacity": 20, "lineWidth": 2 }, "unit": "percentunit", "min": 0, "max": 1 },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "id": 9,
+      "options": {
+        "legend": { "calcs": ["mean", "min"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+          "expr": "_stream:{job=\"shallots\",component=\"ai\"} | json | avg(confidence)",
+          "legendFormat": "avg confidence",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Confidence Score Over Time",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 },
+      "id": 103,
+      "title": "Escalated Alerts",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+      "fieldConfig": { "defaults": { "custom": { "align": "auto" }, "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 14, "x": 0, "y": 23 },
+      "id": 10,
+      "options": { "footer": { "show": false }, "showHeader": true, "sortBy": [{ "desc": true, "displayName": "count" }] },
+      "targets": [
+        {
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+          "expr": "_stream:{job=\"shallots\",component=\"ai\"} | json | verdict:\"escalate\" | count() by (alert_signature) | sort(count desc) | limit(20)",
+          "queryType": "instant",
+          "refId": "A"
+        }
+      ],
+      "title": "Top AI-Escalated Alert Signatures",
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+      "fieldConfig": { "defaults": { "custom": { "align": "auto" } }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 10, "x": 14, "y": 23 },
+      "id": 11,
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [
+        {
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+          "expr": "_stream:{job=\"shallots\",component=\"ai\"} | json | verdict:\"escalate\"",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Recent Escalations",
+      "type": "logs"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "tags": ["security-shallots", "ai", "triage"],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+        "definition": "_stream:{job=\"shallots\",component=\"ai\"} | json | distinct(ai_model)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "AI Model",
+        "multi": false,
+        "name": "ai_model",
+        "options": [],
+        "query": "_stream:{job=\"shallots\",component=\"ai\"} | json | distinct(ai_model)",
+        "refresh": 2,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+        "definition": "_stream:{job=\"shallots\",component=\"ai\"} | json | distinct(verdict)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Verdict",
+        "multi": true,
+        "name": "verdict",
+        "options": [],
+        "query": "_stream:{job=\"shallots\",component=\"ai\"} | json | distinct(verdict)",
+        "refresh": 2,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "AI Triage",
+  "uid": "shallots-ai-triage",
+  "version": 1
+}

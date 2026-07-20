@@ -1,0 +1,36 @@
+[Unit]
+Description=VictoriaLogs — Fast log storage by VictoriaMetrics
+Documentation=https://docs.victoriametrics.com/victorialogs/
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=victorialogs
+Group=victorialogs
+
+ExecStart=/opt/shallots/bin/victoria-logs \
+    -storageDataPath=/var/lib/shallots/vlogs \
+    -httpListenAddr=127.0.0.1:9428 \
+    -retentionPeriod=30d \
+    -loggerLevel=WARN
+
+WorkingDirectory=/var/lib/shallots/vlogs
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/shallots/vlogs
+
+# Resource limits — tune for profile
+LimitNOFILE=1048576
+MemoryMax=1G
+
+[Install]
+WantedBy=multi-user.target

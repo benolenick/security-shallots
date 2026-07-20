@@ -1,0 +1,1237 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ============================================================
+# Security Shallots — Interactive Setup Wizard
+# ============================================================
+
+# --------------- Colors & formatting -----------------------
+RED='\033[0;31m'
+GRN='\033[0;32m'
+YLW='\033[1;33m'
+BLU='\033[0;34m'
+CYN='\033[0;36m'
+WHT='\033[1;37m'
+DIM='\033[2m'
+RST='\033[0m'
+
+ok()   { echo -e "${GRN}  [OK]${RST}  $*"; }
+warn() { echo -e "${YLW}  [!!]${RST}  $*"; }
+err()  { echo -e "${RED}  [XX]${RST}  $*"; }
+info() { echo -e "${BLU}  [>>]${RST}  $*"; }
+step() { echo -e "\n${CYN}━━━ $* ${RST}"; }
+die()  { err "$*"; exit 1; }
+
+# --------------- Banner ------------------------------------
+print_banner() {
+    echo -e "${YLW}"
+    cat <<'BANNER'
+  ███████╗███████╗ ██████╗██╗   ██╗██████╗ ██╗████████╗██╗   ██╗
+  ██╔════╝██╔════╝██╔════╝██║   ██║██╔══██╗██║╚══██╔══╝╚██╗ ██╔╝
+  ███████╗█████╗  ██║     ██║   ██║██████╔╝██║   ██║    ╚████╔╝
+  ╚════██║██╔══╝  ██║     ██║   ██║██╔══██╗██║   ██║     ╚██╔╝
+  ███████║███████╗╚██████╗╚██████╔╝██║  ██║██║   ██║      ██║
+  ╚══════╝╚══════╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝   ╚═╝      ╚═╝
+
+   ███████╗██╗  ██╗ █████╗ ██╗     ██╗      ██████╗ ████████╗███████╗
+   ██╔════╝██║  ██║██╔══██╗██║     ██║     ██╔═══██╗╚══██╔══╝██╔════╝
+   ███████╗███████║███████║██║     ██║     ██║   ██║   ██║   ███████╗
+   ╚════██║██╔══██║██╔══██║██║     ██║     ██║   ██║   ██║   ╚════██║
+   ███████║██║  ██║██║  ██║███████╗███████╗╚██████╔╝   ██║   ███████║
+   ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚══════╝ ╚═════╝    ╚═╝   ╚══════╝
+BANNER
+    echo -e "${RST}"
+    echo -e "${DIM}  The everyman's SIEM — version 0.1.0${RST}"
+    echo -e "${DIM}  Runs on a Raspberry Pi, scales to a server${RST}"
+    echo ""
+}
+
+# --------------- Globals -----------------------------------
+INSTALL_DIR="/opt/shallots"
+CONFIG_DIR="/etc/shallots"
+DATA_DIR="/var/lib/shallots"
+LOG_DIR="/var/log/shallots"
+BIN_DIR="/opt/shallots/bin"
+VENV_DIR="/opt/shallots/venv"
+
+PROFILE=""
+MONITOR_NIC=""
+HOME_CIDR=""
+OS_ID=""
+OS_FAMILY=""   # debian | redhat | alpine
+PKG_MGR=""
+
+COMP_SURICATA=true
+COMP_CROWDSEC=true
+COMP_WAZUH=true
+COMP_VICTORIALOGS=true
+COMP_GRAFANA=true
+COMP_SYSLOG=false
+
+AI_TIER="none"
+AI_OLLAMA_URL=""
+AI_OLLAMA_MODEL=""
+AI_OPENAI_KEY=""
+AI_ANTHROPIC_KEY=""
+VIRUSTOTAL_API_KEY=""
+
+PFSENSE_ENABLED=false
+PFSENSE_API_URL=""
+PFSENSE_API_KEY=""
+PFSENSE_API_SECRET=""
+
+GRAFANA_ADMIN_PASS=""
+CROWDSEC_BOUNCER_KEY=""
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# --------------- Utility helpers ---------------------------
+prompt() {
+    # prompt <var_name> <message> [default]
+    local var="$1"
+    local msg="$2"
+    local default="${3:-}"
+    local prompt_str
+    if [[ -n "$default" ]]; then
+        prompt_str="${WHT}  ${msg}${RST} ${DIM}[${default}]${RST}: "
+    else
+        prompt_str="${WHT}  ${msg}${RST}: "
+    fi
+    echo -en "$prompt_str"
+    read -r input
+    if [[ -z "$input" && -n "$default" ]]; then
+        printf -v "$var" '%s' "$default"
+    else
+        printf -v "$var" '%s' "$input"
+    fi
+}
+
+prompt_yn() {
+    # prompt_yn <message> [Y|N default]
+    local msg="$1"
+    local default="${2:-Y}"
+    local yn_hint
+    if [[ "$default" == "Y" ]]; then
+        yn_hint="${GRN}Y${RST}/${DIM}n${RST}"
+    else
+        yn_hint="${DIM}y${RST}/${GRN}N${RST}"
+    fi
+    echo -en "${WHT}  ${msg}${RST} [${yn_hint}]: "
+    read -r ans
+    ans="${ans:-$default}"
+    [[ "$ans" =~ ^[Yy]$ ]]
+}
+
+require_cmd() {
+    command -v "$1" &>/dev/null || die "Required command not found: $1"
+}
+
+pause() {
+    echo -en "${DIM}  Press Enter to continue...${RST}"
+    read -r
+}
+
+# --------------- Step 1: Root check ------------------------
+check_root() {
+    step "Checking permissions"
+    if [[ "$(id -u)" -ne 0 ]]; then
+        die "This installer must be run as root. Try: sudo $0"
+    fi
+    ok "Running as root"
+}
+
+# --------------- Step 2: OS detection ----------------------
+detect_os() {
+    step "Detecting operating system"
+
+    if [[ -f /etc/os-release ]]; then
+        # shellcheck source=/dev/null
+        source /etc/os-release
+        OS_ID="${ID:-unknown}"
+        local id_like="${ID_LIKE:-}"
+
+        case "$OS_ID" in
+            debian|ubuntu|linuxmint|pop)
+                OS_FAMILY="debian"
+                PKG_MGR="apt"
+                ;;
+            fedora|rhel|centos|rocky|almalinux)
+                OS_FAMILY="redhat"
+                PKG_MGR="dnf"
+                ;;
+            alpine)
+                OS_FAMILY="alpine"
+                PKG_MGR="apk"
+                ;;
+            *)
+                if [[ "$id_like" == *"debian"* || "$id_like" == *"ubuntu"* ]]; then
+                    OS_FAMILY="debian"
+                    PKG_MGR="apt"
+                elif [[ "$id_like" == *"fedora"* || "$id_like" == *"rhel"* ]]; then
+                    OS_FAMILY="redhat"
+                    PKG_MGR="dnf"
+                else
+                    die "Unsupported OS: $OS_ID. Security Shallots supports Debian/Ubuntu, Fedora/RHEL, and Alpine."
+                fi
+                ;;
+        esac
+    elif [[ -f /etc/alpine-release ]]; then
+        OS_FAMILY="alpine"
+        PKG_MGR="apk"
+        OS_ID="alpine"
+    else
+        die "Cannot detect OS. /etc/os-release not found."
+    fi
+
+    ok "Detected: ${OS_ID} (${OS_FAMILY} family, package manager: ${PKG_MGR})"
+}
+
+# --------------- Step 3: Hardware detection ----------------
+detect_hardware() {
+    step "Detecting hardware and selecting profile"
+
+    local mem_kb
+    mem_kb=$(awk '/MemTotal/ {print $2}' /proc/meminfo)
+    local mem_gb
+    mem_gb=$(awk "BEGIN {printf \"%.1f\", $mem_kb/1024/1024}")
+    local mem_gb_int
+    mem_gb_int=$(awk "BEGIN {printf \"%d\", $mem_kb/1024/1024}")
+
+    info "Detected RAM: ${mem_gb} GB"
+
+    # Auto-select profile based on RAM
+    local auto_profile
+    if (( mem_gb_int < 2 )); then
+        auto_profile="lite"
+    elif (( mem_gb_int < 4 )); then
+        auto_profile="micro"
+    elif (( mem_gb_int < 8 )); then
+        auto_profile="standard"
+    else
+        auto_profile="full"
+    fi
+
+    local cpu_cores
+    cpu_cores=$(nproc 2>/dev/null || echo 1)
+    info "Detected CPUs: ${cpu_cores} cores"
+
+    echo ""
+    echo -e "  ${WHT}Profile definitions:${RST}"
+    echo -e "  ${DIM}  lite     (<2 GB)  — Suricata + syslog only, no threat engine${RST}"
+    echo -e "  ${DIM}  micro    (2-4 GB) — + CrowdSec, basic correlations${RST}"
+    echo -e "  ${DIM}  standard (4-8 GB) — + Wazuh, VictoriaLogs, Grafana${RST}"
+    echo -e "  ${DIM}  full     (8+ GB)  — Everything including full threat engine${RST}"
+    echo ""
+    echo -e "  ${GRN}Auto-selected profile: ${auto_profile}${RST}"
+    echo ""
+
+    prompt PROFILE "Profile to use (lite/micro/standard/full)" "$auto_profile"
+
+    case "$PROFILE" in
+        lite|micro|standard|full) ;;
+        *) warn "Unknown profile '$PROFILE', defaulting to micro"; PROFILE="micro" ;;
+    esac
+
+    # Set component defaults based on profile
+    case "$PROFILE" in
+        lite)
+            COMP_SURICATA=true
+            COMP_CROWDSEC=false
+            COMP_WAZUH=false
+            COMP_VICTORIALOGS=false
+            COMP_GRAFANA=false
+            COMP_SYSLOG=true
+            ;;
+        micro)
+            COMP_SURICATA=true
+            COMP_CROWDSEC=true
+            COMP_WAZUH=false
+            COMP_VICTORIALOGS=false
+            COMP_GRAFANA=false
+            ;;
+        standard)
+            COMP_SURICATA=true
+            COMP_CROWDSEC=true
+            COMP_WAZUH=true
+            COMP_VICTORIALOGS=true
+            COMP_GRAFANA=true
+            ;;
+        full)
+            COMP_SURICATA=true
+            COMP_CROWDSEC=true
+            COMP_WAZUH=true
+            COMP_VICTORIALOGS=true
+            COMP_GRAFANA=true
+            COMP_SYSLOG=true
+            ;;
+    esac
+
+    ok "Profile set to: ${PROFILE}"
+}
+
+# --------------- Step 4: NIC detection ---------------------
+detect_nic() {
+    step "Network interface selection"
+
+    # List non-loopback interfaces
+    local ifaces=()
+    while IFS= read -r iface; do
+        [[ "$iface" != "lo" ]] && ifaces+=("$iface")
+    done < <(ls /sys/class/net/)
+
+    if [[ ${#ifaces[@]} -eq 0 ]]; then
+        die "No network interfaces found (excluding loopback)"
+    fi
+
+    echo ""
+    echo -e "  ${WHT}Available interfaces:${RST}"
+    local i=1
+    for iface in "${ifaces[@]}"; do
+        local state
+        state=$(cat "/sys/class/net/${iface}/operstate" 2>/dev/null || echo "unknown")
+        local mac
+        mac=$(cat "/sys/class/net/${iface}/address" 2>/dev/null || echo "??:??:??:??:??:??")
+        printf "  ${CYN}%2d)${RST}  %-16s  state=%-4s  mac=%s\n" "$i" "$iface" "$state" "$mac"
+        (( i++ ))
+    done
+    echo ""
+
+    local default_iface="${ifaces[0]}"
+    # Prefer the first "up" interface
+    for iface in "${ifaces[@]}"; do
+        local state
+        state=$(cat "/sys/class/net/${iface}/operstate" 2>/dev/null || echo "unknown")
+        if [[ "$state" == "up" ]]; then
+            default_iface="$iface"
+            break
+        fi
+    done
+
+    prompt MONITOR_NIC "Interface to monitor (Suricata/PCAP)" "$default_iface"
+
+    # Validate
+    if [[ ! -d "/sys/class/net/${MONITOR_NIC}" ]]; then
+        warn "Interface '${MONITOR_NIC}' not found — proceeding anyway"
+    else
+        ok "Monitoring interface: ${MONITOR_NIC}"
+    fi
+}
+
+# --------------- Step 5: Network config --------------------
+configure_network() {
+    step "Network configuration"
+
+    # Auto-detect CIDR from selected NIC
+    local auto_cidr=""
+    if command -v ip &>/dev/null; then
+        local raw_ip
+        raw_ip=$(ip -4 addr show "${MONITOR_NIC}" 2>/dev/null | awk '/inet /{print $2}' | head -1)
+        if [[ -n "$raw_ip" ]]; then
+            # Convert host address to network CIDR (zero out host bits)
+            local ip prefix
+            ip="${raw_ip%/*}"
+            prefix="${raw_ip#*/}"
+            # Use Python for subnet math if available
+            if command -v python3 &>/dev/null; then
+                auto_cidr=$(python3 -c "
+import ipaddress
+net = ipaddress.ip_interface('${raw_ip}').network
+print(str(net))
+" 2>/dev/null || echo "")
+            fi
+            [[ -z "$auto_cidr" ]] && auto_cidr="${ip%.*}.0/${prefix}"
+        fi
+    fi
+    [[ -z "$auto_cidr" ]] && auto_cidr="192.168.0.0/24"
+
+    echo ""
+    info "Detected network: ${auto_cidr}"
+    echo -e "  ${DIM}This is used as HOME_NET in Suricata rules (trusted local range).${RST}"
+    echo -e "  ${DIM}You can enter a broader CIDR, e.g. 192.168.0.0/16 for the whole subnet.${RST}"
+    echo ""
+
+    prompt HOME_CIDR "Home network CIDR" "$auto_cidr"
+    ok "HOME_CIDR: ${HOME_CIDR}"
+}
+
+# --------------- Step 6: Component selection ---------------
+select_components() {
+    step "Component selection"
+
+    echo ""
+    echo -e "  ${WHT}Components for profile '${PROFILE}':${RST}"
+    echo ""
+
+    local yn_suricata yn_crowdsec yn_wazuh yn_victorialogs yn_grafana yn_syslog
+
+    yn_suricata=$(  [[ "$COMP_SURICATA"       == true ]] && echo "Y" || echo "N")
+    yn_crowdsec=$(  [[ "$COMP_CROWDSEC"       == true ]] && echo "Y" || echo "N")
+    yn_wazuh=$(     [[ "$COMP_WAZUH"          == true ]] && echo "Y" || echo "N")
+    yn_victorialogs=$([[ "$COMP_VICTORIALOGS" == true ]] && echo "Y" || echo "N")
+    yn_grafana=$(   [[ "$COMP_GRAFANA"        == true ]] && echo "Y" || echo "N")
+    yn_syslog=$(    [[ "$COMP_SYSLOG"         == true ]] && echo "Y" || echo "N")
+
+    echo -e "  ${DIM}Toggle each component (Enter = keep default):${RST}"
+    echo ""
+
+    if prompt_yn "  Install Suricata (IDS/IPS, network alerts)" "$yn_suricata"; then
+        COMP_SURICATA=true; ok "Suricata: enabled"
+    else
+        COMP_SURICATA=false; warn "Suricata: disabled"
+    fi
+
+    if prompt_yn "  Install CrowdSec (threat intelligence + blocklists)" "$yn_crowdsec"; then
+        COMP_CROWDSEC=true; ok "CrowdSec: enabled"
+    else
+        COMP_CROWDSEC=false; warn "CrowdSec: disabled"
+    fi
+
+    if prompt_yn "  Install Wazuh manager (host-based intrusion detection)" "$yn_wazuh"; then
+        COMP_WAZUH=true; ok "Wazuh: enabled"
+    else
+        COMP_WAZUH=false; warn "Wazuh: disabled"
+    fi
+
+    if prompt_yn "  Install VictoriaLogs (log storage for Grafana)" "$yn_victorialogs"; then
+        COMP_VICTORIALOGS=true; ok "VictoriaLogs: enabled"
+    else
+        COMP_VICTORIALOGS=false; warn "VictoriaLogs: disabled"
+    fi
+
+    if prompt_yn "  Install Grafana (dashboards)" "$yn_grafana"; then
+        COMP_GRAFANA=true; ok "Grafana: enabled"
+    else
+        COMP_GRAFANA=false; warn "Grafana: disabled"
+    fi
+
+    if prompt_yn "  Enable syslog receiver (for pfSense and LAN devices)" "$yn_syslog"; then
+        COMP_SYSLOG=true; ok "Syslog receiver: enabled"
+    else
+        COMP_SYSLOG=false; warn "Syslog receiver: disabled"
+    fi
+}
+
+# --------------- Step 7: AI configuration ------------------
+configure_ai() {
+    step "AI triage configuration"
+
+    echo ""
+    echo -e "  ${WHT}AI triage is optional.${RST}"
+    echo -e "  ${DIM}When enabled, alerts are batched and sent to an LLM for automated${RST}"
+    echo -e "  ${DIM}severity assessment before human review.${RST}"
+    echo ""
+
+    if prompt_yn "  Do you have an Ollama endpoint (local or remote LLM)?"; then
+        prompt AI_OLLAMA_URL "  Ollama API URL" "http://localhost:11434"
+        prompt AI_OLLAMA_MODEL "  Model name" "llama3"
+        AI_TIER="remote_micro"
+        ok "AI tier: Ollama (${AI_OLLAMA_MODEL} @ ${AI_OLLAMA_URL})"
+    elif prompt_yn "  Do you have an OpenAI or Anthropic API key?"; then
+        if prompt_yn "  Use OpenAI?"; then
+            prompt AI_OPENAI_KEY "  OpenAI API key"
+            AI_TIER="remote_api"
+            ok "AI tier: OpenAI"
+        else
+            prompt AI_ANTHROPIC_KEY "  Anthropic API key"
+            AI_TIER="remote_api"
+            ok "AI tier: Anthropic"
+        fi
+    else
+        AI_TIER="none"
+        warn "AI triage disabled — alerts will be queued for manual review"
+    fi
+
+    echo ""
+    echo -e "  ${WHT}VirusTotal integration (optional, free tier available):${RST}"
+    echo -e "  ${DIM}  Get a free API key at https://www.virustotal.com/gui/join-us${RST}"
+    echo -e "  ${DIM}  Used for file hash lookups on Wazuh syscheck alerts.${RST}"
+    echo ""
+    if prompt_yn "  Do you have a VirusTotal API key?" "N"; then
+        prompt VIRUSTOTAL_API_KEY "  VirusTotal API key"
+        if [[ -n "$VIRUSTOTAL_API_KEY" ]]; then
+            ok "VirusTotal API key set"
+        else
+            warn "No key entered — VirusTotal integration will be disabled"
+            VIRUSTOTAL_API_KEY=""
+        fi
+    fi
+}
+
+# --------------- Step 8: pfSense integration ---------------
+configure_pfsense() {
+    step "pfSense integration"
+
+    echo ""
+    if prompt_yn "  Do you have a pfSense firewall on this network?"; then
+        PFSENSE_ENABLED=true
+        echo ""
+        echo -e "  ${YLW}pfSense syslog setup:${RST}"
+        echo -e "  ${DIM}  1. Log into pfSense → Status → System Logs → Settings${RST}"
+        echo -e "  ${DIM}  2. Enable 'Remote Logging'${RST}"
+        echo -e "  ${DIM}  3. Set Remote Log Servers to: $(hostname -I | awk '{print $1}'):5514${RST}"
+        echo -e "  ${DIM}  4. Check: Firewall Events, DHCP Events, General System Events${RST}"
+        echo -e "  ${DIM}  5. Save. Logs will appear within ~60 seconds.${RST}"
+        echo ""
+
+        if prompt_yn "  Do you have the pfSense API package installed (pfsense-api)?"; then
+            prompt PFSENSE_API_URL "  pfSense API URL (e.g. https://192.168.1.1)" ""
+            prompt PFSENSE_API_KEY "  pfSense API key" ""
+            prompt PFSENSE_API_SECRET "  pfSense API secret" ""
+            ok "pfSense API configured: ${PFSENSE_API_URL}"
+        else
+            warn "No pfSense API — syslog-only integration will be used"
+        fi
+
+        # If syslog not already enabled, enable it
+        if [[ "$COMP_SYSLOG" == false ]]; then
+            warn "pfSense integration requires the syslog receiver — enabling it"
+            COMP_SYSLOG=true
+        fi
+    else
+        PFSENSE_ENABLED=false
+        ok "pfSense integration: disabled"
+    fi
+}
+
+# --------------- Step 9: Install packages ------------------
+install_packages() {
+    step "Installing system packages"
+
+    local pkgs_debian=()
+    local pkgs_redhat=()
+    local pkgs_alpine=()
+
+    # Common base packages
+    pkgs_debian+=(curl wget gnupg2 ca-certificates python3 python3-pip python3-venv rsyslog)
+    pkgs_redhat+=(curl wget gnupg2 ca-certificates python3 python3-pip)
+    pkgs_alpine+=(curl wget python3 py3-pip rsyslog)
+
+    if [[ "$COMP_SURICATA" == true ]]; then
+        pkgs_debian+=(suricata)
+        pkgs_redhat+=(suricata)
+        pkgs_alpine+=(suricata)
+    fi
+
+    case "$OS_FAMILY" in
+        debian)
+            info "Updating apt package lists..."
+            apt-get update -qq
+            info "Installing packages: ${pkgs_debian[*]}"
+            DEBIAN_FRONTEND=noninteractive apt-get install -y "${pkgs_debian[@]}" || warn "Some packages failed to install — continuing"
+            ;;
+        redhat)
+            info "Installing packages: ${pkgs_redhat[*]}"
+            dnf install -y "${pkgs_redhat[@]}" || warn "Some packages failed to install — continuing"
+            ;;
+        alpine)
+            info "Installing packages: ${pkgs_alpine[*]}"
+            apk add --no-cache "${pkgs_alpine[@]}" || warn "Some packages failed to install — continuing"
+            ;;
+    esac
+
+    ok "System packages installed"
+
+    # Create directory structure
+    info "Creating directory structure..."
+    mkdir -p "$INSTALL_DIR" "$CONFIG_DIR" "$DATA_DIR" "$LOG_DIR" "$BIN_DIR"
+    chmod 750 "$CONFIG_DIR"  # config may contain secrets
+
+    # Python venv
+    info "Creating Python virtual environment at ${VENV_DIR}..."
+    if [[ ! -d "$VENV_DIR" ]]; then
+        python3 -m venv "$VENV_DIR"
+        ok "Virtual environment created"
+    else
+        ok "Virtual environment already exists — skipping"
+    fi
+
+    info "Installing Security Shallots Python package..."
+    if [[ -f "${REPO_ROOT}/pyproject.toml" ]]; then
+        "$VENV_DIR/bin/pip" install --quiet --upgrade pip
+        "$VENV_DIR/bin/pip" install --quiet -e "${REPO_ROOT}" || warn "pip install from local source failed — continuing"
+        ok "Installed from local source"
+    else
+        "$VENV_DIR/bin/pip" install --quiet --upgrade pip
+        "$VENV_DIR/bin/pip" install --quiet security-shallots 2>/dev/null || warn "PyPI install failed — package may not be published yet"
+        ok "pip install attempted"
+    fi
+}
+
+# --------------- Step 10: Download binaries ----------------
+
+get_latest_github_release_url() {
+    # get_latest_github_release_url <owner/repo> <asset_pattern>
+    local repo="$1"
+    local pattern="$2"
+    curl -sSL "https://api.github.com/repos/${repo}/releases/latest" \
+        | python3 -c "
+import sys, json, re
+data = json.load(sys.stdin)
+for asset in data.get('assets', []):
+    if re.search('${pattern}', asset['name']):
+        print(asset['browser_download_url'])
+        break
+" 2>/dev/null || echo ""
+}
+
+download_victorialogs() {
+    if [[ "$COMP_VICTORIALOGS" != true ]]; then
+        return 0
+    fi
+
+    step "Downloading VictoriaLogs"
+
+    local bin_path="${BIN_DIR}/victoria-logs"
+    if [[ -f "$bin_path" ]]; then
+        ok "VictoriaLogs already present at ${bin_path} — skipping download"
+        return 0
+    fi
+
+    info "Fetching latest VictoriaLogs release..."
+    local url
+    url=$(get_latest_github_release_url "VictoriaMetrics/VictoriaMetrics" "victoria-logs-linux-amd64")
+
+    if [[ -z "$url" ]]; then
+        # Fallback to known-good URL pattern
+        warn "Could not determine latest release URL — using fallback"
+        url="https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest/download/victoria-logs-linux-amd64-v0.tar.gz"
+    fi
+
+    info "Downloading from: ${url}"
+    local tmpfile
+    tmpfile=$(mktemp /tmp/victorialogs.XXXXXX)
+
+    if curl -sSL "$url" -o "$tmpfile"; then
+        # Handle both plain binary and .tar.gz
+        if file "$tmpfile" | grep -q "gzip"; then
+            tar -xzf "$tmpfile" -C "$BIN_DIR" 2>/dev/null || true
+            # Rename extracted binary
+            find "$BIN_DIR" -name "victoria-logs*" -not -name "*.gz" -not -name "*.tar" \
+                -exec mv {} "${bin_path}" \; 2>/dev/null || true
+        else
+            cp "$tmpfile" "$bin_path"
+        fi
+        chmod +x "$bin_path"
+        rm -f "$tmpfile"
+        ok "VictoriaLogs downloaded to ${bin_path}"
+    else
+        rm -f "$tmpfile"
+        warn "VictoriaLogs download failed — install manually to ${bin_path}"
+    fi
+}
+
+install_crowdsec() {
+    if [[ "$COMP_CROWDSEC" != true ]]; then
+        return 0
+    fi
+
+    step "Installing CrowdSec"
+
+    if command -v cscli &>/dev/null; then
+        ok "CrowdSec already installed — skipping"
+        return 0
+    fi
+
+    info "Running CrowdSec install script..."
+    if curl -sSL https://install.crowdsec.net | bash -s -- -y; then
+        ok "CrowdSec installed"
+    else
+        warn "CrowdSec install script failed — install manually from https://install.crowdsec.net"
+        return 0
+    fi
+
+    # Wait for service to start
+    sleep 3
+
+    # Register firewall bouncer
+    info "Registering firewall bouncer..."
+    if command -v cscli &>/dev/null; then
+        CROWDSEC_BOUNCER_KEY=$(cscli bouncers add shallots-bouncer -o raw 2>/dev/null || echo "")
+        if [[ -n "$CROWDSEC_BOUNCER_KEY" ]]; then
+            ok "CrowdSec bouncer registered"
+        else
+            warn "Could not register bouncer automatically — run: cscli bouncers add shallots-bouncer"
+        fi
+    fi
+}
+
+install_grafana() {
+    if [[ "$COMP_GRAFANA" != true ]]; then
+        return 0
+    fi
+
+    step "Installing Grafana"
+
+    if command -v grafana-server &>/dev/null || command -v grafana &>/dev/null; then
+        ok "Grafana already installed — skipping"
+        return 0
+    fi
+
+    case "$OS_FAMILY" in
+        debian)
+            info "Adding Grafana apt repository..."
+            mkdir -p /etc/apt/keyrings
+            curl -sSL https://apt.grafana.com/gpg.key \
+                | gpg --dearmor -o /etc/apt/keyrings/grafana.gpg
+            cat > /etc/apt/sources.list.d/grafana.list <<'EOF'
+deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main
+EOF
+            apt-get update -qq
+            DEBIAN_FRONTEND=noninteractive apt-get install -y grafana
+            ;;
+        redhat)
+            cat > /etc/yum.repos.d/grafana.repo <<'EOF'
+[grafana]
+name=grafana
+baseurl=https://rpm.grafana.com
+repo_gpgcheck=1
+enabled=1
+gpgcheck=1
+gpgkey=https://rpm.grafana.com/gpg.key
+sslverify=1
+sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+EOF
+            dnf install -y grafana
+            ;;
+        alpine)
+            warn "Grafana not available via apk — downloading binary..."
+            local url
+            url=$(get_latest_github_release_url "grafana/grafana" "grafana_.*_linux_amd64.tar.gz")
+            if [[ -n "$url" ]]; then
+                local tmpdir
+                tmpdir=$(mktemp -d)
+                curl -sSL "$url" -o "${tmpdir}/grafana.tar.gz"
+                tar -xzf "${tmpdir}/grafana.tar.gz" -C /opt/
+                ln -sf /opt/grafana*/bin/grafana-server /usr/local/bin/grafana-server
+                rm -rf "$tmpdir"
+                ok "Grafana downloaded"
+            else
+                warn "Could not download Grafana — install manually"
+            fi
+            ;;
+    esac
+
+    ok "Grafana installed"
+}
+
+install_wazuh() {
+    if [[ "$COMP_WAZUH" != true ]]; then
+        return 0
+    fi
+
+    step "Installing Wazuh manager"
+
+    if systemctl is-active --quiet wazuh-manager 2>/dev/null || \
+       systemctl list-unit-files wazuh-manager.service &>/dev/null; then
+        ok "Wazuh manager already installed — skipping"
+        return 0
+    fi
+
+    case "$OS_FAMILY" in
+        debian)
+            info "Adding Wazuh GPG key..."
+            curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH \
+                | gpg --no-default-keyring \
+                      --keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg \
+                      --import
+            chmod 644 /usr/share/keyrings/wazuh.gpg
+            info "Adding Wazuh apt repository..."
+            echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main" \
+                | tee /etc/apt/sources.list.d/wazuh.list
+            apt-get update -qq
+            info "Installing wazuh-manager..."
+            DEBIAN_FRONTEND=noninteractive apt-get install -y wazuh-manager || \
+                warn "Wazuh manager install failed — install manually from https://documentation.wazuh.com"
+            ;;
+        redhat)
+            info "Adding Wazuh GPG key..."
+            rpm --import https://packages.wazuh.com/key/GPG-KEY-WAZUH
+            info "Adding Wazuh yum repository..."
+            cat > /etc/yum.repos.d/wazuh.repo <<'EOF'
+[wazuh]
+gpgcheck=1
+gpgkey=https://packages.wazuh.com/key/GPG-KEY-WAZUH
+enabled=1
+name=EL-$releasever - Wazuh
+baseurl=https://packages.wazuh.com/4.x/yum/
+protect=1
+EOF
+            info "Installing wazuh-manager..."
+            yum install -y wazuh-manager || \
+                warn "Wazuh manager install failed — install manually from https://documentation.wazuh.com"
+            ;;
+        alpine)
+            warn "Wazuh manager packages are not available for Alpine Linux"
+            warn "Install Wazuh manually: https://documentation.wazuh.com"
+            COMP_WAZUH=false
+            ;;
+    esac
+}
+
+download_binaries() {
+    download_victorialogs
+    install_crowdsec
+    install_grafana
+    install_wazuh
+}
+
+# --------------- Step 11: Generate config ------------------
+generate_config() {
+    step "Generating configuration"
+
+    mkdir -p "$CONFIG_DIR"
+
+    GRAFANA_ADMIN_PASS=$(python3 -c "import secrets, string; \
+        chars=string.ascii_letters+string.digits; \
+        print(''.join(secrets.choice(chars) for _ in range(16)))")
+
+    cat > "${CONFIG_DIR}/config.yaml" <<EOF
+# Security Shallots configuration
+# Generated by shallot-setup on $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+profile: ${PROFILE}
+
+network:
+  home_cidr: "${HOME_CIDR}"
+  monitor_interface: "${MONITOR_NIC}"
+
+components:
+  suricata: ${COMP_SURICATA}
+  crowdsec: ${COMP_CROWDSEC}
+  wazuh: ${COMP_WAZUH}
+  victorialogs: ${COMP_VICTORIALOGS}
+  grafana: ${COMP_GRAFANA}
+  syslog_receiver: ${COMP_SYSLOG}
+
+suricata:
+  eve_path: "/var/log/suricata/eve.json"
+
+wazuh:
+  alerts_path: "/var/ossec/logs/alerts/alerts.json"
+
+crowdsec:
+  api_url: "http://127.0.0.1:8080"
+  api_key: "${CROWDSEC_BOUNCER_KEY}"
+
+pfsense:
+  enabled: ${PFSENSE_ENABLED}
+  api_url: "${PFSENSE_API_URL}"
+  api_key: "${PFSENSE_API_KEY}"
+  api_secret: "${PFSENSE_API_SECRET}"
+  verify_ssl: false
+
+syslog:
+  enabled: ${COMP_SYSLOG}
+  udp_port: 5514
+  tcp_port: 5514
+
+ai:
+  tier: ${AI_TIER}
+  ollama_url: "${AI_OLLAMA_URL}"
+  ollama_model: "${AI_OLLAMA_MODEL}"
+  openai_api_key: "${AI_OPENAI_KEY}"
+  anthropic_api_key: "${AI_ANTHROPIC_KEY}"
+  batch_size: 5
+  batch_interval_sec: 30
+
+virustotal:
+  api_key: "${VIRUSTOTAL_API_KEY}"
+  enabled: $([ -n "${VIRUSTOTAL_API_KEY}" ] && echo true || echo false)
+
+storage:
+  db_path: "/var/lib/shallots/shallots.db"
+  victorialogs_url: "http://127.0.0.1:9428"
+
+web:
+  host: "0.0.0.0"
+  port: 8844
+
+alerting:
+  webhook_url: ""
+  email:
+    enabled: false
+    smtp_host: ""
+    smtp_port: 587
+    from_addr: ""
+    to_addr: ""
+
+geoip:
+  db_path: "/var/lib/shallots/GeoLite2-City.mmdb"
+
+assets:
+  networks: []
+EOF
+
+    chmod 640 "${CONFIG_DIR}/config.yaml"
+    ok "Config written to ${CONFIG_DIR}/config.yaml"
+}
+
+# --------------- Step 12: Configure components -------------
+configure_suricata() {
+    if [[ "$COMP_SURICATA" != true ]]; then
+        return 0
+    fi
+
+    step "Configuring Suricata"
+
+    local suricata_conf="/etc/suricata/suricata.yaml"
+    if [[ ! -f "$suricata_conf" ]]; then
+        warn "Suricata config not found at ${suricata_conf} — skipping configuration"
+        return 0
+    fi
+
+    # Set HOME_NET
+    info "Setting HOME_NET to ${HOME_CIDR}..."
+    sed -i "s|HOME_NET: .*|HOME_NET: \"[${HOME_CIDR}]\"|g" "$suricata_conf" || \
+        warn "Could not update HOME_NET — edit manually"
+
+    # Set EVE JSON output interface
+    info "Setting monitor interface to ${MONITOR_NIC}..."
+    sed -i "s|interface: eth0|interface: ${MONITOR_NIC}|g" "$suricata_conf" || true
+
+    # Ensure EVE JSON log is enabled
+    if ! grep -q "eve-log" "$suricata_conf" 2>/dev/null; then
+        warn "EVE JSON output not found in suricata config — enable manually"
+    else
+        ok "Suricata: EVE JSON output already configured"
+    fi
+
+    # Update rules
+    info "Updating Suricata rules (ET Open)..."
+    suricata-update --no-reload 2>/dev/null || warn "suricata-update failed — run manually"
+
+    ok "Suricata configured"
+}
+
+configure_victorialogs() {
+    if [[ "$COMP_VICTORIALOGS" != true ]]; then
+        return 0
+    fi
+
+    step "Configuring VictoriaLogs"
+
+    local vlogs_data="${DATA_DIR}/vlogs"
+    mkdir -p "$vlogs_data"
+
+    ok "VictoriaLogs data dir: ${vlogs_data}"
+    ok "VictoriaLogs will listen on :9428"
+}
+
+configure_grafana() {
+    if [[ "$COMP_GRAFANA" != true ]]; then
+        return 0
+    fi
+
+    step "Configuring Grafana"
+
+    local grafana_prov_dir="/etc/grafana/provisioning"
+    local grafana_dash_dir="${grafana_prov_dir}/dashboards"
+    local grafana_ds_dir="${grafana_prov_dir}/datasources"
+
+    # Find grafana provisioning dir
+    if [[ ! -d "$grafana_prov_dir" ]]; then
+        # Try common alternative locations
+        for d in /opt/grafana/conf/provisioning /usr/share/grafana/conf/provisioning; do
+            [[ -d "$d" ]] && grafana_prov_dir="$d" && break
+        done
+    fi
+
+    if [[ ! -d "$grafana_prov_dir" ]]; then
+        warn "Grafana provisioning directory not found — dashboards must be imported manually"
+        warn "Dashboard files are at: ${SCRIPT_DIR}/grafana/dashboards/"
+        return 0
+    fi
+
+    mkdir -p "$grafana_dash_dir" "$grafana_ds_dir"
+
+    # Write datasource provisioning
+    cat > "${grafana_ds_dir}/victorialogs.yaml" <<'EOF'
+apiVersion: 1
+datasources:
+  - name: VictoriaLogs
+    type: victoriametrics-logs-datasource
+    access: proxy
+    url: http://localhost:9428
+    isDefault: true
+    editable: false
+EOF
+
+    # Write dashboard provisioning config
+    cat > "${grafana_dash_dir}/shallots.yaml" <<EOF
+apiVersion: 1
+providers:
+  - name: Security Shallots
+    orgId: 1
+    folder: Security Shallots
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    options:
+      path: ${grafana_dash_dir}/json
+EOF
+
+    # Copy dashboard JSON files
+    local json_src="${SCRIPT_DIR}/grafana/dashboards"
+    local json_dst="${grafana_dash_dir}/json"
+    mkdir -p "$json_dst"
+
+    if [[ -d "$json_src" ]]; then
+        cp "${json_src}"/*.json "$json_dst/" 2>/dev/null && ok "Dashboards copied to ${json_dst}" \
+            || warn "No dashboard JSON files found at ${json_src}"
+    else
+        warn "Dashboard source directory not found: ${json_src}"
+    fi
+
+    # Set admin password
+    if command -v grafana-cli &>/dev/null; then
+        grafana-cli admin reset-admin-password "$GRAFANA_ADMIN_PASS" &>/dev/null || true
+    fi
+
+    ok "Grafana configured (admin password set)"
+}
+
+configure_crowdsec() {
+    if [[ "$COMP_CROWDSEC" != true ]]; then
+        return 0
+    fi
+
+    step "Configuring CrowdSec"
+
+    if ! command -v cscli &>/dev/null; then
+        warn "cscli not found — skipping CrowdSec configuration"
+        return 0
+    fi
+
+    # Install Suricata collection
+    if [[ "$COMP_SURICATA" == true ]]; then
+        info "Installing CrowdSec Suricata collection..."
+        cscli collections install crowdsecurity/suricata 2>/dev/null || \
+            warn "CrowdSec Suricata collection install failed"
+    fi
+
+    # Install iptables/nftables bouncer
+    if [[ "$OS_FAMILY" == "debian" ]]; then
+        DEBIAN_FRONTEND=noninteractive apt-get install -y crowdsec-firewall-bouncer-iptables 2>/dev/null || \
+            warn "Firewall bouncer install failed"
+    fi
+
+    ok "CrowdSec configured"
+}
+
+configure_components() {
+    configure_suricata
+    configure_victorialogs
+    configure_grafana
+    configure_crowdsec
+}
+
+# --------------- Step 13: Systemd services -----------------
+install_systemd_services() {
+    step "Installing systemd services"
+
+    if ! command -v systemctl &>/dev/null; then
+        warn "systemd not available — skipping service installation"
+        return 0
+    fi
+
+    local svc_src="${SCRIPT_DIR}/systemd"
+    if [[ ! -d "$svc_src" ]]; then
+        warn "Systemd service files not found at ${svc_src}"
+        return 0
+    fi
+
+    # Copy service files
+    for svc_file in "${svc_src}"/*.service; do
+        [[ -f "$svc_file" ]] || continue
+        local svc_name
+        svc_name=$(basename "$svc_file")
+        cp "$svc_file" "/etc/systemd/system/${svc_name}"
+        ok "Installed ${svc_name}"
+    done
+
+    systemctl daemon-reload
+
+    # Enable and start selected services
+    local services=()
+    [[ "$COMP_VICTORIALOGS" == true ]] && services+=(victorialogs.service)
+    services+=(shallot.service)
+    [[ "$COMP_SURICATA" == true ]] && services+=(suricata.service)
+    [[ "$COMP_CROWDSEC" == true ]] && services+=(crowdsec.service)
+    [[ "$COMP_WAZUH" == true ]] && services+=(wazuh-manager.service)
+    [[ "$COMP_GRAFANA" == true ]] && services+=(grafana-server.service)
+
+    for svc in "${services[@]}"; do
+        if systemctl list-unit-files "$svc" &>/dev/null; then
+            info "Enabling and starting ${svc}..."
+            systemctl enable "$svc" 2>/dev/null || warn "Could not enable ${svc}"
+            systemctl start "$svc" 2>/dev/null || warn "Could not start ${svc} — check: journalctl -u ${svc}"
+        else
+            warn "Service not found: ${svc} (may not be installed)"
+        fi
+    done
+
+    ok "Systemd services configured"
+}
+
+# --------------- Step 14: Health check ---------------------
+run_health_check() {
+    step "Running health checks"
+
+    local all_ok=true
+
+    check_service() {
+        local name="$1"
+        local svc="$2"
+        if systemctl is-active --quiet "$svc" 2>/dev/null; then
+            ok "${name}: running"
+        else
+            warn "${name}: not running (${svc})"
+            all_ok=false
+        fi
+    }
+
+    check_port() {
+        local name="$1"
+        local port="$2"
+        if command -v ss &>/dev/null; then
+            if ss -tlnp 2>/dev/null | grep -q ":${port} "; then
+                ok "${name}: listening on :${port}"
+            else
+                warn "${name}: not listening on :${port}"
+                all_ok=false
+            fi
+        fi
+    }
+
+    check_file() {
+        local name="$1"
+        local path="$2"
+        if [[ -f "$path" ]]; then
+            ok "${name}: ${path}"
+        else
+            warn "${name}: missing (${path})"
+        fi
+    }
+
+    if command -v systemctl &>/dev/null; then
+        [[ "$COMP_SURICATA"       == true ]] && check_service "Suricata"        "suricata"
+        [[ "$COMP_CROWDSEC"       == true ]] && check_service "CrowdSec"        "crowdsec"
+        [[ "$COMP_WAZUH"          == true ]] && check_service "Wazuh manager"   "wazuh-manager"
+        [[ "$COMP_GRAFANA"        == true ]] && check_service "Grafana"         "grafana-server"
+        [[ "$COMP_VICTORIALOGS"   == true ]] && check_service "VictoriaLogs"    "victorialogs"
+        check_service "Shallotd" "shallot"
+    fi
+
+    check_file "Config"          "${CONFIG_DIR}/config.yaml"
+    check_file "Python venv"     "${VENV_DIR}/bin/python"
+    [[ "$COMP_VICTORIALOGS" == true ]] && check_file "VictoriaLogs binary" "${BIN_DIR}/victoria-logs"
+
+    [[ "$COMP_VICTORIALOGS" == true ]] && check_port "VictoriaLogs" "9428"
+    [[ "$COMP_GRAFANA"      == true ]] && check_port "Grafana"      "3000"
+    check_port "Shallots web" "8844"
+
+    if [[ "$all_ok" == true ]]; then
+        ok "All health checks passed"
+    else
+        warn "Some checks failed — see warnings above"
+    fi
+}
+
+# --------------- Step 15: Print summary --------------------
+print_summary() {
+    step "Installation complete"
+
+    local host_ip
+    host_ip=$(hostname -I | awk '{print $1}')
+
+    echo ""
+    echo -e "${GRN}╔══════════════════════════════════════════════════════════╗${RST}"
+    echo -e "${GRN}║          Security Shallots — Setup Complete              ║${RST}"
+    echo -e "${GRN}╚══════════════════════════════════════════════════════════╝${RST}"
+    echo ""
+    echo -e "  ${WHT}Profile:${RST}    ${PROFILE}"
+    echo -e "  ${WHT}Interface:${RST}  ${MONITOR_NIC}"
+    echo -e "  ${WHT}HOME_NET:${RST}   ${HOME_CIDR}"
+    echo ""
+    echo -e "  ${WHT}Service URLs:${RST}"
+    echo -e "  ${CYN}  Shallots Web UI:${RST}  http://${host_ip}:8844"
+    if [[ "$COMP_GRAFANA" == true ]]; then
+        echo -e "  ${CYN}  Grafana:${RST}          http://${host_ip}:3000"
+        echo -e "  ${CYN}  Grafana login:${RST}    admin / ${GRAFANA_ADMIN_PASS}"
+    fi
+    if [[ "$COMP_VICTORIALOGS" == true ]]; then
+        echo -e "  ${CYN}  VictoriaLogs:${RST}     http://${host_ip}:9428"
+    fi
+    echo ""
+    echo -e "  ${WHT}Configuration:${RST}  ${CONFIG_DIR}/config.yaml"
+    echo -e "  ${WHT}Logs:${RST}           journalctl -u shallot -f"
+    echo ""
+
+    if [[ "$PFSENSE_ENABLED" == true ]]; then
+        echo -e "  ${YLW}pfSense:${RST} send syslog to ${host_ip}:5514"
+        echo ""
+    fi
+
+    if [[ "$COMP_WAZUH" == true ]]; then
+        local wazuh_status
+        wazuh_status=$(systemctl is-active wazuh-manager 2>/dev/null || echo "unknown")
+        echo -e "  ${WHT}Wazuh manager:${RST} ${wazuh_status}"
+        echo ""
+        echo -e "  ${YLW}To deploy a Clove endpoint agent:${RST}"
+        echo -e "  ${DIM}  curl -fsSL https://raw.githubusercontent.com/benolenick/security-shallots/main/setup/endpoint/clove \\${RST}"
+        echo -e "  ${DIM}    | sudo bash -s -- --manager ${host_ip}${RST}"
+        echo ""
+    fi
+
+    echo -e "  ${WHT}Next steps:${RST}"
+    echo -e "  ${DIM}  1. Review ${CONFIG_DIR}/config.yaml${RST}"
+    if [[ "$COMP_GRAFANA" == true ]]; then
+        echo -e "  ${DIM}  2. Open Grafana at http://${host_ip}:3000 and explore dashboards${RST}"
+    fi
+    if [[ "$AI_TIER" == "none" ]]; then
+        echo -e "  ${DIM}  3. Configure AI triage in config.yaml when ready${RST}"
+    fi
+    echo -e "  ${DIM}  4. Install MaxMind GeoLite2 DB for geographic data:${RST}"
+    echo -e "  ${DIM}     https://dev.maxmind.com/geoip/geolite2-free-geolocation-data${RST}"
+    echo ""
+}
+
+# --------------- Main --------------------------------------
+main() {
+    print_banner
+    echo -e "${DIM}  This wizard will install and configure Security Shallots${RST}"
+    echo -e "${DIM}  on this machine. It may take several minutes.${RST}"
+    echo ""
+    pause
+
+    check_root
+    detect_os
+    detect_hardware
+    detect_nic
+    configure_network
+    select_components
+    configure_ai
+    configure_pfsense
+
+    echo ""
+    echo -e "${YLW}  Ready to install. This will:${RST}"
+    echo -e "  - Install system packages"
+    echo -e "  - Download and configure components"
+    echo -e "  - Create systemd services"
+    echo ""
+    if ! prompt_yn "  Proceed with installation?"; then
+        echo -e "${YLW}  Installation cancelled.${RST}"
+        exit 0
+    fi
+
+    install_packages
+    download_binaries
+    generate_config
+    configure_components
+    install_systemd_services
+    run_health_check
+    print_summary
+}
+
+main "$@"

@@ -1,0 +1,99 @@
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+*.db
+*.db-*
+*.mmdb
+venv/
+.venv/
+.env
+.env.*
+.cache/
+.eval_*.json
+.eval_*.py
+.argus/
+# Local helper scripts (not part of the package)
+/_*.py
+
+# Runtime / secrets
+config.yaml
+config.yaml.*
+*.key
+*.cert
+tls.key
+tls.cert
+backups/
+*.log
+*.pcap
+*.pcapng
+secrets/
+orphan_clusters_backup_*.json
+tmp_patch_files/
+
+# Agent instructions (contain infra details)
+CLAUDE.md
+collab/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Operational / deployment-specific (contain real IPs, creds, infra details)
+SIGIL.md
+AI_CONTEXT.md
+argus/config-*.toml
+argus/config*.toml
+!argus/config.example.toml
+argus/config.toml
+backup.sh
+
+# Backup files
+*.bak
+*.bak-*
+*.bak_*
+*.pre-*
+
+# Generated telemetry/state. Keep source, policies, and hand-written reports tracked.
+docs/test_runs/
+docs/posture_cards/
+docs/*_STATE.json
+docs/ALERT_ASSESSMENT_LOG.md
+data/*.json
+data/black_swan/
+data/elder_feedback/
+data/elder_node_audit/
+data/live_ablation/
+data/live_canaries/
+
+# Generated posture report
+docs/POSTURE_STATE.md
+
+# Operator posture policy (real network layout) — ship the .example instead
+data/posture_policy.yaml
+data/inventory_seed.yaml
+
+# Internal pre-publish working doc
+docs/PRE_PUBLISH_CHECKLIST.md
+
+# Internal research/telemetry/collab docs — kept on disk, not published
+docs/DETECTION_EVAL_RESULTS.json
+docs/EDGE_COLLATOR_EVAL.md
+docs/EDGE_COLLATOR_RANDOM_TELEMETRY.md
+docs/EDGE_SCOUT_DEFENSIBLE_REPORT.md
+docs/EDGE_SCOUT_LIVE_*_TELEMETRY.md
+docs/EDGE_SCOUT_PUBLICATION_PACKET.md
+docs/EDGE_TRIAGE_SIGIL.md
+docs/EXPERIMENT_LOG.md
+docs/EXPERIMENT_PLAN.md
+docs/INVESTIGATE_VIEW_SIGIL.md
+GAP_ANALYSIS_AND_ROADMAP.md
+argus/ARGUS_COLLAB.md
+argus/CODEX_TO_CLAUDE_001.md
+
+# Fleet-specific ops helper (references a specific manager host)
+tools/live_auth_watch.sh

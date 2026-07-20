@@ -1,0 +1,12 @@
+[Unit]
+Description=Run shallot HTTP watchdog every minute
+Requires=shallotd-home.service
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+AccuracySec=10s
+Unit=shallot-watchdog.service
+
+[Install]
+WantedBy=timers.target

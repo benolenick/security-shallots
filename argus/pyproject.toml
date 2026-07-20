@@ -1,0 +1,16 @@
+[project]
+name = "argus-agent"
+version = "0.1.0"
+description = "Argus host sentinel agent"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+tray = ["pystray>=0.19", "Pillow>=9.0"]
+
+[project.scripts]
+argus = "argus.cli:main"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"

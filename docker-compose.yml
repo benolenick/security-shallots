@@ -1,0 +1,20 @@
+services:
+  shallots:
+    build: .
+    container_name: shallots
+    cpus: 4
+    environment:
+    - CUDA_VISIBLE_DEVICES=-1
+    - NVIDIA_VISIBLE_DEVICES=void
+    - NVIDIA_DRIVER_CAPABILITIES=
+    mem_limit: 4g
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+    - /var/log/suricata/eve.json:/var/log/suricata/eve.json:ro
+    - /var/ossec/logs/alerts/alerts.json:/var/ossec/logs/alerts/alerts.json:ro
+    - /home/user/security-shallots/tls.cert:/app/tls.cert:ro
+    - /home/user/security-shallots/tls.key:/app/tls.key:ro
+    - /home/user/security-shallots/GeoLite2-City.mmdb:/app/GeoLite2-City.mmdb:ro
+    - /home/user/security-shallots/config-docker.yaml:/app/config.yaml:ro
+    - ./data:/app/data

@@ -1,0 +1,31 @@
+[Unit]
+Description=Security Shallots Daemon
+Documentation=https://github.com/benolenick/security-shallots
+After=network.target suricata.service
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=/opt/shallots/venv/bin/python -m shallots run
+WorkingDirectory=/opt/shallots
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/shallots /var/log/shallots /etc/shallots
+ReadOnlyPaths=/var/log/suricata /var/ossec/logs
+
+# Resource limits — Shallots auto-detects hardware and adjusts.
+# On a 4GB system with lite/micro profile, it uses ~200-400MB.
+# Remove MemoryMax if running the full threat engine on a server.
+LimitNOFILE=65536
+MemoryMax=1G
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Network Topology — Security Shallots</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x1F9C5;</text></svg>" />
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0e17;
+      --bg-panel: #111827;
+      --border: #1f2937;
+      --text: #e5e7eb;
+      --text-muted: #6b7280;
+      --accent: #3b82f6;
+      --sev-low: #22c55e;
+      --sev-medium: #eab308;
+      --sev-high: #f97316;
+      --sev-critical: #ef4444;
+      --device: #3b82f6;
+      --external: #8b5cf6;
+      --domain: #06b6d4;
+      --glow-device: rgba(59, 130, 246, 0.3);
+      --glow-external: rgba(139, 92, 246, 0.3);
+      --glow-critical: rgba(239, 68, 68, 0.4);
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    #topology-canvas {
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+    }
+    #topology-canvas:active { cursor: grabbing; }
+
+    /* Top bar */
+    .topbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 48px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 1rem;
+      z-index: 100;
+      gap: 1rem;
+    }
+    .topbar-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .topbar-title a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.8rem;
+    }
+    .topbar-title a:hover { color: var(--accent); }
+    .topbar-stats {
+      display: flex;
+      gap: 1.5rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .topbar-stats span { white-space: nowrap; }
+    .topbar-stats .val { color: var(--text); font-weight: 600; }
+    .topbar-controls {
+      margin-left: auto;
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .btn {
+      padding: 4px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg-panel);
+      color: var(--text);
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn:hover { border-color: var(--accent); color: var(--accent); }
+    .btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    /* Legend */
+    .legend {
+      position: fixed;
+      bottom: 1rem;
+      left: 1rem;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      z-index: 100;
+      font-size: 0.7rem;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--text-muted);
+    }
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    /* Node tooltip */
+    .tooltip {
+      position: fixed;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      font-size: 0.78rem;
+      line-height: 1.5;
+      z-index: 200;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+      max-width: 320px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    .tooltip.visible { opacity: 1; }
+    .tooltip-title {
+      font-weight: 700;
+      font-size: 0.9rem;
+      margin-bottom: 0.3rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .tooltip-row {
+      color: var(--text-muted);
+    }
+    .tooltip-row .label { color: var(--text); }
+    .risk-bar {
+      height: 4px;
+      border-radius: 2px;
+      background: var(--border);
+      margin-top: 0.4rem;
+      overflow: hidden;
+    }
+    .risk-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.3s;
+    }
+
+    /* Detail panel */
+    .detail-panel {
+      position: fixed;
+      top: 48px;
+      right: 0;
+      width: 360px;
+      bottom: 0;
+      background: var(--bg-panel);
+      border-left: 1px solid var(--border);
+      z-index: 100;
+      overflow-y: auto;
+      transform: translateX(100%);
+      transition: transform 0.25s ease;
+      padding: 1rem;
+    }
+    .detail-panel.open { transform: translateX(0); }
+    .detail-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    .detail-header h3 { font-size: 1rem; }
+    .detail-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+    .detail-section {
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .detail-section h4 {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      padding: 2px 0;
+    }
+    .detail-row .dlabel { color: var(--text-muted); }
+    .detail-row .dval { font-weight: 500; }
+    .conn-list {
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 0.75rem;
+    }
+    .conn-item {
+      padding: 3px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      display: flex;
+      justify-content: space-between;
+    }
+    .conn-item .ci-target { color: var(--accent); cursor: pointer; }
+    .conn-item .ci-target:hover { text-decoration: underline; }
+    .conn-item .ci-weight { color: var(--text-muted); }
+    .btn-pivot {
+      width: 100%;
+      padding: 8px;
+      margin-top: 0.5rem;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .btn-pivot:hover { opacity: 0.9; }
+
+    /* Search */
+    .search-box {
+      position: fixed;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 150;
+      display: none;
+    }
+    .search-box.visible { display: block; }
+    .search-box input {
+      width: 320px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg-panel);
+      color: var(--text);
+      font-size: 0.85rem;
+      outline: none;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    }
+    .search-box input:focus { border-color: var(--accent); }
+    .search-results {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .search-result {
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .search-result:hover { background: rgba(59,130,246,0.15); }
+
+    /* Particle animation for edges */
+    @keyframes dash {
+      to { stroke-dashoffset: -20; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-title">
+    <span>Network Topology</span>
+    <a href="/">&#8592; Dashboard</a>
+  </div>
+  <div class="topbar-stats">
+    <span>Nodes: <span class="val" id="stat-nodes">-</span></span>
+    <span>Edges: <span class="val" id="stat-edges">-</span></span>
+    <span>Communities: <span class="val" id="stat-communities">-</span></span>
+    <span>Devices: <span class="val" id="stat-devices">-</span></span>
+    <span>External: <span class="val" id="stat-external">-</span></span>
+  </div>
+  <div class="topbar-controls">
+    <button class="btn" id="btn-search" title="Search (Ctrl+F)">Search</button>
+    <button class="btn" id="btn-reset" title="Reset zoom">Reset</button>
+    <button class="btn" id="btn-labels" title="Toggle labels">Labels</button>
+    <button class="btn" id="btn-edges" title="Toggle edge animations">Flow</button>
+    <button class="btn" id="btn-refresh" title="Refresh data">Refresh</button>
+  </div>
+</div>
+
+<svg id="topology-canvas"></svg>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:var(--device)"></div> Internal Device</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--external)"></div> External IP</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--domain)"></div> Domain</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--sev-critical)"></div> High Risk</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--sev-low)"></div> Agent Online</div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<div class="search-box" id="search-box">
+  <input type="text" id="search-input" placeholder="Search IP, hostname, domain..." autocomplete="off" />
+  <div class="search-results" id="search-results"></div>
+</div>
+
+<div class="detail-panel" id="detail-panel">
+  <div class="detail-header">
+    <h3 id="detail-title">-</h3>
+    <button class="detail-close" onclick="closeDetail()">&times;</button>
+  </div>
+  <div id="detail-body"></div>
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────
+let topoData = null;
+let simulation = null;
+let showLabels = true;
+let showFlow = true;
+let selectedNode = null;
+
+const width = window.innerWidth;
+const height = window.innerHeight;
+
+const svg = d3.select('#topology-canvas')
+  .attr('width', width)
+  .attr('height', height);
+
+// Defs for glow filters and arrow markers
+const defs = svg.append('defs');
+
+// Glow filter
+const glow = defs.append('filter').attr('id', 'glow');
+glow.append('feGaussianBlur').attr('stdDeviation', '3').attr('result', 'blur');
+glow.append('feMerge').selectAll('feMergeNode')
+  .data(['blur', 'SourceGraphic']).join('feMergeNode')
+  .attr('in', d => d);
+
+// Critical glow
+const critGlow = defs.append('filter').attr('id', 'crit-glow');
+critGlow.append('feGaussianBlur').attr('stdDeviation', '6').attr('result', 'blur');
+critGlow.append('feMerge').selectAll('feMergeNode')
+  .data(['blur', 'SourceGraphic']).join('feMergeNode')
+  .attr('in', d => d);
+
+// Arrow markers
+['connects_to', 'scans', 'resolves_to'].forEach(type => {
+  const color = type === 'scans' ? '#f97316' : type === 'resolves_to' ? '#06b6d4' : '#374151';
+  defs.append('marker')
+    .attr('id', `arrow-${type}`)
+    .attr('viewBox', '0 -5 10 10')
+    .attr('refX', 20)
+    .attr('refY', 0)
+    .attr('markerWidth', 6)
+    .attr('markerHeight', 6)
+    .attr('orient', 'auto')
+    .append('path')
+    .attr('d', 'M0,-4L8,0L0,4')
+    .attr('fill', color);
+});
+
+// Zoom
+const g = svg.append('g');
+const zoom = d3.zoom()
+  .scaleExtent([0.1, 8])
+  .on('zoom', e => g.attr('transform', e.transform));
+svg.call(zoom);
+
+// Layers
+const edgeLayer = g.append('g').attr('class', 'edges');
+const nodeLayer = g.append('g').attr('class', 'nodes');
+const labelLayer = g.append('g').attr('class', 'labels');
+
+// ── Color helpers ─────────────────────────────────────────────────────────
+
+function nodeColor(d) {
+  if (d.risk_score >= 0.5) return 'var(--sev-critical)';
+  if (d.risk_score >= 0.3) return 'var(--sev-high)';
+  if (d.agent && d.agent.status === 'online') return 'var(--sev-low)';
+  if (d.type === 'device') return 'var(--device)';
+  if (d.type === 'external_ip') return 'var(--external)';
+  if (d.type === 'domain') return 'var(--domain)';
+  return '#4b5563';
+}
+
+function nodeRadius(d) {
+  const base = d.type === 'device' ? 8 : d.type === 'domain' ? 5 : 6;
+  const alerts = Math.min(d.alert_count || 0, 100);
+  return base + Math.sqrt(alerts) * 1.2;
+}
+
+function edgeColor(d) {
+  if (d.type === 'scans') return '#f97316';
+  if (d.type === 'resolves_to') return '#06b6d4';
+  return '#1f2937';
+}
+
+function edgeWidth(d) {
+  return Math.max(0.5, Math.min(Math.log2(d.weight + 1), 4));
+}
+
+function nodeLabel(d) {
+  if (d.asset_info && d.asset_info.hostname) return d.asset_info.hostname;
+  if (d.agent && d.agent.name) return d.agent.name;
+  if (d.asset) return d.asset;
+  return d.id;
+}
+
+// ── Fetch & render ────────────────────────────────────────────────────────
+
+async function loadTopology() {
+  try {
+    const res = await fetch('/api/topology?max_nodes=300');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    topoData = await res.json();
+    render(topoData);
+  } catch (err) {
+    console.error('Failed to load topology:', err);
+  }
+}
+
+function render(data) {
+  const nodes = data.nodes || [];
+  const edges = data.edges || [];
+
+  // Update stats
+  document.getElementById('stat-nodes').textContent = nodes.length;
+  document.getElementById('stat-edges').textContent = edges.length;
+  document.getElementById('stat-communities').textContent = data.community_count || 0;
+  document.getElementById('stat-devices').textContent = nodes.filter(n => n.type === 'device').length;
+  document.getElementById('stat-external').textContent = nodes.filter(n => n.type === 'external_ip').length;
+
+  // Create node map for edge resolution
+  const nodeMap = new Map(nodes.map(n => [n.id, n]));
+
+  // Filter edges to only those with valid source/target
+  const validEdges = edges.filter(e => nodeMap.has(e.source) && nodeMap.has(e.target));
+
+  // D3 force links need source/target as objects
+  const links = validEdges.map(e => ({
+    ...e,
+    source: e.source,
+    target: e.target,
+  }));
+
+  // Stop previous simulation
+  if (simulation) simulation.stop();
+
+  // Force simulation
+  simulation = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d => d.id).distance(d => {
+      // Shorter links for internal, longer for external/domain
+      if (d.type === 'resolves_to') return 40;
+      return 80;
+    }).strength(d => Math.min(0.3, d.weight * 0.05)))
+    .force('charge', d3.forceManyBody()
+      .strength(d => d.type === 'device' ? -200 : -80)
+      .distanceMax(400))
+    .force('center', d3.forceCenter(width / 2, height / 2 - 24))
+    .force('collision', d3.forceCollide().radius(d => nodeRadius(d) + 4))
+    .force('x', d3.forceX(width / 2).strength(0.03))
+    .force('y', d3.forceY(height / 2).strength(0.03))
+    .alphaDecay(0.02)
+    .velocityDecay(0.4);
+
+  // ── Edges ───────────────────────────────────────────────
+  const edgeSel = edgeLayer.selectAll('line').data(links, d => `${d.source.id||d.source}-${d.target.id||d.target}-${d.type}`);
+  edgeSel.exit().remove();
+  const edgeEnter = edgeSel.enter().append('line');
+  const allEdges = edgeEnter.merge(edgeSel)
+    .attr('stroke', edgeColor)
+    .attr('stroke-width', edgeWidth)
+    .attr('stroke-opacity', 0.6)
+    .attr('marker-end', d => `url(#arrow-${d.type})`);
+
+  // Animated flow
+  if (showFlow) {
+    allEdges
+      .attr('stroke-dasharray', '4 4')
+      .style('animation', 'dash 1.5s linear infinite');
+  }
+
+  // ── Nodes ───────────────────────────────────────────────
+  const nodeSel = nodeLayer.selectAll('circle').data(nodes, d => d.id);
+  nodeSel.exit().remove();
+  const nodeEnter = nodeSel.enter().append('circle');
+  const allNodes = nodeEnter.merge(nodeSel)
+    .attr('r', nodeRadius)
+    .attr('fill', nodeColor)
+    .attr('stroke', d => d.risk_score >= 0.5 ? 'var(--sev-critical)' : d.agent ? 'var(--sev-low)' : 'none')
+    .attr('stroke-width', d => d.risk_score >= 0.5 ? 2 : d.agent ? 1.5 : 0)
+    .attr('filter', d => d.risk_score >= 0.5 ? 'url(#crit-glow)' : d.type === 'device' ? 'url(#glow)' : null)
+    .style('cursor', 'pointer')
+    .on('mouseover', showTooltip)
+    .on('mouseout', hideTooltip)
+    .on('click', (event, d) => { event.stopPropagation(); openDetail(d); })
+    .call(d3.drag()
+      .on('start', dragStart)
+      .on('drag', dragging)
+      .on('end', dragEnd));
+
+  // Pulse animation for critical nodes
+  allNodes.filter(d => d.risk_score >= 0.5)
+    .each(function() {
+      const node = d3.select(this);
+      (function pulse() {
+        node.transition().duration(1000)
+          .attr('stroke-opacity', 0.3)
+          .transition().duration(1000)
+          .attr('stroke-opacity', 1)
+          .on('end', pulse);
+      })();
+    });
+
+  // ── Labels ──────────────────────────────────────────────
+  const labelSel = labelLayer.selectAll('text').data(nodes, d => d.id);
+  labelSel.exit().remove();
+  const labelEnter = labelSel.enter().append('text');
+  const allLabels = labelEnter.merge(labelSel)
+    .text(d => nodeLabel(d))
+    .attr('font-size', d => d.type === 'device' ? '9px' : '7px')
+    .attr('fill', 'var(--text-muted)')
+    .attr('text-anchor', 'middle')
+    .attr('dy', d => nodeRadius(d) + 12)
+    .attr('pointer-events', 'none')
+    .attr('opacity', showLabels ? 0.8 : 0);
+
+  // ── Tick ────────────────────────────────────────────────
+  simulation.on('tick', () => {
+    allEdges
+      .attr('x1', d => d.source.x)
+      .attr('y1', d => d.source.y)
+      .attr('x2', d => d.target.x)
+      .attr('y2', d => d.target.y);
+
+    allNodes
+      .attr('cx', d => d.x)
+      .attr('cy', d => d.y);
+
+    allLabels
+      .attr('x', d => d.x)
+      .attr('y', d => d.y);
+  });
+}
+
+// ── Drag handlers ─────────────────────────────────────────────────────────
+
+function dragStart(event, d) {
+  if (!event.active) simulation.alphaTarget(0.1).restart();
+  d.fx = d.x;
+  d.fy = d.y;
+}
+
+function dragging(event, d) {
+  d.fx = event.x;
+  d.fy = event.y;
+}
+
+function dragEnd(event, d) {
+  if (!event.active) simulation.alphaTarget(0);
+  d.fx = null;
+  d.fy = null;
+}
+
+// ── Tooltip ───────────────────────────────────────────────────────────────
+
+const tooltip = document.getElementById('tooltip');
+
+function showTooltip(event, d) {
+  const riskColor = d.risk_score >= 0.5 ? 'var(--sev-critical)' :
+    d.risk_score >= 0.3 ? 'var(--sev-high)' :
+    d.risk_score >= 0.1 ? 'var(--sev-medium)' : 'var(--sev-low)';
+  const riskPct = Math.round(d.risk_score * 100);
+
+  let html = `<div class="tooltip-title">
+    <span style="color:${nodeColor(d)}">${esc(d.id)}</span>
+  </div>`;
+
+  if (d.asset_info && d.asset_info.hostname) {
+    html += `<div class="tooltip-row"><span class="label">${esc(d.asset_info.hostname)}</span></div>`;
+  }
+  if (d.agent) {
+    html += `<div class="tooltip-row">Agent: <span class="label" style="color:${d.agent.status === 'online' ? 'var(--sev-low)' : 'var(--sev-critical)'}">${esc(d.agent.name)} (${d.agent.status})</span></div>`;
+  }
+
+  html += `<div class="tooltip-row">Type: <span class="label">${d.type.replace('_', ' ')}</span></div>`;
+  html += `<div class="tooltip-row">Alerts: <span class="label">${d.alert_count}</span></div>`;
+  html += `<div class="tooltip-row">Connections: <span class="label">${d.out_degree + d.in_degree}</span></div>`;
+
+  if (d.geo) html += `<div class="tooltip-row">Location: <span class="label">${esc(d.geo)}</span></div>`;
+
+  html += `<div class="tooltip-row">Risk: <span class="label" style="color:${riskColor}">${riskPct}%</span></div>`;
+  html += `<div class="risk-bar"><div class="risk-bar-fill" style="width:${riskPct}%;background:${riskColor}"></div></div>`;
+
+  if (d.risk_factors && d.risk_factors.length) {
+    html += `<div style="margin-top:0.4rem;font-size:0.7rem;color:var(--sev-medium)">`;
+    d.risk_factors.forEach(f => { html += `<div>- ${esc(f)}</div>`; });
+    html += `</div>`;
+  }
+
+  tooltip.innerHTML = html;
+  tooltip.classList.add('visible');
+
+  const x = Math.min(event.pageX + 15, window.innerWidth - 340);
+  const y = Math.min(event.pageY + 15, window.innerHeight - 200);
+  tooltip.style.left = x + 'px';
+  tooltip.style.top = y + 'px';
+}
+
+function hideTooltip() {
+  tooltip.classList.remove('visible');
+}
+
+// ── Detail panel ──────────────────────────────────────────────────────────
+
+function openDetail(d) {
+  selectedNode = d;
+  const panel = document.getElementById('detail-panel');
+  const title = document.getElementById('detail-title');
+  const body = document.getElementById('detail-body');
+
+  title.textContent = d.id;
+  title.style.color = nodeColor(d);
+
+  let html = '';
+
+  // Identity
+  html += `<div class="detail-section"><h4>Identity</h4>`;
+  html += `<div class="detail-row"><span class="dlabel">Type</span><span class="dval">${d.type.replace('_', ' ')}</span></div>`;
+  if (d.asset_info) {
+    if (d.asset_info.hostname) html += `<div class="detail-row"><span class="dlabel">Hostname</span><span class="dval">${esc(d.asset_info.hostname)}</span></div>`;
+    if (d.asset_info.os) html += `<div class="detail-row"><span class="dlabel">OS</span><span class="dval">${esc(d.asset_info.os)}</span></div>`;
+    if (d.asset_info.criticality) html += `<div class="detail-row"><span class="dlabel">Criticality</span><span class="dval">${esc(d.asset_info.criticality)}</span></div>`;
+  }
+  if (d.agent) {
+    html += `<div class="detail-row"><span class="dlabel">Agent</span><span class="dval" style="color:${d.agent.status === 'online' ? 'var(--sev-low)' : 'var(--sev-critical)'}">${esc(d.agent.name)} (${d.agent.type})</span></div>`;
+  }
+  if (d.geo) html += `<div class="detail-row"><span class="dlabel">Geo</span><span class="dval">${esc(d.geo)}</span></div>`;
+  if (d.community >= 0) html += `<div class="detail-row"><span class="dlabel">Community</span><span class="dval">#${d.community}</span></div>`;
+  html += `</div>`;
+
+  // Risk
+  const riskColor = d.risk_score >= 0.5 ? 'var(--sev-critical)' : d.risk_score >= 0.3 ? 'var(--sev-high)' : d.risk_score >= 0.1 ? 'var(--sev-medium)' : 'var(--sev-low)';
+  html += `<div class="detail-section"><h4>Risk Assessment</h4>`;
+  html += `<div class="detail-row"><span class="dlabel">Score</span><span class="dval" style="color:${riskColor}">${Math.round(d.risk_score * 100)}%</span></div>`;
+  html += `<div class="detail-row"><span class="dlabel">Alerts</span><span class="dval">${d.alert_count}</span></div>`;
+  html += `<div class="detail-row"><span class="dlabel">Outbound</span><span class="dval">${d.out_degree}</span></div>`;
+  html += `<div class="detail-row"><span class="dlabel">Inbound</span><span class="dval">${d.in_degree}</span></div>`;
+  if (d.risk_factors && d.risk_factors.length) {
+    html += `<div style="margin-top:0.4rem">`;
+    d.risk_factors.forEach(f => { html += `<div style="font-size:0.75rem;color:var(--sev-medium);padding:1px 0">- ${esc(f)}</div>`; });
+    html += `</div>`;
+  }
+  html += `</div>`;
+
+  // Connections
+  if (topoData) {
+    const outEdges = topoData.edges.filter(e => e.source === d.id || (e.source.id && e.source.id === d.id));
+    const inEdges = topoData.edges.filter(e => e.target === d.id || (e.target.id && e.target.id === d.id));
+
+    if (outEdges.length || inEdges.length) {
+      html += `<div class="detail-section"><h4>Connections</h4>`;
+      html += `<div class="conn-list">`;
+
+      const allConns = [
+        ...outEdges.map(e => ({ target: (typeof e.target === 'object' ? e.target.id : e.target), type: e.type, weight: e.weight, dir: 'out' })),
+        ...inEdges.map(e => ({ target: (typeof e.source === 'object' ? e.source.id : e.source), type: e.type, weight: e.weight, dir: 'in' })),
+      ];
+
+      // Deduplicate
+      const seen = new Set();
+      const uniq = allConns.filter(c => {
+        const key = `${c.target}-${c.type}-${c.dir}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      // Sort by weight desc
+      uniq.sort((a, b) => b.weight - a.weight);
+
+      uniq.slice(0, 30).forEach(c => {
+        const arrow = c.dir === 'out' ? '&#8594;' : '&#8592;';
+        const typeLabel = c.type === 'scans' ? '<span style="color:var(--sev-high)">scan</span>' : c.type === 'resolves_to' ? '<span style="color:var(--domain)">dns</span>' : '';
+        html += `<div class="conn-item"><span>${arrow} <span class="ci-target" onclick="focusNode('${esc(c.target)}')">${esc(c.target)}</span> ${typeLabel}</span><span class="ci-weight">x${c.weight}</span></div>`;
+      });
+
+      if (uniq.length > 30) {
+        html += `<div style="color:var(--text-muted);font-size:0.7rem;padding-top:4px">+ ${uniq.length - 30} more...</div>`;
+      }
+      html += `</div></div>`;
+    }
+  }
+
+  // Actions
+  html += `<button class="btn-pivot" onclick="window.open('/api/graph/pivot?entity=${encodeURIComponent(d.id)}&depth=2','_blank')">View Pivot Data (JSON)</button>`;
+  html += `<button class="btn-pivot" style="background:var(--external);margin-top:0.3rem" onclick="pivotZoom('${esc(d.id)}')">Focus Neighborhood</button>`;
+
+  body.innerHTML = html;
+  panel.classList.add('open');
+
+  // Highlight node
+  highlightNode(d);
+}
+
+function closeDetail() {
+  document.getElementById('detail-panel').classList.remove('open');
+  selectedNode = null;
+  unhighlightAll();
+}
+
+function highlightNode(d) {
+  // Dim everything, highlight connected
+  const connectedIds = new Set([d.id]);
+  if (topoData) {
+    topoData.edges.forEach(e => {
+      const src = typeof e.source === 'object' ? e.source.id : e.source;
+      const tgt = typeof e.target === 'object' ? e.target.id : e.target;
+      if (src === d.id) connectedIds.add(tgt);
+      if (tgt === d.id) connectedIds.add(src);
+    });
+  }
+
+  nodeLayer.selectAll('circle')
+    .attr('opacity', n => connectedIds.has(n.id) ? 1 : 0.15);
+  labelLayer.selectAll('text')
+    .attr('opacity', n => connectedIds.has(n.id) && showLabels ? 1 : 0);
+  edgeLayer.selectAll('line')
+    .attr('stroke-opacity', e => {
+      const src = typeof e.source === 'object' ? e.source.id : e.source;
+      const tgt = typeof e.target === 'object' ? e.target.id : e.target;
+      return (src === d.id || tgt === d.id) ? 0.8 : 0.05;
+    });
+}
+
+function unhighlightAll() {
+  nodeLayer.selectAll('circle').attr('opacity', 1);
+  labelLayer.selectAll('text').attr('opacity', showLabels ? 0.8 : 0);
+  edgeLayer.selectAll('line').attr('stroke-opacity', 0.6);
+}
+
+function focusNode(id) {
+  const node = (topoData.nodes || []).find(n => n.id === id);
+  if (node) openDetail(node);
+
+  // Zoom to node
+  const n = nodeLayer.selectAll('circle').filter(d => d.id === id);
+  if (!n.empty()) {
+    const d = n.datum();
+    svg.transition().duration(500).call(
+      zoom.transform,
+      d3.zoomIdentity.translate(width / 2, height / 2).scale(2).translate(-d.x, -d.y)
+    );
+  }
+}
+
+function pivotZoom(id) {
+  focusNode(id);
+}
+
+// ── Search ────────────────────────────────────────────────────────────────
+
+const searchBox = document.getElementById('search-box');
+const searchInput = document.getElementById('search-input');
+const searchResults = document.getElementById('search-results');
+
+document.getElementById('btn-search').addEventListener('click', () => {
+  searchBox.classList.toggle('visible');
+  if (searchBox.classList.contains('visible')) searchInput.focus();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key === 'f') {
+    e.preventDefault();
+    searchBox.classList.add('visible');
+    searchInput.focus();
+  }
+  if (e.key === 'Escape') {
+    searchBox.classList.remove('visible');
+    closeDetail();
+  }
+});
+
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.toLowerCase().trim();
+  if (!q || !topoData) { searchResults.innerHTML = ''; return; }
+
+  const matches = topoData.nodes.filter(n =>
+    n.id.toLowerCase().includes(q) ||
+    (n.asset_info && n.asset_info.hostname && n.asset_info.hostname.toLowerCase().includes(q)) ||
+    (n.agent && n.agent.name && n.agent.name.toLowerCase().includes(q)) ||
+    (n.asset && n.asset.toLowerCase().includes(q))
+  ).slice(0, 10);
+
+  searchResults.innerHTML = matches.map(n =>
+    `<div class="search-result" onclick="focusNode('${esc(n.id)}');document.getElementById('search-box').classList.remove('visible');">
+      <span style="color:${nodeColor(n)}">${esc(n.id)}</span>
+      ${n.asset_info && n.asset_info.hostname ? `<span style="color:var(--text-muted);margin-left:0.5rem">${esc(n.asset_info.hostname)}</span>` : ''}
+      <span style="float:right;color:var(--text-muted)">${n.alert_count} alerts</span>
+    </div>`
+  ).join('');
+});
+
+// ── Controls ──────────────────────────────────────────────────────────────
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity);
+  closeDetail();
+  unhighlightAll();
+});
+
+document.getElementById('btn-labels').addEventListener('click', function() {
+  showLabels = !showLabels;
+  this.classList.toggle('active', showLabels);
+  labelLayer.selectAll('text').attr('opacity', showLabels ? 0.8 : 0);
+});
+
+document.getElementById('btn-edges').addEventListener('click', function() {
+  showFlow = !showFlow;
+  this.classList.toggle('active', showFlow);
+  edgeLayer.selectAll('line')
+    .attr('stroke-dasharray', showFlow ? '4 4' : null)
+    .style('animation', showFlow ? 'dash 1.5s linear infinite' : 'none');
+});
+
+document.getElementById('btn-refresh').addEventListener('click', loadTopology);
+
+// Click background to deselect
+svg.on('click', () => { closeDetail(); unhighlightAll(); });
+
+// ── WebSocket live updates ────────────────────────────────────────────────
+
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const ws = new WebSocket(`${proto}//${location.host}/ws/alerts`);
+
+  ws.onmessage = event => {
+    try {
+      const msg = JSON.parse(event.data);
+      if (msg.type === 'alert' && msg.data && topoData) {
+        // Flash the affected nodes
+        const a = msg.data;
+        [a.src_ip, a.dst_ip].filter(Boolean).forEach(ip => {
+          const circle = nodeLayer.selectAll('circle').filter(d => d.id === ip);
+          if (!circle.empty()) {
+            circle
+              .transition().duration(200)
+              .attr('r', d => nodeRadius(d) * 1.8)
+              .attr('fill', '#fff')
+              .transition().duration(500)
+              .attr('r', nodeRadius)
+              .attr('fill', nodeColor);
+          }
+        });
+      }
+    } catch (e) {}
+  };
+
+  ws.onclose = () => setTimeout(connectWS, 5000);
+  ws.onerror = () => ws.close();
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+
+function esc(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+
+document.getElementById('btn-labels').classList.add('active');
+document.getElementById('btn-edges').classList.add('active');
+
+loadTopology();
+connectWS();
+
+// Auto-refresh every 60s
+setInterval(loadTopology, 60000);
+
+// Handle resize
+window.addEventListener('resize', () => {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  svg.attr('width', w).attr('height', h);
+  if (simulation) {
+    simulation.force('center', d3.forceCenter(w / 2, h / 2 - 24));
+    simulation.alpha(0.1).restart();
+  }
+});
+</script>
+
+</body>
+</html>

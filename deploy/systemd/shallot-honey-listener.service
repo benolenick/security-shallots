@@ -1,0 +1,25 @@
+[Unit]
+Description=Security Shallots tiny honey listener
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=om
+Group=om
+WorkingDirectory=/home/user/security-shallots
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/user/security-shallots/.venv/bin/python /home/user/security-shallots/tools/shallot_posture_honey.py --bind 0.0.0.0 --port 9922
+Restart=on-failure
+RestartSec=5
+Nice=10
+MemoryMax=64M
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/home/user/security-shallots/data
+
+[Install]
+WantedBy=multi-user.target
+

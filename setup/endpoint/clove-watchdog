@@ -1,0 +1,511 @@
+#!/usr/bin/env bash
+# clove-watchdog — Endpoint security monitor for security-shallots
+# Runs via cron every 2 minutes on Linux endpoints
+# Requires: bash, ss, curl, awk, sha256sum (all standard)
+set -euo pipefail
+
+# ── Configuration ──
+MANAGER_URL="__MANAGER_URL__"
+REPO_DIR="/opt/security-shallots"
+STATE_DIR="/var/lib/clove"
+STATE_FILE="${STATE_DIR}/state.json"
+LOCK_FILE="${STATE_DIR}/watchdog.lock"
+LOG_TAG="clove-watchdog"
+ALERT_THRESHOLD_SSH=5
+
+# ── Error handling ──
+cleanup() {
+    rm -f "$LOCK_FILE"
+}
+trap cleanup EXIT
+trap 'logger -t "$LOG_TAG" "Error on line $LINENO"; cleanup; exit 0' ERR
+
+# Prevent concurrent runs
+if [ -f "$LOCK_FILE" ]; then
+    pid=$(cat "$LOCK_FILE" 2>/dev/null || echo "0")
+    if kill -0 "$pid" 2>/dev/null; then
+        exit 0
+    fi
+fi
+
+# ── Init state directory ──
+mkdir -p "$STATE_DIR"
+echo $$ > "$LOCK_FILE"
+
+# ── Minimal JSON helpers (no jq dependency) ──
+# Read a top-level string/number value from state.json
+state_get() {
+    local key="$1"
+    if [ -f "$STATE_FILE" ]; then
+        sed -n "s/.*\"${key}\"[[:space:]]*:[[:space:]]*\"\{0,1\}\([^,\"}\n]*\)\"\{0,1\}.*/\1/p" "$STATE_FILE" | head -1
+    fi
+}
+
+# We accumulate the full state and write it at the end
+declare -a ALERTS=()
+NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+NOW_EPOCH=$(date +%s)
+AGENT_NAME=$(hostname)
+OS_NAME="linux"
+if [ -f /etc/os-release ]; then
+    OS_NAME=$(. /etc/os-release && echo "${ID:-linux}")
+fi
+MY_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "unknown")
+
+# ── Helper: add alert ──
+add_alert() {
+    local type="$1" severity="$2" title="$3" details="$4"
+    ALERTS+=("{\"type\":\"${type}\",\"severity\":\"${severity}\",\"title\":$(json_str "$title"),\"details\":${details}}")
+}
+
+# JSON-escape a string
+json_str() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\n'/\\n}"
+    s="${s//$'\r'/}"
+    s="${s//$'\t'/\\t}"
+    printf '"%s"' "$s"
+}
+
+# ══════════════════════════════════════════════════════════════
+# 1. LOG TAILING WITH SEEK
+# ══════════════════════════════════════════════════════════════
+
+# tail_log FILE STATE_KEY — reads new lines since last seek position
+# Outputs new lines to stdout; updates seek position var
+declare -A NEW_SEEK_POSITIONS=()
+
+tail_log() {
+    local logfile="$1" state_key="$2"
+    if [ ! -f "$logfile" ] || [ ! -r "$logfile" ]; then
+        return
+    fi
+    local current_size
+    current_size=$(stat -c%s "$logfile" 2>/dev/null || echo "0")
+    local last_pos
+    last_pos=$(state_get "seek_${state_key}")
+    last_pos="${last_pos:-0}"
+
+    # Handle log rotation (file got smaller)
+    if [ "$current_size" -lt "$last_pos" ]; then
+        last_pos=0
+    fi
+
+    if [ "$current_size" -gt "$last_pos" ]; then
+        dd if="$logfile" bs=1 skip="$last_pos" count=$((current_size - last_pos)) 2>/dev/null
+    fi
+    NEW_SEEK_POSITIONS["seek_${state_key}"]="$current_size"
+}
+
+# ── Auth log analysis ──
+AUTH_LOG=""
+if [ -f /var/log/auth.log ]; then
+    AUTH_LOG="/var/log/auth.log"
+elif [ -f /var/log/secure ]; then
+    AUTH_LOG="/var/log/secure"
+fi
+
+declare -A SSH_FAIL_IPS=()
+declare -A INVALID_USER_IPS=()
+declare -A SUDO_FAIL_USERS=()
+AUTH_ALERTS_RAW=""
+
+if [ -n "$AUTH_LOG" ]; then
+    AUTH_NEW=$(tail_log "$AUTH_LOG" "auth_log")
+
+    if [ -n "$AUTH_NEW" ]; then
+        # Failed SSH by source IP
+        while IFS= read -r ip; do
+            [ -z "$ip" ] && continue
+            SSH_FAIL_IPS["$ip"]=$(( ${SSH_FAIL_IPS["$ip"]:-0} + 1 ))
+        done < <(echo "$AUTH_NEW" | grep -oP 'Failed password for .+ from \K[0-9.]+' 2>/dev/null || true)
+
+        # Invalid user SSH attempts
+        while IFS= read -r ip; do
+            [ -z "$ip" ] && continue
+            INVALID_USER_IPS["$ip"]=$(( ${INVALID_USER_IPS["$ip"]:-0} + 1 ))
+        done < <(echo "$AUTH_NEW" | grep -oP 'Invalid user .+ from \K[0-9.]+' 2>/dev/null || true)
+
+        # Successful root login
+        if echo "$AUTH_NEW" | grep -qP 'Accepted .* for root' 2>/dev/null; then
+            local_detail=$(echo "$AUTH_NEW" | grep -P 'Accepted .* for root' | tail -1)
+            add_alert "root_login" "critical" "Successful root login detected" "{\"line\":$(json_str "$local_detail")}"
+        fi
+
+        # Sudo failures by user
+        while IFS= read -r user; do
+            [ -z "$user" ] && continue
+            SUDO_FAIL_USERS["$user"]=$(( ${SUDO_FAIL_USERS["$user"]:-0} + 1 ))
+        done < <(echo "$AUTH_NEW" | grep -i 'sudo.*authentication failure' | grep -oP 'user=\K\S+' 2>/dev/null || true)
+
+        # User add/remove/modify
+        if echo "$AUTH_NEW" | grep -qE 'useradd|userdel|usermod' 2>/dev/null; then
+            local_lines=$(echo "$AUTH_NEW" | grep -E 'useradd|userdel|usermod' | head -5)
+            add_alert "user_change" "critical" "User account modified" "{\"lines\":$(json_str "$local_lines")}"
+        fi
+
+        # SSH key changes
+        if echo "$AUTH_NEW" | grep -q 'authorized_keys' 2>/dev/null; then
+            add_alert "ssh_key_change" "high" "SSH authorized_keys modified" "{\"detected\":true}"
+        fi
+    fi
+fi
+
+# Generate alerts for SSH brute force (threshold)
+for ip in "${!SSH_FAIL_IPS[@]}"; do
+    count="${SSH_FAIL_IPS[$ip]}"
+    if [ "$count" -ge "$ALERT_THRESHOLD_SSH" ]; then
+        add_alert "ssh_brute_force" "high" "SSH brute force from ${ip} (${count} failures)" "{\"source_ip\":\"${ip}\",\"count\":${count}}"
+    fi
+done
+
+# Invalid user alerts
+for ip in "${!INVALID_USER_IPS[@]}"; do
+    count="${INVALID_USER_IPS[$ip]}"
+    if [ "$count" -ge 3 ]; then
+        add_alert "ssh_invalid_user" "high" "SSH invalid user attempts from ${ip} (${count})" "{\"source_ip\":\"${ip}\",\"count\":${count}}"
+    fi
+done
+
+# Sudo failure alerts
+for user in "${!SUDO_FAIL_USERS[@]}"; do
+    count="${SUDO_FAIL_USERS[$user]}"
+    add_alert "sudo_failure" "medium" "Sudo auth failures for ${user} (${count})" "{\"user\":\"${user}\",\"count\":${count}}"
+done
+
+# ── Syslog analysis ──
+SYSLOG_NEW=""
+if [ -f /var/log/syslog ]; then
+    SYSLOG_NEW=$(tail_log "/var/log/syslog" "syslog")
+elif command -v journalctl &>/dev/null; then
+    last_run=$(state_get "last_run")
+    if [ -n "$last_run" ]; then
+        SYSLOG_NEW=$(journalctl --since="@${last_run}" --no-pager -q 2>/dev/null | head -500 || true)
+    fi
+fi
+
+if [ -n "$SYSLOG_NEW" ]; then
+    # OOM killer
+    if echo "$SYSLOG_NEW" | grep -qiE 'Out of memory|oom-kill' 2>/dev/null; then
+        oom_line=$(echo "$SYSLOG_NEW" | grep -iE 'Out of memory|oom-kill' | tail -1)
+        add_alert "oom_kill" "high" "OOM killer invoked" "{\"line\":$(json_str "$oom_line")}"
+    fi
+
+    # Service crash
+    if echo "$SYSLOG_NEW" | grep -qiE 'segfault|killed by signal|core dumped' 2>/dev/null; then
+        crash_line=$(echo "$SYSLOG_NEW" | grep -iE 'segfault|killed by signal|core dumped' | tail -1)
+        add_alert "service_crash" "high" "Process crash detected" "{\"line\":$(json_str "$crash_line")}"
+    fi
+
+    # Disk errors
+    if echo "$SYSLOG_NEW" | grep -qiE 'I/O error|EXT4-fs error|read-only' 2>/dev/null; then
+        disk_line=$(echo "$SYSLOG_NEW" | grep -iE 'I/O error|EXT4-fs error|read-only' | tail -1)
+        add_alert "disk_error" "critical" "Disk error detected" "{\"line\":$(json_str "$disk_line")}"
+    fi
+fi
+
+# ── Package log ──
+PKG_LOG=""
+if [ -f /var/log/dpkg.log ]; then
+    PKG_LOG="/var/log/dpkg.log"
+elif [ -f /var/log/yum.log ]; then
+    PKG_LOG="/var/log/yum.log"
+fi
+if [ -n "$PKG_LOG" ]; then
+    pkg_new=$(tail_log "$PKG_LOG" "pkg_log")
+    if [ -n "$pkg_new" ]; then
+        pkg_count=$(echo "$pkg_new" | wc -l)
+        pkg_sample=$(echo "$pkg_new" | tail -3)
+        add_alert "package_change" "medium" "Package changes detected (${pkg_count} lines)" "{\"count\":${pkg_count},\"sample\":$(json_str "$pkg_sample")}"
+    fi
+fi
+
+# ── UFW log ──
+if [ -f /var/log/ufw.log ]; then
+    ufw_new=$(tail_log "/var/log/ufw.log" "ufw_log")
+    if [ -n "$ufw_new" ]; then
+        blocked_count=$(echo "$ufw_new" | grep -c '\[UFW BLOCK\]' || echo "0")
+        if [ "$blocked_count" -gt 0 ]; then
+            top_src=$(echo "$ufw_new" | grep '\[UFW BLOCK\]' | grep -oP 'SRC=\K\S+' | sort | uniq -c | sort -rn | head -3 | awk '{printf "%s(%s) ",$2,$1}')
+            add_alert "ufw_blocked" "low" "UFW blocked ${blocked_count} connections" "{\"count\":${blocked_count},\"top_sources\":$(json_str "$top_src")}"
+        fi
+    fi
+fi
+
+# ══════════════════════════════════════════════════════════════
+# 2. PORT LISTENER CHECK
+# ══════════════════════════════════════════════════════════════
+
+current_ports=$(ss -tlnp 2>/dev/null | awk 'NR>1 {print $4}' | sort -u | tr '\n' ',' || echo "")
+current_ports="${current_ports%,}"  # trim trailing comma
+baseline_ports=$(state_get "baseline_ports")
+
+if [ -z "$baseline_ports" ]; then
+    # First run — establish baseline
+    baseline_ports="$current_ports"
+else
+    # Compare: find new listeners
+    new_ports=""
+    IFS=',' read -ra CUR_ARR <<< "$current_ports"
+    for port in "${CUR_ARR[@]}"; do
+        if [[ ",$baseline_ports," != *",$port,"* ]]; then
+            new_ports="${new_ports:+${new_ports},}${port}"
+        fi
+    done
+    if [ -n "$new_ports" ]; then
+        add_alert "new_listener" "high" "New listening ports detected: ${new_ports}" "{\"new_ports\":$(json_str "$new_ports"),\"baseline\":$(json_str "$baseline_ports")}"
+        # Update baseline to include new ports
+        baseline_ports="$current_ports"
+    fi
+fi
+
+port_count=$(echo "$current_ports" | tr ',' '\n' | grep -c . || echo "0")
+
+# ══════════════════════════════════════════════════════════════
+# 3. USER / SUDOER CHECK
+# ══════════════════════════════════════════════════════════════
+
+# Get login users (uid >= 1000 or uid 0)
+current_users=$(awk -F: '($3 >= 1000 || $3 == 0) && $7 !~ /nologin|false/ {print $1}' /etc/passwd 2>/dev/null | sort | tr '\n' ',' || echo "")
+current_users="${current_users%,}"
+
+# Get sudo/wheel members
+sudoers=""
+if getent group sudo &>/dev/null; then
+    sudoers=$(getent group sudo | cut -d: -f4)
+elif getent group wheel &>/dev/null; then
+    sudoers=$(getent group wheel | cut -d: -f4)
+fi
+
+current_user_hash=$(echo "${current_users}|${sudoers}" | sha256sum | awk '{print $1}')
+baseline_user_hash=$(state_get "baseline_user_hash")
+
+user_count=$(echo "$current_users" | tr ',' '\n' | grep -c . || echo "0")
+
+if [ -z "$baseline_user_hash" ]; then
+    baseline_user_hash="$current_user_hash"
+elif [ "$current_user_hash" != "$baseline_user_hash" ]; then
+    add_alert "user_sudoer_change" "critical" "User or sudoer list changed" "{\"users\":$(json_str "$current_users"),\"sudoers\":$(json_str "$sudoers")}"
+    baseline_user_hash="$current_user_hash"
+fi
+
+# ══════════════════════════════════════════════════════════════
+# 4. CRON / TIMER AUDIT
+# ══════════════════════════════════════════════════════════════
+
+cron_data=""
+# Per-user crontabs
+for user in $(cut -d: -f1 /etc/passwd 2>/dev/null); do
+    user_cron=$(crontab -l -u "$user" 2>/dev/null || true)
+    if [ -n "$user_cron" ]; then
+        cron_data="${cron_data}USER:${user}:${user_cron}\n"
+    fi
+done
+# System cron dirs
+cron_data="${cron_data}$(ls -la /etc/cron.d/ /etc/cron.daily/ 2>/dev/null || true)\n"
+# Systemd timers
+cron_data="${cron_data}$(systemctl list-timers --no-pager 2>/dev/null || true)"
+
+current_cron_hash=$(echo -e "$cron_data" | sha256sum | awk '{print $1}')
+baseline_cron_hash=$(state_get "baseline_cron_hash")
+
+if [ -z "$baseline_cron_hash" ]; then
+    baseline_cron_hash="$current_cron_hash"
+elif [ "$current_cron_hash" != "$baseline_cron_hash" ]; then
+    add_alert "cron_change" "high" "Cron/timer configuration changed" "{\"new_hash\":\"${current_cron_hash}\",\"old_hash\":\"${baseline_cron_hash}\"}"
+    baseline_cron_hash="$current_cron_hash"
+fi
+
+# ══════════════════════════════════════════════════════════════
+# 5. SUSPICIOUS PROCESS CHECK
+# ══════════════════════════════════════════════════════════════
+
+suspicious_procs=""
+# Look for suspicious patterns in process list (exclude our own grep)
+ps_output=$(ps aux 2>/dev/null || true)
+while IFS= read -r line; do
+    [ -z "$line" ] && continue
+    proc_user=$(echo "$line" | awk '{print $1}')
+    # Skip root for tcpdump (often legitimate)
+    if echo "$line" | grep -qP '\btcpdump\b' && [ "$proc_user" = "root" ]; then
+        continue
+    fi
+    suspicious_procs="${suspicious_procs}${line}\n"
+done < <(echo "$ps_output" | grep -E '\bncat?\b|\bsocat\b|\bnmap\b|\btcpdump\b|python[23]?\s+-c|perl\s+-e|bash\s+-i|>/dev/tcp|mkfifo' 2>/dev/null | grep -v 'grep' || true)
+
+if [ -n "$suspicious_procs" ]; then
+    add_alert "suspicious_process" "critical" "Suspicious process detected" "{\"processes\":$(json_str "$suspicious_procs")}"
+fi
+
+# ══════════════════════════════════════════════════════════════
+# 6. OUTBOUND CONNECTION CHECK
+# ══════════════════════════════════════════════════════════════
+
+unusual_conns=""
+while IFS= read -r line; do
+    [ -z "$line" ] && continue
+    # Extract remote IP and port
+    remote=$(echo "$line" | awk '{print $5}')
+    remote_ip=$(echo "$remote" | rev | cut -d: -f2- | rev)
+    remote_port=$(echo "$remote" | rev | cut -d: -f1 | rev)
+
+    # Skip RFC1918 / loopback / link-local
+    if echo "$remote_ip" | grep -qP '^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|127\.|::1|fe80|fd)'; then
+        continue
+    fi
+    # Skip common ports
+    case "$remote_port" in
+        80|443|53|22|123) continue ;;
+    esac
+
+    unusual_conns="${unusual_conns}${line}\n"
+done < <(ss -tnp 2>/dev/null | awk '/ESTAB/ {print}' || true)
+
+if [ -n "$unusual_conns" ]; then
+    conn_count=$(echo -e "$unusual_conns" | grep -c . || echo "0")
+    add_alert "unusual_outbound" "medium" "Unusual outbound connections (${conn_count})" "{\"connections\":$(json_str "$unusual_conns")}"
+fi
+
+# ══════════════════════════════════════════════════════════════
+# 7. SELF-UPDATE CHECK
+# ══════════════════════════════════════════════════════════════
+
+current_version="unknown"
+if command -v git &>/dev/null && [ -d "${REPO_DIR}/.git" ]; then
+    current_version=$(git -C "$REPO_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+
+    # Check for updates (fetch dry-run is fast)
+    fetch_output=$(git -C "$REPO_DIR" fetch --dry-run 2>&1 || true)
+    if [ -n "$fetch_output" ]; then
+        add_alert "update_available" "low" "Clove update available" "{\"current\":\"${current_version}\"}"
+    fi
+fi
+
+# ══════════════════════════════════════════════════════════════
+# 8. WAZUH HEALTH CHECK
+# ══════════════════════════════════════════════════════════════
+
+wazuh_status="unknown"
+
+if systemctl is-active --quiet wazuh-agent 2>/dev/null; then
+    wazuh_status="active"
+
+    # Check for stuck reconnect loops
+    if [ -f /var/ossec/logs/ossec.log ]; then
+        recent_reconnects=$(tail -100 /var/ossec/logs/ossec.log 2>/dev/null \
+            | grep -c "Trying to connect to server" || true)
+        if [ "$recent_reconnects" -gt 5 ]; then
+            logger -t "$LOG_TAG" "Wazuh agent stuck in reconnect loop (${recent_reconnects} attempts), restarting"
+            systemctl restart wazuh-agent 2>/dev/null || true
+            wazuh_status="restarted-reconnect"
+            add_alert "wazuh_restart" "medium" "Wazuh agent restarted (reconnect loop)" "{\"reconnect_count\":${recent_reconnects}}"
+        fi
+    fi
+
+    # Check for zombie process
+    wazuh_pid=$(systemctl show wazuh-agent --property=MainPID --value 2>/dev/null || echo "0")
+    if [ "$wazuh_pid" != "0" ] && [ -d "/proc/$wazuh_pid" ]; then
+        proc_state=$(awk '/^State:/{print $2}' "/proc/$wazuh_pid/status" 2>/dev/null || echo "")
+        if [ "$proc_state" = "Z" ]; then
+            logger -t "$LOG_TAG" "Wazuh agent is zombie, restarting"
+            systemctl restart wazuh-agent 2>/dev/null || true
+            wazuh_status="restarted-zombie"
+            add_alert "wazuh_restart" "medium" "Wazuh agent restarted (zombie process)" "{}"
+        fi
+    fi
+elif systemctl list-unit-files wazuh-agent.service &>/dev/null 2>&1; then
+    wazuh_status="inactive"
+    logger -t "$LOG_TAG" "Wazuh agent not running, starting"
+    systemctl start wazuh-agent 2>/dev/null || true
+    wazuh_status="restarted"
+    add_alert "wazuh_restart" "medium" "Wazuh agent was not running, started" "{}"
+fi
+
+# ══════════════════════════════════════════════════════════════
+# 9. SYSTEM HEALTH
+# ══════════════════════════════════════════════════════════════
+
+cpu_usage=$(awk '{u=$2+$4; t=$2+$4+$5; if(NR>1) printf "%.1f",(u-pu)/(t-pt)*100; pu=u; pt=t}' \
+    <(head -1 /proc/stat; sleep 0.3; head -1 /proc/stat) 2>/dev/null || echo "0")
+
+mem_usage=$(awk '/MemTotal/{t=$2} /MemAvailable/{a=$2} END{printf "%.1f",(t-a)/t*100}' /proc/meminfo 2>/dev/null || echo "0")
+
+disk_usage=$(df / 2>/dev/null | awk 'NR==2 {gsub(/%/,""); print $5}' || echo "0")
+
+uptime_sec=$(awk '{print int($1)}' /proc/uptime 2>/dev/null || echo "0")
+
+# ══════════════════════════════════════════════════════════════
+# 10. BUILD PAYLOAD & SEND HEARTBEAT
+# ══════════════════════════════════════════════════════════════
+
+# Build alerts JSON array
+alerts_json="["
+first=true
+for a in "${ALERTS[@]}"; do
+    if [ "$first" = true ]; then
+        first=false
+    else
+        alerts_json="${alerts_json},"
+    fi
+    alerts_json="${alerts_json}${a}"
+done
+alerts_json="${alerts_json}]"
+
+# Build seek positions for state
+seek_json=""
+for key in "${!NEW_SEEK_POSITIONS[@]}"; do
+    seek_json="${seek_json}\"${key}\":\"${NEW_SEEK_POSITIONS[$key]}\","
+done
+
+# Write state file atomically
+tmp_state=$(mktemp "${STATE_DIR}/state.XXXXXX")
+cat > "$tmp_state" <<STATEEOF
+{
+  "last_run": "${NOW_EPOCH}",
+  "version": "${current_version}",
+  "baseline_ports": "${baseline_ports}",
+  "baseline_user_hash": "${baseline_user_hash}",
+  "baseline_cron_hash": "${baseline_cron_hash}",
+  ${seek_json}
+  "agent_name": "${AGENT_NAME}"
+}
+STATEEOF
+mv -f "$tmp_state" "$STATE_FILE"
+
+# Send heartbeat to shallotd
+payload=$(cat <<PAYLOADEOF
+{
+  "agent_name": "${AGENT_NAME}",
+  "agent_type": "clove",
+  "version": "${current_version}",
+  "os": "${OS_NAME}",
+  "ip": "${MY_IP}",
+  "timestamp": "${NOW}",
+  "health": {
+    "cpu": ${cpu_usage},
+    "memory": ${mem_usage},
+    "disk": ${disk_usage},
+    "uptime": ${uptime_sec},
+    "services": {"wazuh-agent": "${wazuh_status}"}
+  },
+  "alerts": ${alerts_json},
+  "baselines": {
+    "listening_ports_count": ${port_count},
+    "user_count": ${user_count},
+    "cron_hash": "${current_cron_hash}"
+  }
+}
+PAYLOADEOF
+)
+
+curl -sk -m 5 -X POST "${MANAGER_URL}/api/ingest/clove" \
+    -H "Content-Type: application/json" \
+    -d "$payload" >/dev/null 2>&1 || true
+
+# Log alert count for syslog visibility
+alert_count=${#ALERTS[@]}
+if [ "$alert_count" -gt 0 ]; then
+    logger -t "$LOG_TAG" "Heartbeat sent with ${alert_count} alert(s)"
+fi

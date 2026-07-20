@@ -1,0 +1,67 @@
+# SIGIL — security-shallots
+SIGIL_VERSION: 1
+PROJECT: security-shallots
+HOST: YOUR_SERVER_HOSTNAME (YOUR_SERVER_IP)
+REPO: /path/to/security-shallots/
+UPDATED: YYYY-MM-DD
+
+## What this is
+Self-hosted SIEM on YOUR_SERVER. Dashboard at https://YOUR_SERVER_IP:8844.
+
+## Instant access
+```
+Dashboard:  https://YOUR_SERVER_IP:8844
+Auth:       YOUR_USERNAME / YOUR_PASSWORD
+API base:   curl -sk -u "YOUR_USERNAME:YOUR_PASSWORD" https://YOUR_SERVER_IP:8844
+```
+
+## Key commands
+```bash
+# Health
+curl -sk -u "USER:PASS" https://YOUR_SERVER_IP:8844/api/health | python3 -m json.tool
+
+# Check if running
+ps aux | grep shallots | grep -v grep
+
+# Tail logs
+tail -f /tmp/shallotd.log
+
+# Restart
+pkill -f 'python.*shallots'
+cd /path/to/security-shallots
+nohup .venv/bin/python -m shallots -c config.yaml run > /tmp/shallotd.log 2>&1 &
+
+# Deploy code change
+rsync -av shallots/ user@YOUR_SERVER:/path/to/security-shallots/shallots/
+# then restart as above
+
+# Run tests
+python3 -m pytest tests/ -q
+```
+
+## Network map
+```
+INTERNET → YOUR_INTERFACE ← Suricata watches this
+                │
+    ┌───────────┴───────────┐
+YOUR_SERVER             OTHER_MACHINES
+  SIEM / shallots.db      (agents, sensors)
+```
+
+## Known false positives on this deployment
+- (document patterns specific to your network here)
+- Internal IPs that should never be treated as threats: YOUR_LAN_CIDR
+
+## Known gotchas on this deployment
+- (note anything specific to your setup, e.g. systemd vs nohup, Ollama location, etc.)
+
+## Config quick reference
+| Key | Your value | Effect |
+|---|---|---|
+| `ai.tier` | | LLM triage mode |
+| `ai.ollama_url` | | Ollama endpoint |
+| `network.home_cidr` | | Your LAN CIDR |
+| `web.password` | | Dashboard login |
+
+## Recent changes
+- (log significant decisions and changes here for future agents)

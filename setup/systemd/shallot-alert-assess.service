@@ -1,0 +1,13 @@
+[Unit]
+Description=Security Shallots alert-quality assessment
+After=shallotd.service
+
+[Service]
+Type=oneshot
+User=om
+Group=om
+WorkingDirectory=/home/user/security-shallots
+ExecStart=/bin/bash -lc 'mkdir -p docs && { echo; echo "## $(date -u +%%Y-%%m-%%dT%%H:%%M:%%SZ)"; .venv/bin/python tools/shallot_noise_housekeep.py --apply --prune-synthetic-older-hours 24 --apply-prune --trim-assessment-log docs/ALERT_ASSESSMENT_LOG.md; echo; .venv/bin/python tools/shallot_ops_sanity.py --skip-gate || true; echo; .venv/bin/python tools/shallot_rule_canary.py || true; echo; .venv/bin/python tools/shallot_syslog_canary.py --timeout 30 || true; echo; .venv/bin/python tools/shallot_alert_assess.py --hours 1 --summary-json; echo; .venv/bin/python tools/shallot_gate_watch.py || true; echo; .venv/bin/python tools/shallot_production_gate.py || true; echo; .venv/bin/python tools/shallot_self_assess.py || true; echo; .venv/bin/python tools/shallot_fleet_top.py --compact-json; } >> docs/ALERT_ASSESSMENT_LOG.md'
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=68.0", "setuptools-scm>=8.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "security-shallots"
+version = "0.2.0"
+description = "Lightweight self-hosted SIEM — runs on a Raspberry Pi, scales to a server"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [{ name = "Ben Olenick" }]
+keywords = ["siem", "security", "monitoring", "ids", "suricata", "network-security"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Intended Audience :: System Administrators",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: System :: Monitoring",
+    "Topic :: System :: Networking :: Monitoring",
+]
+dependencies = [
+    "aiohttp>=3.9",
+    "aiosqlite>=0.19",
+    "pyyaml>=6.0",
+    "maxminddb>=2.4",
+    "aiofiles>=23.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-asyncio", "ruff"]
+
+[project.urls]
+Homepage = "https://github.com/benolenick/security-shallots"
+Repository = "https://github.com/benolenick/security-shallots"
+Issues = "https://github.com/benolenick/security-shallots/issues"
+
+[project.scripts]
+shallot = "shallots.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["shallots*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

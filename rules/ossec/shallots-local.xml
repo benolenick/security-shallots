@@ -1,0 +1,81 @@
+<!-- Security Shallots — Custom OSSEC Rules -->
+<!-- Place in /var/ossec/etc/rules/local_rules.xml -->
+
+<group name="shallots,">
+
+  <!-- ── File Integrity Monitoring ── -->
+  <rule id="900001" level="10">
+    <if_sid>554</if_sid>
+    <match>/etc/passwd|/etc/shadow|/etc/sudoers</match>
+    <description>Critical system file modified: $(file)</description>
+    <group>syscheck,pci_dss_11.5,</group>
+  </rule>
+
+  <rule id="900002" level="12">
+    <if_sid>554</if_sid>
+    <match>/etc/ssh/sshd_config</match>
+    <description>SSH configuration modified</description>
+    <group>syscheck,pci_dss_11.5,</group>
+  </rule>
+
+  <rule id="900003" level="10">
+    <if_sid>554</if_sid>
+    <match>/etc/crontab|/var/spool/cron</match>
+    <description>Crontab modified: possible persistence</description>
+    <group>syscheck,pci_dss_11.5,</group>
+  </rule>
+
+  <!-- ── Authentication ── -->
+  <rule id="900010" level="10" frequency="5" timeframe="120">
+    <if_matched_sid>5710</if_matched_sid>
+    <description>SSH brute force attack (5+ failures in 2 min)</description>
+    <group>authentication_failures,</group>
+  </rule>
+
+  <rule id="900011" level="12">
+    <if_sid>5715</if_sid>
+    <user>root</user>
+    <description>Successful SSH login as root</description>
+    <group>authentication_success,</group>
+  </rule>
+
+  <rule id="900012" level="10" frequency="3" timeframe="60">
+    <if_matched_sid>5503</if_matched_sid>
+    <description>Multiple sudo failures (possible privilege escalation attempt)</description>
+    <group>authentication_failures,</group>
+  </rule>
+
+  <!-- ── Process Monitoring ── -->
+  <rule id="900020" level="10">
+    <if_sid>533</if_sid>
+    <match>nc |ncat |netcat |socat </match>
+    <description>Network utility started (possible reverse shell)</description>
+    <group>process_monitor,</group>
+  </rule>
+
+  <rule id="900021" level="12">
+    <if_sid>533</if_sid>
+    <match>wget |curl </match>
+    <url>pastebin|transfer.sh|ngrok</url>
+    <description>Download from suspicious source</description>
+    <group>process_monitor,</group>
+  </rule>
+
+  <!-- ── Docker / Container Events ── -->
+  <rule id="900030" level="8">
+    <decoded_as>json</decoded_as>
+    <field name="type">container</field>
+    <match>privileged</match>
+    <description>Privileged container started</description>
+    <group>docker,</group>
+  </rule>
+
+  <!-- ── systemd Service Changes ── -->
+  <rule id="900040" level="8">
+    <if_sid>554</if_sid>
+    <match>/etc/systemd/system/|/lib/systemd/system/</match>
+    <description>Systemd service file modified: possible persistence</description>
+    <group>syscheck,</group>
+  </rule>
+
+</group>

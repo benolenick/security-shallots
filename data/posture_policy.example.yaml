@@ -1,0 +1,57 @@
+# Security Shallots — posture policy (example)
+#
+# Copy to data/posture_policy.yaml and edit for YOUR network. This file is
+# deep-merged over the built-in defaults, so you only need the keys you want to
+# change. data/posture_policy.yaml is gitignored — your real network layout
+# never lands in version control.
+
+# Your LAN range. Used to decide what counts as "internal".
+home_cidr: 192.168.0.0/16
+
+scan:
+  max_findings_per_run: 80
+  stale_sensor_seconds: 900        # a sensor silent longer than this = drift
+  time_offset_warn_seconds: 5      # clock skew warning threshold
+  telemetry_spike_factor: 5.0      # x-over-baseline that counts as a spike
+
+# Services you EXPECT each host to be listening on. Anything bound outside this
+# list is surfaced as posture drift. Key by hostname (as Shallots sees it).
+expected_services:
+  my-server:
+    - {proto: tcp, bind: 0.0.0.0, port: 8844, name: "shallots dashboard"}
+    - {proto: tcp, bind: 0.0.0.0, port: 8855, name: "argus webhook"}
+    - {proto: tcp, bind: 0.0.0.0, port: 514,  name: "syslog tcp"}
+    - {proto: udp, bind: 0.0.0.0, port: 514,  name: "syslog udp"}
+    - {proto: tcp, bind: 127.0.0.1, port: 11434, name: "ollama local"}
+
+# Files whose contents Shallots watches for unexpected change.
+drift_targets:
+  - {path: config.yaml, kind: shallots_config}
+  - {path: data/inventory_seed.yaml, kind: asset_policy}
+  - {path: data/posture_policy.yaml, kind: posture_policy}
+  - {path: /etc/ssh/sshd_config, kind: ssh_config}
+  - {path: /etc/sudoers, kind: sudoers}
+  - {path: /etc/crontab, kind: cron}
+
+# Decoy files. A read/touch of any of these is high-signal — nothing legitimate
+# should ever open them.
+canaries:
+  enabled: true
+  directory: /var/lib/shallots/canaries
+  files:
+    - fake-prod.env
+    - fake-backup-manifest.txt
+    - fake-ssh-key-marker
+
+# Tiny listener on an unused port; any connection is an unexpected touch.
+honey_listener:
+  enabled: true
+  bind: 0.0.0.0
+  port: 9922
+  allow_cidrs:
+    - 127.0.0.0/8
+
+# Filesystem prefixes whose executables are expected (your app virtualenvs, etc).
+execution_allow_prefixes:
+  - /opt/shallots/venv/
+  # - /home/youruser/myapp/.venv/

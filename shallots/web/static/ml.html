@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ML Insights — Security Shallots</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x1F9C5;</text></svg>" />
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0e17;
+      --bg-panel: #111827;
+      --bg-card: #1a2332;
+      --border: #1f2937;
+      --text: #e5e7eb;
+      --text-muted: #6b7280;
+      --accent: #3b82f6;
+      --sev-low: #22c55e;
+      --sev-medium: #eab308;
+      --sev-high: #f97316;
+      --sev-critical: #ef4444;
+      --purple: #8b5cf6;
+      --cyan: #06b6d4;
+      --pink: #ec4899;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+    }
+    .topbar {
+      position: sticky; top: 0; z-index: 100;
+      height: 48px; background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; padding: 0 1.5rem; gap: 1rem;
+    }
+    .topbar-title { font-size: 0.95rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
+    .topbar-title a { color: var(--text-muted); text-decoration: none; font-size: 0.8rem; }
+    .topbar-title a:hover { color: var(--accent); }
+    .topbar-actions { margin-left: auto; display: flex; gap: 0.5rem; }
+    .btn {
+      padding: 5px 14px; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--bg-panel); color: var(--text); font-size: 0.75rem;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .btn:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .dashboard { padding: 1.5rem; max-width: 1600px; margin: 0 auto; }
+
+    /* Status cards */
+    .status-row {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem; margin-bottom: 1.5rem;
+    }
+    .status-card {
+      background: var(--bg-panel); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1rem 1.25rem;
+    }
+    .status-card .sc-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .status-card .sc-value { font-size: 1.8rem; font-weight: 700; margin: 0.25rem 0; }
+    .status-card .sc-sub { font-size: 0.75rem; color: var(--text-muted); }
+    .sc-ok { color: var(--sev-low); }
+    .sc-warn { color: var(--sev-medium); }
+    .sc-crit { color: var(--sev-critical); }
+
+    /* Panel grid */
+    .panel-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 1.5rem; margin-bottom: 1.5rem;
+    }
+    @media (max-width: 900px) { .panel-grid { grid-template-columns: 1fr; } }
+    .panel-full { grid-column: 1 / -1; }
+
+    .panel {
+      background: var(--bg-panel); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1.25rem; overflow: hidden;
+    }
+    .panel-title {
+      font-size: 0.8rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 1rem;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .panel-title .pt-badge {
+      font-size: 0.65rem; padding: 2px 8px; border-radius: 10px;
+      font-weight: 500; text-transform: none; letter-spacing: normal;
+    }
+
+    /* Anomaly scatter plot */
+    .scatter-container { width: 100%; height: 300px; position: relative; }
+    .scatter-container svg { width: 100%; height: 100%; }
+
+    /* Baseline table */
+    .baseline-table { width: 100%; font-size: 0.78rem; border-collapse: collapse; }
+    .baseline-table th {
+      text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border);
+      color: var(--text-muted); font-weight: 500; font-size: 0.7rem;
+    }
+    .baseline-table td { padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .baseline-table tr:hover td { background: rgba(59,130,246,0.05); }
+
+    /* Kill chain */
+    .kc-stages { display: flex; gap: 2px; margin-bottom: 1rem; }
+    .kc-stage {
+      flex: 1; text-align: center; padding: 8px 4px; border-radius: 6px;
+      font-size: 0.65rem; font-weight: 500; background: var(--bg-card);
+      border: 1px solid var(--border); transition: all 0.3s;
+    }
+    .kc-stage.active { background: var(--sev-critical); border-color: var(--sev-critical); color: #fff; }
+    .kc-stage.partial { background: rgba(249,115,22,0.2); border-color: var(--sev-high); color: var(--sev-high); }
+    .kc-chain {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.75rem; margin-bottom: 0.75rem;
+    }
+    .kc-chain-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; }
+    .kc-chain-entity { font-weight: 600; font-size: 0.85rem; }
+    .kc-chain-score { font-size: 0.75rem; padding: 2px 8px; border-radius: 10px; }
+    .kc-chain-stages { font-size: 0.75rem; color: var(--text-muted); }
+
+    /* Cluster viz */
+    .cluster-container { width: 100%; height: 350px; }
+    .cluster-container svg { width: 100%; height: 100%; }
+
+    /* Deviation list */
+    .dev-item {
+      padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+      display: flex; align-items: center; gap: 0.75rem; font-size: 0.8rem;
+    }
+    .dev-icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; }
+    .dev-new-ip .dev-icon { background: rgba(139,92,246,0.15); }
+    .dev-new-port .dev-icon { background: rgba(6,182,212,0.15); }
+    .dev-volume-spike .dev-icon { background: rgba(239,68,68,0.15); }
+    .dev-new-category .dev-icon { background: rgba(234,179,8,0.15); }
+    .dev-protocol-change .dev-icon { background: rgba(236,72,153,0.15); }
+    .dev-details { flex: 1; }
+    .dev-details .dev-title { font-weight: 500; }
+    .dev-details .dev-sub { font-size: 0.72rem; color: var(--text-muted); }
+    .dev-time { font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; }
+
+    /* Model health bars */
+    .model-bar { margin-bottom: 0.75rem; }
+    .model-bar-label { display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 4px; }
+    .model-bar-track { height: 6px; background: var(--bg-card); border-radius: 3px; overflow: hidden; }
+    .model-bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+
+    /* Live feed */
+    .live-feed { max-height: 300px; overflow-y: auto; }
+    .feed-item {
+      padding: 0.4rem 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+      font-size: 0.75rem; display: flex; gap: 0.5rem; align-items: center;
+    }
+    .feed-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .feed-score { margin-left: auto; font-weight: 600; white-space: nowrap; }
+
+    .loading { color: var(--text-muted); font-size: 0.8rem; padding: 2rem; text-align: center; }
+    .empty-state { color: var(--text-muted); font-size: 0.8rem; text-align: center; padding: 2rem; }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .pulse { animation: pulse 2s ease-in-out infinite; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-title">
+    <span>ML Insights</span>
+    <a href="/">&#8592; Dashboard</a>
+    <a href="/topology">Topology &#8594;</a>
+  </div>
+  <div class="topbar-actions">
+    <button class="btn" id="btn-retrain" onclick="retrain()">Retrain Models</button>
+    <button class="btn" id="btn-rebuild" onclick="rebuildBaselines()">Rebuild Baselines</button>
+    <button class="btn" id="btn-refresh" onclick="loadAll()">Refresh</button>
+  </div>
+</div>
+
+<div class="dashboard">
+  <!-- Status cards -->
+  <div class="status-row" id="status-cards">
+    <div class="status-card">
+      <div class="sc-label">ML Engine</div>
+      <div class="sc-value" id="ml-status">-</div>
+      <div class="sc-sub" id="ml-status-sub">loading...</div>
+    </div>
+    <div class="status-card">
+      <div class="sc-label">Anomalies Detected</div>
+      <div class="sc-value" id="anomaly-count">-</div>
+      <div class="sc-sub" id="anomaly-sub">last 24h</div>
+    </div>
+    <div class="status-card">
+      <div class="sc-label">Baseline Deviations</div>
+      <div class="sc-value" id="deviation-count">-</div>
+      <div class="sc-sub" id="deviation-sub">active devices tracked</div>
+    </div>
+    <div class="status-card">
+      <div class="sc-label">Kill Chains</div>
+      <div class="sc-value" id="kc-count">-</div>
+      <div class="sc-sub" id="kc-sub">active progressions</div>
+    </div>
+    <div class="status-card">
+      <div class="sc-label">Device Clusters</div>
+      <div class="sc-value" id="cluster-count">-</div>
+      <div class="sc-sub" id="cluster-sub">behavioral groups</div>
+    </div>
+  </div>
+
+  <div class="panel-grid">
+    <!-- Anomaly Scatter Plot -->
+    <div class="panel">
+      <div class="panel-title">
+        <span>Anomaly Detection — Isolation Forest</span>
+        <span class="pt-badge" id="anomaly-badge" style="background:var(--sev-low);color:#000">Normal</span>
+      </div>
+      <div class="scatter-container" id="scatter-plot">
+        <div class="loading">Loading anomaly data...</div>
+      </div>
+    </div>
+
+    <!-- Device Clusters -->
+    <div class="panel">
+      <div class="panel-title">
+        <span>Device Clustering — DBSCAN</span>
+        <span class="pt-badge" id="cluster-badge" style="background:var(--purple);color:#fff">-</span>
+      </div>
+      <div class="cluster-container" id="cluster-plot">
+        <div class="loading">Loading cluster data...</div>
+      </div>
+    </div>
+
+    <!-- Kill Chain Tracker -->
+    <div class="panel">
+      <div class="panel-title">
+        <span>Kill Chain Progression</span>
+        <span class="pt-badge" id="kc-badge" style="background:var(--bg-card);color:var(--text-muted)">-</span>
+      </div>
+      <div class="kc-stages" id="kc-stage-bar">
+        <div class="kc-stage" data-stage="recon">Recon</div>
+        <div class="kc-stage" data-stage="weaponize">Weaponize</div>
+        <div class="kc-stage" data-stage="deliver">Deliver</div>
+        <div class="kc-stage" data-stage="exploit">Exploit</div>
+        <div class="kc-stage" data-stage="install">Install</div>
+        <div class="kc-stage" data-stage="c2">C2</div>
+        <div class="kc-stage" data-stage="actions">Actions</div>
+      </div>
+      <div id="kc-chains"><div class="empty-state">No active kill chains</div></div>
+    </div>
+
+    <!-- Behavioral Baselines -->
+    <div class="panel">
+      <div class="panel-title">
+        <span>Behavioral Baselines</span>
+        <span class="pt-badge" id="baseline-badge" style="background:var(--cyan);color:#000">-</span>
+      </div>
+      <div id="baselines-content"><div class="loading">Loading baselines...</div></div>
+    </div>
+
+    <!-- Baseline Deviations -->
+    <div class="panel panel-full">
+      <div class="panel-title">
+        <span>Recent Deviations</span>
+        <span class="pt-badge" id="dev-badge" style="background:var(--sev-medium);color:#000">-</span>
+      </div>
+      <div id="deviations-list"><div class="loading">Analyzing behavioral patterns...</div></div>
+    </div>
+
+    <!-- Model Health -->
+    <div class="panel">
+      <div class="panel-title"><span>Model Health</span></div>
+      <div id="model-health"><div class="loading">Loading model status...</div></div>
+    </div>
+
+    <!-- Live Anomaly Feed -->
+    <div class="panel">
+      <div class="panel-title">
+        <span>Live Anomaly Feed</span>
+        <span class="pulse" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--sev-critical)"></span>
+      </div>
+      <div class="live-feed" id="live-feed"><div class="empty-state">Waiting for anomalies...</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';
+
+function esc(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+
+function timeAgo(ts) {
+  if (!ts) return '-';
+  const d = new Date(ts);
+  const s = Math.floor((Date.now() - d) / 1000);
+  if (s < 60) return s + 's ago';
+  if (s < 3600) return Math.floor(s/60) + 'm ago';
+  if (s < 86400) return Math.floor(s/3600) + 'h ago';
+  return Math.floor(s/86400) + 'd ago';
+}
+
+async function fetchJSON(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+// ── Status Cards ──────────────────────────────────────────────────────────
+
+async function loadMLHealth() {
+  try {
+    const data = await fetchJSON('/api/ml/health');
+    const el = document.getElementById('ml-status');
+    const sub = document.getElementById('ml-status-sub');
+    if (data.active) {
+      el.textContent = 'Active';
+      el.className = 'sc-value sc-ok';
+      const models = data.models_loaded || 0;
+      const alerts = data.training_alerts || 0;
+      sub.textContent = `${models} model(s), trained on ${alerts} alerts`;
+    } else {
+      el.textContent = 'Offline';
+      el.className = 'sc-value sc-warn';
+      sub.textContent = data.reason || 'ML engine not available';
+    }
+  } catch {
+    document.getElementById('ml-status').textContent = 'Error';
+    document.getElementById('ml-status').className = 'sc-value sc-crit';
+  }
+}
+
+async function loadAnomalies() {
+  try {
+    const data = await fetchJSON('/api/ml/anomalies');
+    const anomalies = data.anomalies || [];
+    document.getElementById('anomaly-count').textContent = anomalies.length;
+
+    const critCount = anomalies.filter(a => a.anomaly_score > 0.8).length;
+    const badge = document.getElementById('anomaly-badge');
+    if (critCount > 5) { badge.textContent = 'Critical'; badge.style.background = 'var(--sev-critical)'; badge.style.color = '#fff'; }
+    else if (anomalies.length > 10) { badge.textContent = 'Elevated'; badge.style.background = 'var(--sev-medium)'; badge.style.color = '#000'; }
+    else { badge.textContent = 'Normal'; badge.style.background = 'var(--sev-low)'; badge.style.color = '#000'; }
+
+    renderScatterPlot(anomalies);
+    renderLiveFeed(anomalies.slice(0, 20));
+  } catch {
+    document.getElementById('scatter-plot').innerHTML = '<div class="empty-state">Anomaly detection not yet trained.<br>Click "Retrain Models" to start.</div>';
+  }
+}
+
+async function loadBaselines() {
+  try {
+    const data = await fetchJSON('/api/baselines');
+    const baselines = data.baselines || data || [];
+    const list = Array.isArray(baselines) ? baselines : [];
+
+    document.getElementById('deviation-count').textContent = list.length;
+    document.getElementById('deviation-sub').textContent = 'devices profiled';
+    document.getElementById('baseline-badge').textContent = list.length + ' devices';
+
+    renderBaselines(list);
+  } catch {
+    document.getElementById('baselines-content').innerHTML = '<div class="empty-state">Baselines not yet built.<br>Click "Rebuild Baselines" to start.</div>';
+  }
+}
+
+async function loadKillChains() {
+  try {
+    const data = await fetchJSON('/api/killchain/active');
+    const chains = data.chains || data.active_chains || [];
+
+    document.getElementById('kc-count').textContent = chains.length;
+    document.getElementById('kc-sub').textContent = chains.length ? 'active progressions' : 'no active threats';
+
+    const badge = document.getElementById('kc-badge');
+    if (chains.some(c => c.stage_count >= 4)) { badge.textContent = 'CRITICAL'; badge.style.background = 'var(--sev-critical)'; badge.style.color = '#fff'; }
+    else if (chains.length) { badge.textContent = chains.length + ' active'; badge.style.background = 'var(--sev-medium)'; badge.style.color = '#000'; }
+    else { badge.textContent = 'Clear'; badge.style.background = 'var(--sev-low)'; badge.style.color = '#000'; }
+
+    renderKillChains(chains);
+  } catch {
+    document.getElementById('kc-chains').innerHTML = '<div class="empty-state">Kill chain detector not active</div>';
+  }
+}
+
+async function loadClusters() {
+  try {
+    const data = await fetchJSON('/api/graph/communities');
+    const communities = data.communities || [];
+    document.getElementById('cluster-count').textContent = communities.length;
+    document.getElementById('cluster-sub').textContent = 'behavioral groups';
+    document.getElementById('cluster-badge').textContent = communities.length + ' clusters';
+    renderClusters(communities);
+  } catch {
+    document.getElementById('cluster-plot').innerHTML = '<div class="empty-state">Clustering not available</div>';
+  }
+}
+
+// ── Scatter Plot ──────────────────────────────────────────────────────────
+
+function renderScatterPlot(anomalies) {
+  const container = document.getElementById('scatter-plot');
+  container.innerHTML = '';
+  if (!anomalies.length) { container.innerHTML = '<div class="empty-state">No anomalies scored yet</div>'; return; }
+
+  const w = container.clientWidth;
+  const h = 300;
+  const margin = { top: 20, right: 30, bottom: 40, left: 50 };
+
+  const svg = d3.select(container).append('svg').attr('width', w).attr('height', h);
+
+  // Parse timestamps
+  anomalies.forEach(a => { a._time = new Date(a.created_at || a.timestamp || Date.now()); });
+
+  const xScale = d3.scaleTime()
+    .domain(d3.extent(anomalies, d => d._time))
+    .range([margin.left, w - margin.right]);
+
+  const yScale = d3.scaleLinear()
+    .domain([0, 1])
+    .range([h - margin.bottom, margin.top]);
+
+  // Grid lines
+  svg.append('g')
+    .attr('transform', `translate(0,${h - margin.bottom})`)
+    .call(d3.axisBottom(xScale).ticks(6).tickFormat(d3.timeFormat('%H:%M')))
+    .selectAll('text').attr('fill', 'var(--text-muted)').attr('font-size', '10px');
+
+  svg.append('g')
+    .attr('transform', `translate(${margin.left},0)`)
+    .call(d3.axisLeft(yScale).ticks(5).tickFormat(d => d.toFixed(1)))
+    .selectAll('text').attr('fill', 'var(--text-muted)').attr('font-size', '10px');
+
+  // Threshold line at 0.5
+  svg.append('line')
+    .attr('x1', margin.left).attr('x2', w - margin.right)
+    .attr('y1', yScale(0.5)).attr('y2', yScale(0.5))
+    .attr('stroke', 'var(--sev-medium)').attr('stroke-dasharray', '4 4').attr('stroke-opacity', 0.5);
+
+  // Labels
+  svg.append('text').attr('x', w - margin.right - 5).attr('y', yScale(0.5) - 5)
+    .attr('fill', 'var(--sev-medium)').attr('font-size', '9px').attr('text-anchor', 'end')
+    .text('Anomaly Threshold');
+
+  // Points
+  svg.selectAll('circle').data(anomalies).join('circle')
+    .attr('cx', d => xScale(d._time))
+    .attr('cy', d => yScale(d.anomaly_score || 0))
+    .attr('r', d => (d.is_anomaly ? 5 : 3))
+    .attr('fill', d => {
+      const s = d.anomaly_score || 0;
+      if (s > 0.8) return 'var(--sev-critical)';
+      if (s > 0.5) return 'var(--sev-high)';
+      if (s > 0.3) return 'var(--sev-medium)';
+      return 'var(--sev-low)';
+    })
+    .attr('fill-opacity', d => d.is_anomaly ? 0.9 : 0.4)
+    .attr('stroke', d => d.is_anomaly ? '#fff' : 'none')
+    .attr('stroke-width', 1)
+    .style('cursor', 'pointer')
+    .append('title').text(d => `Alert: ${d.alert_id || '?'}\nScore: ${(d.anomaly_score||0).toFixed(3)}\nModel: ${d.model || '?'}`);
+
+  // Y-axis label
+  svg.append('text')
+    .attr('transform', `rotate(-90)`)
+    .attr('x', -(h/2)).attr('y', 15)
+    .attr('fill', 'var(--text-muted)').attr('font-size', '10px').attr('text-anchor', 'middle')
+    .text('Anomaly Score');
+}
+
+// ── Cluster Visualization ─────────────────────────────────────────────────
+
+function renderClusters(communities) {
+  const container = document.getElementById('cluster-plot');
+  container.innerHTML = '';
+  if (!communities.length) { container.innerHTML = '<div class="empty-state">No clusters detected yet</div>'; return; }
+
+  const w = container.clientWidth;
+  const h = 350;
+  const colors = ['var(--accent)', 'var(--purple)', 'var(--cyan)', 'var(--pink)',
+                  'var(--sev-low)', 'var(--sev-medium)', 'var(--sev-high)', '#818cf8', '#34d399', '#fbbf24'];
+
+  // Build nodes and links
+  const nodes = [];
+  const links = [];
+  communities.forEach((members, ci) => {
+    members.forEach(m => {
+      nodes.push({ id: m, cluster: ci, isIP: /^\d+\.\d+\.\d+\.\d+$/.test(m) });
+    });
+    // Link first member to all others in the cluster
+    for (let i = 1; i < members.length; i++) {
+      links.push({ source: members[0], target: members[i] });
+    }
+  });
+
+  const svg = d3.select(container).append('svg').attr('width', w).attr('height', h);
+
+  const sim = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d => d.id).distance(30).strength(0.5))
+    .force('charge', d3.forceManyBody().strength(-50))
+    .force('center', d3.forceCenter(w/2, h/2))
+    .force('collision', d3.forceCollide(12));
+
+  const link = svg.selectAll('line').data(links).join('line')
+    .attr('stroke', 'var(--border)').attr('stroke-width', 1);
+
+  const node = svg.selectAll('circle').data(nodes).join('circle')
+    .attr('r', d => d.isIP ? 6 : 4)
+    .attr('fill', d => colors[d.cluster % colors.length])
+    .attr('fill-opacity', 0.8)
+    .attr('stroke', '#000').attr('stroke-width', 0.5)
+    .call(d3.drag()
+      .on('start', (e,d) => { if (!e.active) sim.alphaTarget(0.1).restart(); d.fx=d.x; d.fy=d.y; })
+      .on('drag', (e,d) => { d.fx=e.x; d.fy=e.y; })
+      .on('end', (e,d) => { if (!e.active) sim.alphaTarget(0); d.fx=null; d.fy=null; })
+    );
+
+  node.append('title').text(d => `${d.id} (Cluster ${d.cluster})`);
+
+  // Labels for IPs only
+  const label = svg.selectAll('text').data(nodes.filter(n => n.isIP)).join('text')
+    .text(d => d.id)
+    .attr('font-size', '8px').attr('fill', 'var(--text-muted)')
+    .attr('text-anchor', 'middle').attr('dy', -10)
+    .attr('pointer-events', 'none');
+
+  sim.on('tick', () => {
+    link.attr('x1', d=>d.source.x).attr('y1', d=>d.source.y)
+        .attr('x2', d=>d.target.x).attr('y2', d=>d.target.y);
+    node.attr('cx', d=>d.x).attr('cy', d=>d.y);
+    label.attr('x', d=>d.x).attr('y', d=>d.y);
+  });
+
+  // Legend
+  const legend = svg.append('g').attr('transform', `translate(10, ${h-20})`);
+  communities.slice(0, 5).forEach((c, i) => {
+    legend.append('circle').attr('cx', i*100).attr('cy', 0).attr('r', 4)
+      .attr('fill', colors[i % colors.length]);
+    legend.append('text').attr('x', i*100+8).attr('y', 4)
+      .text(`Cluster ${i} (${c.length})`).attr('fill', 'var(--text-muted)').attr('font-size', '9px');
+  });
+}
+
+// ── Kill Chain Rendering ──────────────────────────────────────────────────
+
+function renderKillChains(chains) {
+  const container = document.getElementById('kc-chains');
+  if (!chains.length) { container.innerHTML = '<div class="empty-state">No active kill chains detected</div>'; return; }
+
+  // Light up global stage bar
+  const allStages = new Set();
+  chains.forEach(c => {
+    Object.keys(c.stages_hit || {}).forEach(s => allStages.add(s));
+  });
+  document.querySelectorAll('#kc-stage-bar .kc-stage').forEach(el => {
+    const stage = el.dataset.stage;
+    if (allStages.has(stage)) el.classList.add('active');
+    else el.classList.remove('active');
+  });
+
+  container.innerHTML = chains.map(c => {
+    const stages = Object.keys(c.stages_hit || {});
+    const severity = c.stage_count >= 5 ? 'critical' : c.stage_count >= 3 ? 'high' : 'medium';
+    const sevColor = severity === 'critical' ? 'var(--sev-critical)' : severity === 'high' ? 'var(--sev-high)' : 'var(--sev-medium)';
+
+    return `<div class="kc-chain">
+      <div class="kc-chain-header">
+        <span class="kc-chain-entity" style="color:${sevColor}">${esc(c.entity)}</span>
+        <span class="kc-chain-score" style="background:${sevColor}22;color:${sevColor}">${c.stage_count} stages — ${severity.toUpperCase()}</span>
+      </div>
+      <div class="kc-chain-stages">Stages: ${stages.map(s => `<strong>${s}</strong>`).join(' &#8594; ')}</div>
+      <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.3rem">First seen: ${timeAgo(c.first_seen)} | Last activity: ${timeAgo(c.last_seen)}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Baselines ─────────────────────────────────────────────────────────────
+
+function renderBaselines(baselines) {
+  const container = document.getElementById('baselines-content');
+  if (!baselines.length) { container.innerHTML = '<div class="empty-state">No device baselines yet.<br>They build automatically from alert patterns.</div>'; return; }
+
+  let html = `<table class="baseline-table">
+    <thead><tr><th>Device IP</th><th>Asset</th><th>Alerts</th><th>Unique Dsts</th><th>Ports</th><th>Categories</th><th>Updated</th></tr></thead><tbody>`;
+
+  baselines.slice(0, 20).forEach(b => {
+    const profile = typeof b.profile_json === 'string' ? JSON.parse(b.profile_json || '{}') : (b.profile_json || {});
+    const dstCount = (profile.dst_ips || []).length;
+    const portCount = (profile.dst_ports || []).length;
+    const catCount = (profile.categories || []).length;
+    const totalAlerts = profile.alert_count || 0;
+    html += `<tr>
+      <td style="font-weight:500;color:var(--accent)">${esc(b.ip)}</td>
+      <td>${esc(b.asset_name || '-')}</td>
+      <td>${totalAlerts}</td>
+      <td>${dstCount}</td>
+      <td>${portCount}</td>
+      <td>${catCount}</td>
+      <td style="color:var(--text-muted)">${timeAgo(b.baseline_updated || b.updated_at)}</td>
+    </tr>`;
+  });
+
+  html += `</tbody></table>`;
+  container.innerHTML = html;
+}
+
+// ── Model Health ──────────────────────────────────────────────────────────
+
+async function loadModelHealth() {
+  try {
+    const data = await fetchJSON('/api/ml/health');
+    const container = document.getElementById('model-health');
+
+    let html = '';
+
+    // Isolation Forest
+    const ifo = data.isolation_forest || {};
+    html += renderModelBar('Isolation Forest', ifo.trained ? 'Trained' : 'Not trained',
+      ifo.trained ? 100 : 0, ifo.trained ? 'var(--sev-low)' : 'var(--border)',
+      ifo.training_alerts ? `${ifo.training_alerts} training samples` : 'No training data');
+
+    // DBSCAN
+    const dbscan = data.dbscan || {};
+    html += renderModelBar('DBSCAN Clustering', dbscan.trained ? 'Trained' : 'Not trained',
+      dbscan.trained ? 100 : 0, dbscan.trained ? 'var(--purple)' : 'var(--border)',
+      dbscan.n_clusters ? `${dbscan.n_clusters} clusters found` : 'No clusters');
+
+    // Volume detector
+    html += renderModelBar('Volume Anomaly', 'Active', 100, 'var(--cyan)',
+      'Heuristic — no training required');
+
+    // Overall
+    const modelsUp = (ifo.trained ? 1 : 0) + (dbscan.trained ? 1 : 0) + 1;
+    html += `<div style="margin-top:0.75rem;font-size:0.75rem;color:var(--text-muted)">
+      ${modelsUp}/3 models active | Last trained: ${timeAgo(data.last_trained || ifo.trained_at)}
+      ${data.sklearn_available === false ? '<br><span style="color:var(--sev-medium)">scikit-learn not installed — using heuristics only</span>' : ''}
+    </div>`;
+
+    container.innerHTML = html;
+  } catch {
+    document.getElementById('model-health').innerHTML = '<div class="empty-state">ML health endpoint not available</div>';
+  }
+}
+
+function renderModelBar(name, status, pct, color, detail) {
+  return `<div class="model-bar">
+    <div class="model-bar-label"><span>${name}</span><span style="color:${color}">${status}</span></div>
+    <div class="model-bar-track"><div class="model-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+    <div style="font-size:0.68rem;color:var(--text-muted);margin-top:2px">${detail}</div>
+  </div>`;
+}
+
+// ── Live Feed ─────────────────────────────────────────────────────────────
+
+function renderLiveFeed(anomalies) {
+  const container = document.getElementById('live-feed');
+  if (!anomalies.length) { container.innerHTML = '<div class="empty-state">No anomalies in current window</div>'; return; }
+
+  container.innerHTML = anomalies.map(a => {
+    const score = a.anomaly_score || 0;
+    const color = score > 0.8 ? 'var(--sev-critical)' : score > 0.5 ? 'var(--sev-high)' : score > 0.3 ? 'var(--sev-medium)' : 'var(--sev-low)';
+    return `<div class="feed-item">
+      <div class="feed-dot" style="background:${color}"></div>
+      <span style="color:var(--text-muted)">${timeAgo(a.created_at || a.timestamp)}</span>
+      <span>${esc(a.alert_id || '?').slice(0, 8)}...</span>
+      <span style="color:var(--text-muted)">${esc(a.model || 'unknown')}</span>
+      <span class="feed-score" style="color:${color}">${score.toFixed(3)}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────
+
+async function retrain() {
+  const btn = document.getElementById('btn-retrain');
+  btn.disabled = true;
+  btn.textContent = 'Training...';
+  try {
+    const res = await fetch('/api/ml/retrain', { method: 'POST' });
+    const data = await res.json();
+    alert(data.ok ? 'Models retrained successfully!' : `Training failed: ${data.error || 'unknown'}`);
+  } catch (e) {
+    alert('Retrain request failed: ' + e.message);
+  }
+  btn.disabled = false;
+  btn.textContent = 'Retrain Models';
+  loadAll();
+}
+
+async function rebuildBaselines() {
+  const btn = document.getElementById('btn-rebuild');
+  btn.disabled = true;
+  btn.textContent = 'Building...';
+  try {
+    const res = await fetch('/api/baselines/rebuild', { method: 'POST' });
+    const data = await res.json();
+    alert(data.ok ? 'Baselines rebuilt!' : `Rebuild failed: ${data.error || 'unknown'}`);
+  } catch (e) {
+    alert('Rebuild failed: ' + e.message);
+  }
+  btn.disabled = false;
+  btn.textContent = 'Rebuild Baselines';
+  loadAll();
+}
+
+// ── WebSocket ─────────────────────────────────────────────────────────────
+
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const ws = new WebSocket(`${proto}//${location.host}/ws/alerts`);
+
+  ws.onmessage = event => {
+    try {
+      const msg = JSON.parse(event.data);
+      if (msg.type === 'alert' && msg.data) {
+        // Add to live feed at top
+        const feed = document.getElementById('live-feed');
+        const a = msg.data;
+        const item = document.createElement('div');
+        item.className = 'feed-item';
+        item.style.background = 'rgba(59,130,246,0.1)';
+        item.innerHTML = `
+          <div class="feed-dot" style="background:var(--accent)"></div>
+          <span style="color:var(--text-muted)">just now</span>
+          <span>${esc((a.id||'').slice(0,8))}...</span>
+          <span style="color:var(--text-muted)">${esc(a.source || 'live')}</span>
+          <span class="feed-score" style="color:var(--accent)">new</span>
+        `;
+        if (feed.querySelector('.empty-state')) feed.innerHTML = '';
+        feed.prepend(item);
+        setTimeout(() => { item.style.background = ''; }, 2000);
+
+        // Cap feed
+        while (feed.children.length > 30) feed.removeChild(feed.lastChild);
+      }
+    } catch {}
+  };
+
+  ws.onclose = () => setTimeout(connectWS, 5000);
+  ws.onerror = () => ws.close();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+
+async function loadAll() {
+  await Promise.allSettled([
+    loadMLHealth(),
+    loadAnomalies(),
+    loadBaselines(),
+    loadKillChains(),
+    loadClusters(),
+    loadModelHealth(),
+  ]);
+}
+
+loadAll();
+connectWS();
+setInterval(loadAll, 60000);
+</script>
+</body>
+</html>

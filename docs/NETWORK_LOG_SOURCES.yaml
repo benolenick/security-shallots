@@ -1,0 +1,29 @@
+# Expected network log sources for Security Shallots (EXAMPLE).
+#
+# Edit this to describe the log sources you EXPECT on your network. These entries
+# do not generate alerts — they make coverage gaps explicit in the assessment view
+# so a "quiet" system is not mistaken for a "fully covered" one.
+#
+# `expected: true`  -> a missing feed from this source is a production-gate blocker.
+# `expected: false` -> documented-but-not-required (e.g. gear that can't forward logs);
+#                      include a non_blocking_reason.
+sources:
+  - name: main_gateway
+    type: syslog
+    expected: true
+    src_ips:
+      - 192.168.0.1
+    hostnames:
+      - dlink
+      - covr
+    note: "Primary router/gateway. Point its syslog at the Shallots host on udp/tcp 514 (commonly under Management / System Log / Remote Log). Vendor UIs differ — see `tools/shallot_router_syslog_plan.py` for per-vendor hints."
+
+  - name: isp_wifi_gateway
+    type: syslog
+    expected: false
+    non_blocking_reason: "Some ISP-provided gateways run locked firmware that does not expose remote syslog forwarding."
+    src_ips:
+      - 192.168.2.1
+    hostnames:
+      - sagemcom
+    note: "Example of a secondary/ISP gateway kept as documented, non-log-capable infrastructure. Not a production-gate blocker. Replace or remove for your own network."

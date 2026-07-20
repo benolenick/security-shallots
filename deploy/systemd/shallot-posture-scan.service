@@ -1,0 +1,18 @@
+[Unit]
+Description=Security Shallots small-footprint posture scan
+After=network-online.target shallotd.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=om
+Group=om
+WorkingDirectory=/home/user/security-shallots
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/user/security-shallots/.venv/bin/python /home/user/security-shallots/tools/shallot_posture_scan.py scan
+Nice=10
+MemoryMax=256M
+TasksMax=128
+StandardOutput=journal
+StandardError=journal
+

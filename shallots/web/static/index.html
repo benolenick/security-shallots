@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Security Shallots</title>
+  <link rel="stylesheet" href="/static/app.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x1F9C5;</text></svg>" />
+</head>
+<body>
+
+<!-- Squawk banner — critical threat alerts -->
+<div class="squawk-banner" id="squawk-banner" style="display:none">
+  <div class="squawk-inner">
+    <span class="squawk-pulse"></span>
+    <span class="squawk-icon">&#9888;</span>
+    <span class="squawk-text" id="squawk-text">THREAT DETECTED</span>
+    <button class="btn squawk-investigate" id="squawk-investigate">INVESTIGATE</button>
+    <button class="squawk-dismiss" id="squawk-dismiss" title="Dismiss">&times;</button>
+  </div>
+</div>
+
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
+<header class="site-header">
+  <div class="container header-inner">
+    <div class="logo">
+      <span class="logo-icon" aria-hidden="true">&#x1F9C5;</span>
+      <div>
+        <div class="logo-text">Security Shallots</div>
+        <div class="logo-sub">Threat Intelligence Dashboard</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn update-badge" id="update-badge" title="Update available">Update</button>
+      <button class="btn btn-theme" id="btn-theme" title="Toggle dark/light theme">Light</button>
+      <button class="btn btn-wiki" id="btn-wiki" title="Alert Wiki &amp; Knowledge Base">Wiki</button>
+      <button class="header-btn btn-settings" id="btn-settings" title="AI Settings">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"/><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.421 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.421-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115l.094-.319z"/></svg>
+      </button>
+      <button class="btn btn-silence-rules" id="btn-silence-rules" title="Manage silence / tuning rules">Tuning</button>
+      <button class="btn btn-help" id="btn-help" title="Help &amp; Setup Guide">? Help</button>
+      <button class="btn btn-setup" id="btn-setup" title="Setup Guide — deploy your first agent">Setup</button>
+      <button class="ai-status-pill" id="ai-status-pill" title="AI Autopilot — click for AI triage">
+        <span class="ai-pill-dot" id="ai-pill-dot"></span>
+        <span id="ai-pill-label">AI Off</span>
+      </button>
+      <button class="agent-status-pill" id="agent-status-pill" title="Agent health — click to scroll">
+        <span class="agent-pill-dot" id="agent-pill-dot"></span>
+        <span id="agent-pill-label">No agents</span>
+      </button>
+      <div class="ws-indicator" title="WebSocket live feed status">
+        <div class="ws-dot connecting" id="ws-dot"></div>
+        <span id="ws-label">Connecting&hellip;</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<aside class="fleet-corner" id="fleet-corner" aria-live="polite"></aside>
+
+<!-- ── Main ────────────────────────────────────────────────────────────────── -->
+<main class="main-content">
+  <div class="container">
+
+    <!-- Overview stat cards -->
+    <div class="stats-grid">
+      <div class="stat-card medium stat-clickable" id="card-review">
+        <div class="stat-label">Needs Review</div>
+        <div class="stat-value" id="stat-review">—</div>
+        <div class="stat-sub" id="stat-review-sub">patterns to check</div>
+      </div>
+      <div class="stat-card critical stat-clickable" id="card-threats">
+        <div class="stat-label">Threats Detected</div>
+        <div class="stat-value" id="stat-threats">—</div>
+        <div class="stat-sub" id="stat-threats-sub">from outside your network</div>
+      </div>
+      <div class="stat-card muted stat-clickable" id="card-autohandled">
+        <div class="stat-label">Auto-Handled</div>
+        <div class="stat-value" id="stat-autohandled">—</div>
+        <div class="stat-sub">suppressed as noise</div>
+      </div>
+      <div class="stat-card accent stat-clickable" id="card-youractivity">
+        <div class="stat-label">Your Activity</div>
+        <div class="stat-value" id="stat-youractivity">—</div>
+        <div class="stat-sub">from your own network</div>
+      </div>
+      <div class="stat-card stat-clickable" onclick="window.open('/topology','_blank')" title="Open Network Topology Map">
+        <div class="stat-label">Connections</div>
+        <div class="stat-value" id="stat-connections">—</div>
+        <div class="stat-sub">unique pairs (24h) — click for topology</div>
+      </div>
+      <div class="stat-card stat-clickable" id="stat-agents-card">
+        <div class="stat-label">Agents</div>
+        <div class="stat-value" id="stat-agents">—</div>
+        <div class="stat-sub" id="stat-agents-sub">endpoint monitors</div>
+      </div>
+      <div class="stat-card stat-clickable" id="card-sla">
+        <div class="stat-label">Alert SLA</div>
+        <div class="stat-value" id="stat-sla">—</div>
+        <div class="stat-sub" id="stat-sla-sub">stale alerts</div>
+      </div>
+      <div class="stat-card stat-clickable" onclick="window.open('/ml','_blank')" title="Open ML Insights Dashboard">
+        <div class="stat-label">ML Engine</div>
+        <div class="stat-value" id="stat-ml" style="font-size:1.2rem">Insights</div>
+        <div class="stat-sub">anomalies, baselines, kill chains</div>
+      </div>
+    </div>
+
+    <!-- Security Shallots operations -->
+    <div class="panel security-ops-panel" id="security-ops-section">
+      <div class="section-title security-ops-title">
+        <span>Security Shallots</span>
+        <span id="security-ops-updated" class="security-ops-updated">Loading...</span>
+      </div>
+      <div class="security-ops-grid" id="security-ops-grid">
+        <div class="security-ops-card">
+          <div class="security-ops-label">Production Gate</div>
+          <div class="security-ops-value" id="security-gate-status">-</div>
+          <div class="security-ops-sub" id="security-gate-sub">checking</div>
+        </div>
+        <div class="security-ops-card">
+          <div class="security-ops-label">Readiness Score</div>
+          <div class="security-ops-value" id="security-self-status">-</div>
+          <div class="security-ops-sub" id="security-self-sub">checking</div>
+        </div>
+        <div class="security-ops-card">
+          <div class="security-ops-label">Agents</div>
+          <div class="security-ops-value" id="security-agent-status">-</div>
+          <div class="security-ops-sub" id="security-agent-sub">checking</div>
+        </div>
+        <div class="security-ops-card">
+          <div class="security-ops-label">Egress Monitor</div>
+          <div class="security-ops-value" id="security-egress-status">-</div>
+          <div class="security-ops-sub" id="security-egress-sub">checking</div>
+        </div>
+        <div class="security-ops-card">
+          <div class="security-ops-label">Central API</div>
+          <div class="security-ops-value" id="security-central-status">-</div>
+          <div class="security-ops-sub" id="security-central-sub">checking</div>
+        </div>
+        <div class="security-ops-card">
+          <div class="security-ops-label">Noise Cleanup</div>
+          <div class="security-ops-value" id="security-noise-status">-</div>
+          <div class="security-ops-sub" id="security-noise-sub">checking</div>
+        </div>
+        <div class="security-ops-card">
+          <div class="security-ops-label">Alert Quality</div>
+          <div class="security-ops-value" id="security-quality-status">-</div>
+          <div class="security-ops-sub" id="security-quality-sub">checking</div>
+        </div>
+        <div class="security-ops-card">
+          <div class="security-ops-label">Suppression Quality</div>
+          <div class="security-ops-value" id="security-suppression-status">-</div>
+          <div class="security-ops-sub" id="security-suppression-sub">checking</div>
+        </div>
+        <div class="security-ops-card">
+          <div class="security-ops-label">Assessment Loop</div>
+          <div class="security-ops-value" id="security-loop-status">-</div>
+          <div class="security-ops-sub" id="security-loop-sub">checking</div>
+        </div>
+        <div class="security-ops-card">
+          <div class="security-ops-label">Network Sources</div>
+          <div class="security-ops-value" id="security-network-status">-</div>
+          <div class="security-ops-sub" id="security-network-sub">checking</div>
+        </div>
+        <div class="security-ops-card">
+          <div class="security-ops-label">Public Listeners</div>
+          <div class="security-ops-value" id="security-public-status">-</div>
+          <div class="security-ops-sub" id="security-public-sub">checking</div>
+        </div>
+        <div class="security-ops-card">
+          <div class="security-ops-label">Syslog Canary</div>
+          <div class="security-ops-value" id="security-syslog-status">-</div>
+          <div class="security-ops-sub" id="security-syslog-sub">checking</div>
+        </div>
+        <div class="security-ops-card">
+          <div class="security-ops-label">Rule Canary</div>
+          <div class="security-ops-value" id="security-rule-status">-</div>
+          <div class="security-ops-sub" id="security-rule-sub">checking</div>
+        </div>
+        <div class="security-ops-card">
+          <div class="security-ops-label">Incidents</div>
+          <div class="security-ops-value" id="security-incident-status">-</div>
+          <div class="security-ops-sub" id="security-incident-sub">checking</div>
+        </div>
+      </div>
+      <div class="security-ops-actions" id="security-ops-actions"></div>
+      <div class="security-self-table-wrap" id="security-self-table-wrap"></div>
+      <div class="security-risk-table-wrap" id="security-risk-table-wrap"></div>
+      <div class="security-blocker-table-wrap" id="security-blocker-table-wrap"></div>
+      <div class="security-action-table-wrap" id="security-action-table-wrap"></div>
+      <div class="security-command-table-wrap" id="security-command-table-wrap"></div>
+      <div class="security-incident-table-wrap" id="security-incident-table-wrap"></div>
+      <div class="security-public-table-wrap" id="security-public-table-wrap"></div>
+      <div class="security-suppression-table-wrap" id="security-suppression-table-wrap"></div>
+      <div class="security-host-health-wrap" id="security-host-health-wrap"></div>
+      <div class="security-fleet-table-wrap" id="security-fleet-table-wrap"></div>
+      <div class="security-volume-table-wrap" id="security-volume-table-wrap"></div>
+      <div class="security-source-table-wrap" id="security-source-table-wrap"></div>
+      <div class="security-rule-table-wrap" id="security-rule-table-wrap"></div>
+      <div class="security-maint-table-wrap" id="security-maint-table-wrap"></div>
+      <div class="security-baseline-table-wrap" id="security-baseline-table-wrap"></div>
+    </div>
+
+    <!-- MITRE ATT&CK Coverage -->
+    <div class="panel" id="mitre-section" style="margin-bottom:1rem">
+      <div class="section-title" style="margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="toggleMitre()">
+        <span>MITRE ATT&CK Coverage</span>
+        <span id="mitre-toggle" style="font-size:0.75rem;color:var(--text-muted);font-weight:400">Show</span>
+      </div>
+      <div id="mitre-body" style="display:none"></div>
+    </div>
+
+    <!-- Incidents — actionable items -->
+    <div class="panel incidents-panel" id="incidents-section">
+      <div class="section-title" style="margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between">
+        <span>Incidents</span>
+        <div class="incident-filters" style="display:flex;gap:0.5rem;align-items:center">
+          <span class="incident-counts" id="incident-counts" style="font-size:0.75rem;color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:normal"></span>
+          <select class="filter-select" id="incident-filter" style="font-size:0.75rem;padding:0.25rem 0.5rem">
+            <option value="">Active</option>
+            <option value="new">New</option>
+            <option value="investigating">Investigating</option>
+            <option value="resolved">Resolved</option>
+            <option value="false_positive">False Positive</option>
+          </select>
+        </div>
+      </div>
+      <div id="incidents-list" class="incidents-list">
+        <div class="empty-state" style="padding:1.5rem;font-size:0.9rem">
+          No incidents yet. When threats are detected, they'll appear here with step-by-step guidance.
+        </div>
+      </div>
+    </div>
+
+    <!-- Edge Scout — candidate missed signals, no verdicts -->
+    <div class="panel scout-panel" id="scout-section">
+      <div class="section-title" style="margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between">
+        <span>Edge Scout</span>
+        <span style="display:flex;align-items:center;gap:0.75rem">
+          <span class="scout-count" id="scout-count">Loading...</span>
+          <button class="btn btn-sm" id="btn-scout-refresh" style="font-size:0.7rem;padding:2px 8px;white-space:nowrap">Refresh</button>
+        </span>
+      </div>
+      <div class="scout-principle">
+        Scout cards are candidate missed signals from mechanical checks plus corpus context. They do not change verdicts or make benign/malicious judgments.
+      </div>
+      <div id="scout-cards" class="scout-cards">
+        <div class="empty-state" style="padding:0.5rem;font-size:0.85rem">Loading scout cards...</div>
+      </div>
+    </div>
+
+    <!-- Breakdown panels (source + severity) -->
+    <div class="two-col">
+      <div class="panel">
+        <div class="section-title" style="margin-bottom:0.75rem">By Source</div>
+        <div id="by-source">
+          <div class="empty-state" style="padding:0.5rem">Loading&hellip;</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="section-title" style="margin-bottom:0.75rem">By Severity</div>
+        <div id="by-severity">
+          <div class="empty-state" style="padding:0.5rem">Loading&hellip;</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alert Timeline -->
+    <div class="panel timeline-panel">
+      <div class="section-title" style="margin-bottom:0.75rem">Alert Timeline (24h)</div>
+      <div id="timeline-chart" class="timeline-chart">
+        <div class="empty-state" style="padding:0.5rem">Loading&hellip;</div>
+      </div>
+    </div>
+
+    <!-- Top Talkers -->
+    <div class="three-col" id="top-talkers-section">
+      <div class="panel">
+        <div class="section-title" style="margin-bottom:0.75rem">Top Source IPs</div>
+        <div id="top-src-ips" class="talker-list">
+          <div class="empty-state" style="padding:0.5rem">Loading&hellip;</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="section-title" style="margin-bottom:0.75rem">Top Dest IPs</div>
+        <div id="top-dst-ips" class="talker-list">
+          <div class="empty-state" style="padding:0.5rem">Loading&hellip;</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="section-title" style="margin-bottom:0.75rem">Top Signatures</div>
+        <div id="top-sigs" class="talker-list">
+          <div class="empty-state" style="padding:0.5rem">Loading&hellip;</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Correlations panel (hidden until data exists) -->
+    <div class="correlations-section" id="correlations-section" style="display:none">
+      <div class="section-title" style="margin-bottom:0.75rem">AI Correlations</div>
+      <div id="correlations-list" class="correlations-list"></div>
+    </div>
+
+    <!-- AI Activity Panel -->
+    <div class="panel ai-history-panel" id="ai-history-section" style="display:none">
+      <div class="section-title" style="margin-bottom:0.75rem">AI Activity</div>
+      <div id="ai-history-list">
+        <div class="empty-state" style="padding:0.5rem">Loading&hellip;</div>
+      </div>
+    </div>
+
+    <!-- Recent Alerts Summary -->
+    <div class="panel recent-alerts-panel" id="recent-alerts-panel">
+      <div class="section-title" style="margin-bottom:0.5rem;display:flex;align-items:center;justify-content:space-between">
+        <span>Recent Alerts</span>
+        <a href="#alert-feed-anchor" class="recent-alerts-link" style="font-size:0.75rem;font-weight:400;text-transform:none;letter-spacing:normal">View all &darr;</a>
+      </div>
+      <div id="recent-alerts-list" class="recent-alerts-list">
+        <div class="empty-state" style="padding:0.5rem;font-size:0.8rem">Loading&hellip;</div>
+      </div>
+    </div>
+
+    <!-- Agent Health -->
+    <div class="panel agents-panel" id="agents-section" style="display:none">
+      <div class="section-title" style="margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between">
+        <span>Agent Health</span>
+        <span style="display:flex;align-items:center;gap:0.75rem">
+          <span class="agent-summary" id="agent-summary" style="font-size:0.75rem;color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:normal"></span>
+          <button class="btn btn-sm" id="btn-test-detection" onclick="runTestDetection()" title="Inject a test alert to verify the detection pipeline is working end-to-end" style="font-size:0.7rem;padding:2px 8px;white-space:nowrap">Test Pipeline</button>
+        </span>
+      </div>
+      <div id="agents-deploy-prompt" class="agents-deploy-prompt" style="display:none">
+        <div class="empty-state-smart">
+          <div class="empty-icon">&#128737;</div>
+          <div class="empty-title">Deploy your first agent</div>
+          <div class="empty-desc">Endpoint agents monitor your machines for threats. Install Clove (Linux/Windows) or Argus (Windows) to start collecting security telemetry.</div>
+          <button class="btn btn-primary" id="btn-deploy-guide" style="margin-top:0.75rem">View Install Guide</button>
+        </div>
+      </div>
+      <div id="agents-grid" class="agents-grid"></div>
+    </div>
+
+    <!-- Protocol & DNS Analytics -->
+    <div class="panel" id="analytics-section" style="margin-bottom:1rem">
+      <div class="section-title" style="margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="toggleAnalytics()">
+        <span>Network Analytics</span>
+        <span id="analytics-toggle" style="font-size:0.75rem;color:var(--text-muted);font-weight:400">Show</span>
+      </div>
+      <div id="analytics-body" style="display:none">
+        <div style="display:flex;gap:0.5rem;margin-bottom:0.75rem;flex-wrap:wrap">
+          <select class="filter-select" id="analytics-period" style="font-size:0.75rem;padding:0.25rem 0.5rem" onchange="loadAnalytics()">
+            <option value="">All time</option>
+            <option value="24h" selected>Last 24h</option>
+            <option value="7d">Last 7 days</option>
+            <option value="30d">Last 30 days</option>
+          </select>
+          <button class="btn" style="font-size:0.7rem;padding:0.2rem 0.5rem" onclick="loadAnalytics()">Refresh</button>
+        </div>
+        <div class="analytics-grid" id="analytics-grid">
+          <div class="empty-state" style="padding:0.5rem;font-size:0.85rem">Loading analytics...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DHCP Lease History -->
+    <div class="panel" id="dhcp-section" style="margin-bottom:1rem">
+      <div class="section-title" style="margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="toggleDhcp()">
+        <span>DHCP Lease History</span>
+        <span id="dhcp-toggle" style="font-size:0.75rem;color:var(--text-muted);font-weight:400">Show</span>
+      </div>
+      <div id="dhcp-body" style="display:none">
+        <div style="display:flex;gap:0.5rem;margin-bottom:0.75rem;flex-wrap:wrap;align-items:center">
+          <input type="text" class="settings-input" id="dhcp-filter-ip" placeholder="Filter by IP..." style="width:140px;font-size:0.8rem;padding:0.25rem 0.5rem" />
+          <input type="text" class="settings-input" id="dhcp-filter-mac" placeholder="Filter by MAC..." style="width:160px;font-size:0.8rem;padding:0.25rem 0.5rem" />
+          <button class="btn" style="font-size:0.7rem;padding:0.2rem 0.5rem" onclick="loadDhcpHistory()">Search</button>
+          <button class="btn" style="font-size:0.7rem;padding:0.2rem 0.5rem" onclick="loadDhcpChanges()">IP Changes</button>
+        </div>
+        <div id="dhcp-content" class="dhcp-content">
+          <div class="empty-state" style="padding:0.5rem;font-size:0.85rem">Click Search to load DHCP history.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Asset Inventory -->
+    <div class="panel assets-panel" id="assets-section" style="display:none">
+      <div class="section-title" style="margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between">
+        <span>Asset Inventory</span>
+        <button class="btn" style="font-size:0.7rem;padding:0.2rem 0.5rem" onclick="document.getElementById('add-asset-form').style.display = document.getElementById('add-asset-form').style.display === 'none' ? 'flex' : 'none'">+ Add</button>
+      </div>
+      <div id="add-asset-form" class="add-asset-form" style="display:none;gap:0.5rem;margin-bottom:0.5rem;flex-wrap:wrap">
+        <input type="text" id="new-asset-ip" placeholder="IP" style="width:120px;padding:0.25rem 0.5rem;background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border);border-radius:var(--radius)">
+        <input type="text" id="new-asset-hostname" placeholder="Hostname" style="width:120px;padding:0.25rem 0.5rem;background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border);border-radius:var(--radius)">
+        <select id="new-asset-type" style="padding:0.25rem;background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border);border-radius:var(--radius)">
+          <option value="unknown">Type</option>
+          <option value="server">Server</option>
+          <option value="workstation">Workstation</option>
+          <option value="iot">IoT</option>
+          <option value="network">Network</option>
+          <option value="printer">Printer</option>
+        </select>
+        <select id="new-asset-crit" style="padding:0.25rem;background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border);border-radius:var(--radius)">
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+          <option value="high">High</option>
+          <option value="critical">Critical</option>
+        </select>
+        <button class="btn" onclick="createAsset()">Save</button>
+      </div>
+      <div id="assets-list" class="assets-list"></div>
+    </div>
+
+    <!-- TLS Certificate Monitor -->
+    <div class="panel" id="tls-section" style="margin-bottom:1rem">
+      <div class="section-title" style="margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="toggleTls()">
+        <span>TLS Certificates</span>
+        <span id="tls-toggle" style="font-size:0.75rem;color:var(--text-muted);font-weight:400">Show</span>
+      </div>
+      <div id="tls-body" style="display:none">
+        <div id="tls-content">
+          <div class="empty-state" style="padding:0.5rem;font-size:0.85rem">Loading TLS certificate status...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- IoC Feed Indicators -->
+    <div class="panel" id="ioc-section" style="margin-bottom:1rem">
+      <div class="section-title" style="margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="toggleIoc()">
+        <span>Threat Intel (IoC Feeds)</span>
+        <span id="ioc-toggle" style="font-size:0.75rem;color:var(--text-muted);font-weight:400">Show</span>
+      </div>
+      <div id="ioc-body" style="display:none">
+        <div style="display:flex;gap:0.5rem;margin-bottom:0.75rem;flex-wrap:wrap;align-items:center">
+          <input type="text" class="settings-input" id="ioc-check-input" placeholder="Check IP or domain..." style="width:200px;font-size:0.8rem;padding:0.25rem 0.5rem" />
+          <button class="btn" style="font-size:0.7rem;padding:0.2rem 0.5rem" onclick="checkIoc()">Check</button>
+          <button class="btn" style="font-size:0.7rem;padding:0.2rem 0.5rem" onclick="refreshIocFeeds()">Refresh Feeds</button>
+        </div>
+        <div id="ioc-check-result" style="display:none;margin-bottom:0.5rem;font-size:0.8rem"></div>
+        <div id="ioc-content">
+          <div class="empty-state" style="padding:0.5rem;font-size:0.85rem">Loading IoC feed stats...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vulnerability Correlation -->
+    <div class="panel" id="vuln-corr-section" style="margin-bottom:1rem">
+      <div class="section-title" style="margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="toggleVulnCorr()">
+        <span>Vulnerability-Exploit Correlation</span>
+        <span id="vuln-corr-toggle" style="font-size:0.75rem;color:var(--text-muted);font-weight:400">Show</span>
+      </div>
+      <div id="vuln-corr-body" style="display:none">
+        <div id="vuln-corr-content">
+          <div class="empty-state" style="padding:0.5rem;font-size:0.85rem">Loading vulnerability correlations...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- System Health & Admin -->
+    <div class="panel system-panel" id="system-section">
+      <div class="section-title" style="margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between">
+        <span>System Health</span>
+        <div style="display:flex;gap:0.5rem">
+          <button class="btn" style="font-size:0.7rem;padding:0.2rem 0.5rem" onclick="loadSystemHealth()">Refresh</button>
+          <button class="btn" style="font-size:0.7rem;padding:0.2rem 0.5rem" onclick="document.getElementById('audit-section').style.display = document.getElementById('audit-section').style.display === 'none' ? '' : 'none'; loadAuditLog()">Audit Log</button>
+        </div>
+      </div>
+      <div id="system-health-content" class="system-health-content">
+        <div class="empty-state" style="padding:0.5rem;font-size:0.85rem">Click Refresh to load system health data.</div>
+      </div>
+    </div>
+
+    <!-- Audit Log (hidden by default) -->
+    <div class="panel audit-panel" id="audit-section" style="display:none">
+      <div class="section-title" style="margin-bottom:0.75rem">Audit Log</div>
+      <div id="audit-list" class="audit-list"></div>
+    </div>
+
+    <!-- AI Query bar -->
+    <div class="query-section">
+      <div class="section-title">AI Query</div>
+      <div class="query-form">
+        <input
+          type="text"
+          id="query-input"
+          class="query-input"
+          placeholder="Ask a question: &quot;What IPs triggered the most Suricata alerts this week?&quot;"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button class="btn btn-primary" id="query-btn">Ask</button>
+      </div>
+      <div class="query-result" id="query-result">
+        <div class="query-result-summary" id="query-result-summary"></div>
+        <pre class="query-result-sql" id="query-result-sql" style="display:none"></pre>
+        <div class="query-result-count" id="query-result-count"></div>
+      </div>
+    </div>
+
+    <!-- Alert list section -->
+    <div class="section-header" id="alert-feed-anchor">
+      <div class="section-title" style="display:flex;align-items:center;gap:0.5rem">
+        <label class="select-all-wrap" id="select-all-wrap" style="display:none" title="Select all on page">
+          <input type="checkbox" id="select-all-cb" class="alert-checkbox" />
+        </label>
+        Alert Feed
+        <span id="alert-count" style="font-size:0.75rem;color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:normal;margin-left:0.5rem"></span>
+        <button class="btn btn-view-toggle" id="btn-view-toggle" title="Toggle grouped/flat view">Grouped</button>
+      </div>
+    </div>
+
+    <!-- Filter / search bar -->
+    <div class="filter-bar">
+      <select class="filter-select" id="filter-timerange" title="Filter by time range">
+        <option value="">All Time</option>
+        <option value="1h">Last Hour</option>
+        <option value="24h">Last 24h</option>
+        <option value="7d">Last 7 Days</option>
+        <option value="30d">Last 30 Days</option>
+      </select>
+      <select class="filter-select" id="filter-source" title="Filter by source">
+        <option value="">All Sources</option>
+        <option value="suricata">Suricata</option>
+        <option value="wazuh">Wazuh</option>
+        <option value="argus">Argus</option>
+        <option value="crowdsec">CrowdSec</option>
+        <option value="pfsense">pfSense</option>
+        <option value="pihole">Pi-hole</option>
+        <option value="syslog">Syslog</option>
+      </select>
+      <select class="filter-select" id="filter-severity" title="Filter by severity">
+        <option value="">All Severities</option>
+        <option value="critical">Critical</option>
+        <option value="high">High</option>
+        <option value="medium">Medium</option>
+        <option value="low">Low</option>
+      </select>
+      <select class="filter-select" id="filter-verdict" title="Filter by verdict">
+        <option value="">All Verdicts</option>
+        <option value="!suppress" selected>Needs Attention</option>
+        <option value="pending">Pending</option>
+        <option value="investigate">Investigate</option>
+        <option value="escalate">Escalate</option>
+        <option value="suppress">Suppressed</option>
+      </select>
+      <input
+        type="search"
+        id="search-box"
+        class="search-input"
+        placeholder="Full-text search alerts&hellip;"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <button class="btn btn-suppress-all" id="btn-suppress-all" style="display:none" title="Suppress all alerts matching current filters">Suppress All Filtered</button>
+      <div class="filter-right">
+        <select class="filter-select saved-search-select" id="saved-searches" title="Saved searches">
+          <option value="">Saved Searches</option>
+        </select>
+        <button class="btn btn-save-search" id="btn-save-search" title="Save current search">Save</button>
+        <button class="btn btn-export" id="btn-export" title="Export alerts as CSV">Export CSV</button>
+        <span class="filter-count" id="filter-count"></span>
+      </div>
+    </div>
+
+    <!-- Alert list -->
+    <div id="alert-list" class="alert-list">
+      <div class="empty-state">
+        <span class="loading-spinner"></span>Loading alerts&hellip;
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination">
+      <button class="btn" id="btn-prev" disabled>&#8592; Prev</button>
+      <span id="page-info" style="color:var(--text-muted)"></span>
+      <button class="btn" id="btn-next" disabled>Next &#8594;</button>
+    </div>
+
+    <!-- Network Hosts -->
+    <div class="panel hosts-panel" id="hosts-section" style="display:none">
+      <div class="section-title" style="margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between">
+        <span>Network Hosts</span>
+        <span class="host-count" id="host-count" style="font-size:0.75rem;color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:normal"></span>
+      </div>
+      <div id="hosts-table-wrap" class="hosts-table-wrap"></div>
+    </div>
+
+    <!-- Vulnerabilities -->
+    <div class="panel vuln-panel" id="vuln-section" style="display:none">
+      <div class="section-title" style="margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between">
+        <span>Vulnerabilities (CVEs)</span>
+        <span class="vuln-count" id="vuln-count" style="font-size:0.75rem;color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:normal"></span>
+      </div>
+      <div id="vuln-list" class="vuln-list"></div>
+    </div>
+
+    <!-- Version footer -->
+    <div class="version-footer" id="version-footer">
+      <span class="version-text" id="version-text"></span>
+      <span class="kbd-hint">Press <kbd>?</kbd> for keyboard shortcuts</span>
+    </div>
+
+  </div><!-- /container -->
+</main>
+
+<!-- Tips container -->
+<div id="tips-container" class="tips-container"></div>
+
+<!-- Bulk actions toolbar (floating) -->
+<div class="bulk-toolbar" id="bulk-toolbar" style="display:none">
+  <span class="bulk-count" id="bulk-count">0 selected</span>
+  <button class="btn bulk-btn v-suppress" id="bulk-suppress">Suppress</button>
+  <button class="btn bulk-btn v-investigate" id="bulk-investigate">Investigate</button>
+  <button class="btn bulk-btn v-escalate" id="bulk-escalate">Escalate</button>
+  <button class="btn bulk-btn bulk-deselect" id="bulk-deselect">Deselect</button>
+</div>
+
+<!-- Wiki panel (left-side slide-out) -->
+<div class="wiki-overlay" id="wiki-overlay" style="display:none">
+  <div class="wiki-panel">
+    <div class="wiki-header">
+      <h2>Alert Wiki</h2>
+      <button class="wiki-close" id="wiki-close">&times;</button>
+    </div>
+    <div class="wiki-body" id="wiki-body"></div>
+  </div>
+</div>
+
+<!-- Setup Guide panel (right-side slide-out) -->
+<div class="setup-overlay" id="setup-overlay" style="display:none">
+  <div class="setup-panel">
+    <div class="setup-header">
+      <h2>Setup &amp; Deploy</h2>
+      <button class="setup-close" id="setup-close" onclick="closeSetup()">&times;</button>
+    </div>
+    <div class="setup-tab-bar" id="setup-tabs"></div>
+    <div class="setup-body" id="setup-body"></div>
+  </div>
+</div>
+
+<!-- Help & Setup panel -->
+<div class="help-overlay" id="help-overlay" style="display:none">
+  <div class="help-panel">
+    <div class="help-header">
+      <h2>Help &amp; Setup Guide</h2>
+      <button class="help-close" id="help-close">&times;</button>
+    </div>
+    <div class="help-body">
+
+      <div class="help-setup-link">
+        New here? <a href="#" onclick="closeHelp();openSetup('welcome');return false">Try the Setup Guide</a> &mdash; step-by-step agent deployment.
+      </div>
+
+      <!-- Architecture -->
+      <section class="help-section">
+        <h3>Architecture Overview</h3>
+        <pre class="help-diagram">
+  +-----------------+       +-----------------+       +-----------------+
+  | Suricata (IDS)  |       | Wazuh Agents    |       | Argus Sentinel  |
+  | network traffic |       | endpoint logs   |       | endpoint state  |
+  +--------+--------+       +--------+--------+       +--------+--------+
+           |  EVE JSON               | alerts.json             | webhook
+           +------------+------------+-----------+--------------+
+                        |                        |
+                  +-----v------------------------v-----+
+                  |           shallotd                  |
+                  |  normalize > dedup > enrich > AI    |
+                  |  SQLite FTS5 | aiohttp dashboard    |
+                  +-----+-------------------+----------+
+                        |                   |
+                  +-----v-----+       +-----v------+
+                  | Dashboard |       | Email/SMS  |
+                  | port 8844 |       | Alerts     |
+                  +-----------+       +------------+
+        </pre>
+        <p class="help-text">
+          <strong>shallotd</strong> is the central daemon. It ingests alerts from multiple sensors,
+          normalizes them, deduplicates, enriches with GeoIP/DNS, and runs AI triage.
+          Everything flows into a SQLite database and this dashboard.
+        </p>
+      </section>
+
+      <!-- Endpoint Agents -->
+      <section class="help-section">
+        <h3>Install Endpoint Agents</h3>
+        <p class="help-text">
+          Two agent types protect your endpoints. <strong>Clove</strong> (Wazuh-based) handles log analysis,
+          file integrity, and rootkit detection. <strong>Argus</strong> is the heavy sentinel for credential
+          monitoring, session tracking, evidence capture, and anti-tamper. Both work on Windows;
+          Linux uses Clove. Pick what fits each machine.
+        </p>
+
+        <table class="help-table" style="margin:0.75rem 0">
+          <tr>
+            <td></td>
+            <td style="text-align:center"><strong>Linux</strong></td>
+            <td style="text-align:center"><strong>Windows</strong></td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-src-wazuh">clove</span> Wazuh agent</td>
+            <td style="text-align:center;color:var(--sev-low)">&#10003;</td>
+            <td style="text-align:center;color:var(--sev-low)">&#10003;</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-src-argus" style="color:var(--accent)">argus</span> Sentinel</td>
+            <td style="text-align:center;color:var(--text-muted)">&mdash;</td>
+            <td style="text-align:center;color:var(--sev-low)">&#10003;</td>
+          </tr>
+        </table>
+
+        <!-- Linux tab -->
+        <div class="help-platform-block">
+          <div class="help-platform-label">Linux Endpoints</div>
+          <p class="help-text">
+            Installs the <strong>Clove</strong> agent (Wazuh) with custom detection rules.
+            Monitors SSH, file integrity, rootkits, reverse shells, suspicious downloads, Docker, and systemd changes.
+          </p>
+          <div class="help-cmd-label">One-line install (run as root on the endpoint):</div>
+          <div class="help-cmd">
+            <code>curl -fsSL https://raw.githubusercontent.com/benolenick/security-shallots/main/setup/endpoint/clove \<br>&nbsp; | sudo bash -s -- --manager <span class="help-placeholder">YOUR_SERVER_IP</span></code>
+            <button class="help-copy" title="Copy to clipboard">Copy</button>
+          </div>
+          <div class="help-cmd-label">Options:</div>
+          <table class="help-table">
+            <tr><td><code>--manager IP</code></td><td>Wazuh manager IP (required)</td></tr>
+            <tr><td><code>--name NAME</code></td><td>Agent display name (defaults to hostname)</td></tr>
+            <tr><td><code>--group GROUP</code></td><td>Wazuh agent group (default: <code>default</code>)</td></tr>
+            <tr><td><code>--password PW</code></td><td>Wazuh registration password</td></tr>
+            <tr><td><code>--crowdsec</code></td><td>Also install CrowdSec + iptables bouncer</td></tr>
+            <tr><td><code>--uninstall</code></td><td>Remove the agent completely</td></tr>
+          </table>
+          <p class="help-text help-note">Idempotent &mdash; safe to re-run on an endpoint that already has it.</p>
+        </div>
+
+        <!-- Windows tab -->
+        <div class="help-platform-block">
+          <div class="help-platform-label">Windows Endpoints</div>
+          <p class="help-text">
+            The Windows installer deploys <strong>Argus</strong> by default (credential monitoring, Event Logs,
+            RDP sessions, USB, evidence capture). Add <code>-Wazuh</code> to also install the
+            <strong>Clove</strong> Wazuh agent for file integrity and log analysis &mdash;
+            both agents run side-by-side.
+          </p>
+          <div class="help-cmd-label">Argus only (run as Administrator in PowerShell):</div>
+          <div class="help-cmd">
+            <code>.\clove.ps1 -Manager <span class="help-placeholder">YOUR_SERVER_IP</span></code>
+            <button class="help-copy" title="Copy to clipboard">Copy</button>
+          </div>
+          <div class="help-cmd-label">Argus + Clove (Wazuh) together:</div>
+          <div class="help-cmd">
+            <code>.\clove.ps1 -Manager <span class="help-placeholder">YOUR_SERVER_IP</span> -Wazuh</code>
+            <button class="help-copy" title="Copy to clipboard">Copy</button>
+          </div>
+          <div class="help-cmd-label">One-liner (downloads and runs):</div>
+          <div class="help-cmd">
+            <code>irm https://raw.githubusercontent.com/benolenick/security-shallots/main/setup/endpoint/clove.ps1 | iex</code>
+            <button class="help-copy" title="Copy to clipboard">Copy</button>
+          </div>
+          <div class="help-cmd-label">Options:</div>
+          <table class="help-table">
+            <tr><td><code>-Manager IP</code></td><td>shallotd server IP (required)</td></tr>
+            <tr><td><code>-Name NAME</code></td><td>Agent display name (defaults to hostname)</td></tr>
+            <tr><td><code>-WebhookPort 8855</code></td><td>Argus webhook port on server</td></tr>
+            <tr><td><code>-WebhookSecret "..."</code></td><td>Shared secret for Argus auth</td></tr>
+            <tr><td><code>-Wazuh</code></td><td>Also install Wazuh agent (Clove)</td></tr>
+            <tr><td><code>-WazuhGroup GROUP</code></td><td>Wazuh agent group</td></tr>
+            <tr><td><code>-WazuhPassword PW</code></td><td>Wazuh registration password</td></tr>
+            <tr><td><code>-Uninstall</code></td><td>Remove everything</td></tr>
+          </table>
+
+          <div class="help-cmd-label">What each agent monitors on Windows:</div>
+          <table class="help-table">
+            <tr>
+              <td><span class="badge badge-src-argus" style="color:var(--accent)">argus</span></td>
+              <td>Failed logons (4625), account creation (4720), group changes (4728/4732),
+                  account lockouts (4740), audit log clearing (1102), credential file access
+                  (KeePassXC, SSH keys), RDP sessions, USB devices, evidence capture, anti-tamper</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-src-wazuh">clove</span></td>
+              <td>File integrity monitoring, Windows Event Log analysis, rootkit detection,
+                  active response, vulnerability detection, security configuration assessment</td>
+            </tr>
+          </table>
+
+          <p class="help-text help-note">
+            Argus uses port <strong>8855</strong> on the server &mdash; make sure it&rsquo;s open.
+            The installer auto-installs Python if needed. Both agents run as background services.
+          </p>
+        </div>
+      </section>
+
+      <!-- Diagnostics -->
+      <section class="help-section">
+        <h3>Diagnostics &mdash; shallot-doctor</h3>
+        <p class="help-text">
+          <strong>shallot-doctor</strong> is the all-in-one diagnostic, backup, and repair tool.
+          Run it on your central server whenever something seems wrong.
+        </p>
+        <div class="help-cmd-label">Full health check:</div>
+        <div class="help-cmd">
+          <code>sudo bash setup/shallot-doctor check</code>
+          <button class="help-copy" title="Copy to clipboard">Copy</button>
+        </div>
+        <div class="help-cmd-label">All commands:</div>
+        <table class="help-table">
+          <tr><td><code>check</code></td><td>Full diagnostic: services, ports, DB integrity, TLS, backups</td></tr>
+          <tr><td><code>backup</code></td><td>Backup config + DB + TLS certs + crontabs</td></tr>
+          <tr><td><code>restore &lt;file&gt;</code></td><td>Restore from a backup tarball</td></tr>
+          <tr><td><code>fix-tls</code></td><td>Regenerate self-signed TLS certificate</td></tr>
+          <tr><td><code>fix-crons</code></td><td>Reinstall maintenance cron jobs</td></tr>
+          <tr><td><code>fix-service</code></td><td>Reinstall + restart the systemd service</td></tr>
+          <tr><td><code>fix-perms</code></td><td>Fix file permissions and group membership</td></tr>
+          <tr><td><code>reset-config</code></td><td>Reset config.yaml to defaults</td></tr>
+        </table>
+        <p class="help-text help-note">
+          The <code>check</code> command verifies: service status, port availability, database integrity,
+          TLS cert validity, backup freshness, and log file accessibility. Start here for any issue.
+        </p>
+      </section>
+
+      <!-- Component Guide -->
+      <section class="help-section">
+        <h3>Component Guide</h3>
+        <div class="help-components">
+          <div class="help-component">
+            <div class="help-component-name"><span class="badge badge-src-suricata">suricata</span> Network IDS</div>
+            <p>Inspects all network traffic in real-time using signature-based detection.
+            Alerts when packets match known threat patterns (malware C2, scanning, exploits).
+            Watches the wire &mdash; everything entering and leaving your network.</p>
+          </div>
+          <div class="help-component">
+            <div class="help-component-name"><span class="badge badge-src-wazuh">wazuh</span> Endpoint Security</div>
+            <p>Agent-based monitoring on Linux/Windows endpoints (via Clove installer).
+            Covers file integrity, log analysis, rootkit detection, authentication monitoring.
+            Alerts when something changes on a host.</p>
+          </div>
+          <div class="help-component">
+            <div class="help-component-name"><span class="badge badge-src-argus" style="color:var(--accent)">argus</span> Endpoint Sentinel</div>
+            <p>Heavy Windows-focused endpoint agent. Monitors Windows Event Logs, credential file access,
+            RDP/network sessions, USB devices. Includes evidence capture and anti-tamper.
+            The &ldquo;big brother&rdquo; for high-value endpoints.</p>
+          </div>
+          <div class="help-component">
+            <div class="help-component-name"><span class="badge badge-src-crowdsec">crowdsec</span> Crowd Intelligence</div>
+            <p>Community-powered threat intelligence. Detects brute force, scans, and known bad IPs
+            using shared blocklists. Can automatically firewall attackers via bouncers.</p>
+          </div>
+          <div class="help-component">
+            <div class="help-component-name"><span class="badge badge-src-pfsense">pfsense</span> Firewall Logs</div>
+            <p>Ingests pfSense filterlog entries via syslog. Shows blocked/allowed traffic
+            at the firewall level &mdash; useful for seeing what your firewall is stopping.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Severity & Verdicts -->
+      <section class="help-section">
+        <h3>Severity Levels &amp; Verdicts</h3>
+        <table class="help-table">
+          <tr><td><span class="badge badge-sev-critical">critical</span></td><td>Active exploitation or compromise. Investigate immediately.</td></tr>
+          <tr><td><span class="badge badge-sev-high">high</span></td><td>Likely malicious. Needs prompt investigation.</td></tr>
+          <tr><td><span class="badge badge-sev-medium">medium</span></td><td>Suspicious activity. Review when possible.</td></tr>
+          <tr><td><span class="badge badge-sev-low">low</span></td><td>Informational noise. Usually benign.</td></tr>
+        </table>
+        <table class="help-table" style="margin-top:0.75rem">
+          <tr><td><span class="badge badge-v-pending">pending</span></td><td>Not yet triaged. AI reviews in batches, or set manually.</td></tr>
+          <tr><td><span class="badge badge-v-investigate">investigate</span></td><td>Needs human review. Something looks wrong.</td></tr>
+          <tr><td><span class="badge badge-v-escalate">escalate</span></td><td>Confirmed threat or high-priority finding.</td></tr>
+          <tr><td><span class="badge badge-v-suppress">suppress</span></td><td>Known noise. Benign scanners, internal traffic, etc.</td></tr>
+        </table>
+      </section>
+
+      <!-- Troubleshooting -->
+      <section class="help-section">
+        <h3>Troubleshooting</h3>
+        <details class="help-troubleshoot">
+          <summary>No alerts appearing</summary>
+          <ol>
+            <li>Run <code>sudo bash setup/shallot-doctor check</code></li>
+            <li>Verify Suricata is running: <code>systemctl status suricata</code></li>
+            <li>Check EVE log exists: <code>ls -la /var/log/suricata/eve.json</code></li>
+            <li>Check shallotd logs: <code>journalctl -u shallotd -f | grep -i ingest</code></li>
+            <li>Verify component is enabled in <code>config.yaml</code> under <code>components:</code></li>
+          </ol>
+        </details>
+        <details class="help-troubleshoot">
+          <summary>AI triage stuck on &ldquo;pending&rdquo;</summary>
+          <ol>
+            <li>Check AI config: <code>grep -A5 'ai:' config.yaml</code></li>
+            <li>AI tier must not be <code>none</code></li>
+            <li>For Ollama: <code>curl http://OLLAMA_HOST:11434/api/tags</code></li>
+            <li>Check triage logs: <code>journalctl -u shallotd | grep -i triage</code></li>
+          </ol>
+        </details>
+        <details class="help-troubleshoot">
+          <summary>Dashboard not loading</summary>
+          <ol>
+            <li>Confirm service: <code>systemctl is-active shallotd</code></li>
+            <li>Confirm port: <code>ss -tlnp | grep 8844</code></li>
+            <li>If HTTPS, you must use <code>https://</code> and accept the self-signed cert</li>
+            <li>Check auth: credentials are in <code>config.yaml</code> under <code>web:</code></li>
+          </ol>
+        </details>
+        <details class="help-troubleshoot">
+          <summary>Clove agent not connecting</summary>
+          <ol>
+            <li>On endpoint: <code>systemctl status wazuh-agent</code></li>
+            <li>Check manager address: <code>grep '&lt;address&gt;' /var/ossec/etc/ossec.conf</code></li>
+            <li>Test connectivity: <code>nc -z SERVER_IP 1514</code> and <code>nc -z SERVER_IP 1515</code></li>
+            <li>Check enrollment: <code>cat /var/ossec/etc/client.keys</code></li>
+            <li>Re-run installer (it&rsquo;s idempotent)</li>
+          </ol>
+        </details>
+        <details class="help-troubleshoot">
+          <summary>Argus webhook not receiving</summary>
+          <ol>
+            <li>Verify port 8855 is open on server firewall</li>
+            <li>Test endpoint: <code>curl http://SERVER_IP:8855/api/ingest/argus</code></li>
+            <li>On Windows: <code>python -m argus --config config.toml status</code></li>
+            <li>Check webhook secret matches in both <code>config.toml</code> and server <code>config.yaml</code></li>
+          </ol>
+        </details>
+        <details class="help-troubleshoot">
+          <summary>TLS certificate expired</summary>
+          <ol>
+            <li><code>sudo bash setup/shallot-doctor fix-tls</code></li>
+            <li><code>sudo systemctl restart shallotd</code></li>
+          </ol>
+        </details>
+      </section>
+
+      <!-- What Needs Human Attention -->
+      <section class="help-section">
+        <h3>What Needs Human Attention</h3>
+        <p class="help-text">
+          Security Shallots automates ingestion, dedup, enrichment, and AI triage &mdash; but these tasks still need a human:
+        </p>
+        <table class="help-table">
+          <tr><td><strong>Verdict triage</strong></td><td>Review &ldquo;investigate&rdquo; alerts and decide: suppress or escalate. AI gives recommendations but you make the call.</td></tr>
+          <tr><td><strong>Agent installation</strong></td><td>Deploy Clove/Argus to new endpoints. Requires SSH or RDP access to each machine.</td></tr>
+          <tr><td><strong>Agent reattachment</strong></td><td>When an agent goes offline, use the troubleshoot drawer to restart or re-enroll it.</td></tr>
+          <tr><td><strong>Suricata rule tuning</strong></td><td>Add custom rules, tune thresholds, suppress noisy signatures via <code>threshold.config</code>.</td></tr>
+          <tr><td><strong>TLS certificate renewal</strong></td><td>Self-signed cert expires yearly. Run <code>shallot-doctor fix-tls</code> and restart.</td></tr>
+          <tr><td><strong>Database backups</strong></td><td>Run <code>shallot-doctor backup</code> periodically. Verify backups restore cleanly.</td></tr>
+          <tr><td><strong>GeoIP database updates</strong></td><td>Download a fresh <code>GeoLite2-City.mmdb</code> from MaxMind every few months.</td></tr>
+          <tr><td><strong>API key rotation</strong></td><td>Rotate OpenAI/Anthropic/VirusTotal/AbuseIPDB keys in <code>config.yaml</code> periodically.</td></tr>
+        </table>
+      </section>
+
+      <!-- Server Management -->
+      <section class="help-section">
+        <h3>Server Management</h3>
+        <table class="help-table">
+          <tr><td>Restart daemon</td><td><code>sudo systemctl restart shallotd</code></td></tr>
+          <tr><td>Watch logs</td><td><code>journalctl -u shallotd -f</code></td></tr>
+          <tr><td>Update rules</td><td><code>sudo suricata-update &amp;&amp; sudo suricatasc -c reload-rules</code></td></tr>
+          <tr><td>Deploy updates</td><td><code>cd /path/to/security-shallots &amp;&amp; git pull &amp;&amp; sudo systemctl restart shallotd</code></td></tr>
+          <tr><td>DB stats</td><td><code>sqlite3 shallots.db "SELECT source, COUNT(*) FROM alerts GROUP BY source"</code></td></tr>
+          <tr><td>Argus control</td><td><code>python -m argus --config config.toml status|on|off</code></td></tr>
+        </table>
+      </section>
+
+      <!-- Ports -->
+      <section class="help-section">
+        <h3>Network Ports</h3>
+        <table class="help-table">
+          <tr><td><strong>8844</strong></td><td>Dashboard (HTTPS)</td><td>Browser access</td></tr>
+          <tr><td><strong>8855</strong></td><td>Argus webhook</td><td>Endpoint &rarr; server</td></tr>
+          <tr><td><strong>1514</strong></td><td>Wazuh events</td><td>Clove agent &rarr; server</td></tr>
+          <tr><td><strong>1515</strong></td><td>Wazuh enrollment</td><td>Agent registration</td></tr>
+          <tr><td><strong>5514</strong></td><td>Syslog receiver</td><td>pfSense, network devices</td></tr>
+          <tr><td><strong>3000</strong></td><td>Grafana</td><td>Optional dashboards</td></tr>
+        </table>
+      </section>
+
+      <!-- API for agents -->
+      <section class="help-section">
+        <h3>API for CLI Agents</h3>
+        <p class="help-text">
+          CLI agents (Claude Code, Codex, etc.) can auto-discover this system via the unauthenticated endpoint:
+        </p>
+        <div class="help-cmd">
+          <code>curl -sk https://SERVER:8844/api/agent-guide | python3 -m json.tool</code>
+          <button class="help-copy" title="Copy to clipboard">Copy</button>
+        </div>
+        <p class="help-text">
+          Returns a JSON manifest with architecture, all API endpoints, common commands,
+          troubleshooting steps, and live system status.
+        </p>
+      </section>
+
+    </div><!-- /help-body -->
+  </div><!-- /help-panel -->
+</div><!-- /help-overlay -->
+
+<!-- Update modal -->
+<div class="update-overlay" id="update-overlay"></div>
+<div class="update-modal" id="update-modal">
+  <h3>Update Available</h3>
+  <p id="update-info" style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:0.5rem"></p>
+  <pre id="update-output" style="display:none"></pre>
+  <div class="update-actions">
+    <button class="btn" id="update-cancel">Close</button>
+    <button class="btn btn-primary" id="update-confirm">Pull Update</button>
+  </div>
+</div>
+
+<!-- Keyboard shortcuts modal -->
+<div class="kbd-overlay" id="kbd-overlay" style="display:none">
+  <div class="kbd-modal">
+    <h3>Keyboard Shortcuts</h3>
+    <button class="kbd-close" id="kbd-close">&times;</button>
+    <div class="kbd-grid">
+      <div class="kbd-item"><kbd>j</kbd> / <kbd>k</kbd> <span>Next / Previous alert</span></div>
+      <div class="kbd-item"><kbd>e</kbd> or <kbd>Enter</kbd> <span>Expand / collapse alert</span></div>
+      <div class="kbd-item"><kbd>s</kbd> <span>Set verdict: Suppress</span></div>
+      <div class="kbd-item"><kbd>i</kbd> <span>Set verdict: Investigate</span></div>
+      <div class="kbd-item"><kbd>x</kbd> <span>Set verdict: Escalate</span></div>
+      <div class="kbd-item"><kbd>a</kbd> <span>Toggle acknowledge</span></div>
+      <div class="kbd-item"><kbd>/</kbd> <span>Focus search box</span></div>
+      <div class="kbd-item"><kbd>?</kbd> <span>Show this help</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="settings-overlay" id="settings-overlay">
+  <div class="settings-modal" id="settings-modal">
+    <div class="settings-header">
+      <h3>AI Configuration</h3>
+      <button class="settings-close" id="settings-close">&times;</button>
+    </div>
+    <div id="settings-body">
+      <div class="settings-section">
+        <div class="settings-section-title">Detected LLM Providers</div>
+        <div id="llm-scan-results">
+          <div class="empty-state" style="padding:0.5rem;font-size:0.8rem">Click "Scan" to discover available LLMs</div>
+        </div>
+        <button class="btn btn-primary" id="btn-ai-scan" style="margin-top:0.5rem">Scan for LLMs</button>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">Active Configuration</div>
+        <div class="settings-form" id="ai-config-form">
+          <label class="settings-label">
+            AI Tier
+            <select class="settings-input" id="ai-tier">
+              <option value="none">Disabled</option>
+              <option value="remote_micro">Remote Micro (1.5B)</option>
+              <option value="remote_standard">Remote Standard (8B+)</option>
+              <option value="remote_api">Cloud API (OpenAI/Anthropic)</option>
+              <option value="local">Local</option>
+            </select>
+          </label>
+          <label class="settings-label">
+            Ollama URL
+            <input type="text" class="settings-input" id="ai-ollama-url" placeholder="http://localhost:11434" />
+          </label>
+          <label class="settings-label">
+            Ollama Model
+            <select class="settings-input" id="ai-ollama-model">
+              <option value="">Select after scanning...</option>
+            </select>
+          </label>
+          <label class="settings-label">
+            OpenAI API Key
+            <div class="settings-key-wrap">
+              <input type="password" class="settings-input" id="ai-openai-key" placeholder="sk-..." />
+              <button class="btn settings-reveal" data-target="ai-openai-key">Show</button>
+            </div>
+          </label>
+          <label class="settings-label">
+            Anthropic API Key
+            <div class="settings-key-wrap">
+              <input type="password" class="settings-input" id="ai-anthropic-key" placeholder="sk-ant-..." />
+              <button class="btn settings-reveal" data-target="ai-anthropic-key">Show</button>
+            </div>
+          </label>
+        </div>
+      </div>
+      <div class="settings-actions">
+        <button class="btn" id="settings-cancel">Cancel</button>
+        <button class="btn btn-primary" id="settings-save">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Silence Rules panel (right-side slide-out) -->
+<div class="tuning-overlay" id="tuning-overlay" style="display:none">
+  <div class="tuning-panel">
+    <div class="tuning-header">
+      <h2>Alert Tuning Rules</h2>
+      <button class="tuning-close" id="tuning-close">&times;</button>
+    </div>
+    <div class="tuning-body" id="tuning-body">
+      <p class="tuning-desc">Silence rules automatically suppress matching alerts. Rules apply to both existing and future alerts.</p>
+
+      <!-- Add new rule form -->
+      <div class="tuning-add-form" id="tuning-add-form">
+        <div class="tuning-form-row">
+          <select class="filter-select" id="tuning-match-type">
+            <option value="title">Title contains</option>
+            <option value="src_ip">Source IP equals</option>
+            <option value="src_ip+title">Source IP + Title</option>
+            <option value="sig_id">Signature ID</option>
+            <option value="category">Category contains</option>
+            <option value="src_cidr">Source CIDR</option>
+            <option value="dst_ip">Dest IP equals</option>
+            <option value="dst_cidr">Dest CIDR</option>
+          </select>
+          <input type="text" class="settings-input" id="tuning-pattern" placeholder="Pattern..." />
+          <input type="text" class="settings-input" id="tuning-pattern2" placeholder="Title pattern..." style="display:none" />
+          <button class="btn btn-primary" id="tuning-add-btn">Add Rule</button>
+        </div>
+      </div>
+
+      <!-- AI-assisted rule creation -->
+      <div class="tuning-ai-section">
+        <div class="tuning-ai-bar">
+          <input type="text" class="settings-input" id="tuning-ai-input"
+                 placeholder="Describe what to silence, e.g. &quot;mute all traffic to multicast addresses&quot;" />
+          <button class="btn btn-accent" id="tuning-ai-btn">Ask AI</button>
+        </div>
+        <div class="tuning-ai-status" id="tuning-ai-status" style="display:none"></div>
+      </div>
+
+      <!-- Tab switcher -->
+      <div class="tuning-tabs" style="display:flex;gap:0;margin:0.75rem 0 0.5rem;border-bottom:1px solid var(--border)">
+        <button class="tuning-tab active" id="tab-silence" onclick="switchTuningTab('silence')">Silence Rules</button>
+        <button class="tuning-tab" id="tab-detection" onclick="switchTuningTab('detection')">Detection Rules</button>
+      </div>
+
+      <!-- Active silence rules list -->
+      <div id="tuning-tab-silence">
+        <div class="tuning-rules-list" id="tuning-rules-list">
+          <div class="empty-state" style="padding:1rem;font-size:0.85rem">Loading rules...</div>
+        </div>
+      </div>
+
+      <!-- Custom detection rules -->
+      <div id="tuning-tab-detection" style="display:none">
+        <p class="tuning-desc">Detection rules automatically escalate, investigate, or tag alerts matching conditions. Rules apply to incoming alerts in real-time.</p>
+        <div class="tuning-add-form">
+          <div class="tuning-form-row">
+            <input type="text" class="settings-input" id="det-name" placeholder="Rule name..." style="flex:1.5" />
+            <select class="filter-select" id="det-field">
+              <option value="title">Title</option>
+              <option value="src_ip">Source IP</option>
+              <option value="dst_ip">Dest IP</option>
+              <option value="dst_port">Dest Port</option>
+              <option value="category">Category</option>
+              <option value="source">Source</option>
+              <option value="severity">Severity</option>
+              <option value="description">Description</option>
+            </select>
+            <select class="filter-select" id="det-op">
+              <option value="contains">contains</option>
+              <option value="equals">equals</option>
+              <option value="startswith">starts with</option>
+              <option value="regex">regex</option>
+            </select>
+            <input type="text" class="settings-input" id="det-value" placeholder="Value..." />
+          </div>
+          <div class="tuning-form-row" style="margin-top:0.35rem">
+            <select class="filter-select" id="det-action">
+              <option value="escalate">Escalate</option>
+              <option value="investigate">Investigate</option>
+              <option value="suppress">Suppress</option>
+            </select>
+            <select class="filter-select" id="det-severity">
+              <option value="">No severity override</option>
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+            <button class="btn btn-accent" id="det-test-btn" onclick="testDetectionRule()">Test</button>
+            <button class="btn btn-primary" id="det-add-btn" onclick="addDetectionRule()">Add Rule</button>
+          </div>
+          <div id="det-test-result" style="display:none;margin-top:0.5rem;font-size:0.8rem;color:var(--text-muted)"></div>
+        </div>
+        <div class="tuning-rules-list" id="detection-rules-list">
+          <div class="empty-state" style="padding:1rem;font-size:0.85rem">Loading detection rules...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- AI Triage panel (right-side slide-out) -->
+<div class="ai-overlay" id="ai-overlay" style="display:none">
+  <div class="ai-panel">
+    <div class="ai-header">
+      <h2>AI Autopilot</h2>
+      <button class="ai-close" id="ai-close">&times;</button>
+    </div>
+    <div class="ai-body">
+
+      <!-- Mode toggle -->
+      <div class="ai-mode-section">
+        <div class="ai-section-title">Operating Mode</div>
+        <div class="ai-mode-toggle">
+          <label class="ai-mode-option">
+            <input type="radio" name="ai-mode" value="off" checked />
+            <div class="ai-mode-card">
+              <div class="ai-mode-name">Off</div>
+              <div class="ai-mode-desc">Manual triage only</div>
+            </div>
+          </label>
+          <label class="ai-mode-option">
+            <input type="radio" name="ai-mode" value="copilot" />
+            <div class="ai-mode-card">
+              <div class="ai-mode-name">Copilot</div>
+              <div class="ai-mode-desc">Suggests actions, asks for approval</div>
+            </div>
+          </label>
+          <label class="ai-mode-option">
+            <input type="radio" name="ai-mode" value="autopilot" />
+            <div class="ai-mode-card">
+              <div class="ai-mode-name">Autopilot</div>
+              <div class="ai-mode-desc">Fully autonomous noise handling</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Stats bar -->
+      <div class="ai-stats-bar" id="ai-stats-bar">
+        <div class="ai-stat"><span class="ai-stat-value" id="ai-stat-decisions">0</span><span class="ai-stat-label">Decisions</span></div>
+        <div class="ai-stat"><span class="ai-stat-value" id="ai-stat-suppressed">0</span><span class="ai-stat-label">Suppressed</span></div>
+        <div class="ai-stat"><span class="ai-stat-value" id="ai-stat-squawks">0</span><span class="ai-stat-label">Squawks</span></div>
+        <div class="ai-stat"><span class="ai-stat-value" id="ai-stat-verdicts">0</span><span class="ai-stat-label">Learned</span></div>
+      </div>
+
+      <!-- Pending suggestions (copilot mode) -->
+      <div class="ai-suggestions-section" id="ai-suggestions-section" style="display:none">
+        <div class="ai-section-title">Pending Suggestions</div>
+        <div class="ai-suggestions-list" id="ai-suggestions-list">
+          <div class="empty-state" style="padding:0.5rem;font-size:0.85rem">No pending suggestions</div>
+        </div>
+      </div>
+
+      <!-- Activity feed -->
+      <div class="ai-activity-section">
+        <div class="ai-section-title">Activity Log</div>
+        <div class="ai-activity-list" id="ai-activity-list">
+          <div class="empty-state" style="padding:0.5rem;font-size:0.85rem">No AI activity yet</div>
+        </div>
+      </div>
+
+      <!-- Squawk history -->
+      <div class="ai-squawks-section">
+        <div class="ai-section-title">Threat Alerts (Squawks)</div>
+        <div class="ai-squawks-list" id="ai-squawks-list">
+          <div class="empty-state" style="padding:0.5rem;font-size:0.85rem">No threats detected</div>
+        </div>
+      </div>
+
+      <!-- Shift reports -->
+      <div class="ai-reports-section">
+        <div class="ai-section-title">Shift Reports</div>
+        <div class="ai-reports-list" id="ai-reports-list">
+          <div class="empty-state" style="padding:0.5rem;font-size:0.85rem">No reports yet</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toast-container"></div>
+
+<script src="/static/wiki.js"></script>
+<script src="/static/setup.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

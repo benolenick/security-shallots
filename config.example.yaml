@@ -1,0 +1,216 @@
+# Security Shallots example configuration
+#
+# Copy to config.yaml and edit for the host. Keep real secrets in config.yaml or
+# environment variables; do not commit them.
+
+# Profiles:
+#   pi-core  - Pi 4/5 default: syslog, posture, canaries, dashboard, cloud/remote AI
+#   pi-ids   - Pi 5/mini gateway or SPAN port: pi-core plus light Suricata/pcap
+#   mini     - NUC/old laptop: Suricata, CrowdSec, Argus, pcap, optional local AI
+#   full     - small server/reference build: all sensors, longer retention
+profile: pi-core
+
+network:
+  home_cidr: "192.168.0.0/24"
+  # Set this only when Suricata/pcap should inspect a useful interface.
+  # On a normal switch port, IDS sees mostly this host's own traffic.
+  monitor_interface: ""
+  placement: "router_syslog"  # router_syslog | span_port | gateway | local_only
+
+components:
+  suricata: false
+  crowdsec: false
+  wazuh: false
+  victorialogs: false
+  grafana: false
+  syslog_receiver: true
+  argus: false
+  webapp: false
+
+suricata:
+  eve_path: "/var/log/suricata/eve.json"
+  # Pi guidance: enable only with a gateway/SPAN vantage point and watch drops.
+
+syslog:
+  enabled: true
+  udp_port: 5514
+  tcp_port: 5514
+  low_severity_duplicate_limit: 20
+  low_severity_duplicate_window_sec: 60
+
+argus:
+  webhook_enabled: false
+  webhook_port: 8855
+  webhook_path: "/api/ingest/argus"
+  webhook_secret: ""
+  allowed_source_cidrs: []
+  webhook_tls_enabled: false
+  webhook_tls_cert: ""
+  webhook_tls_key: ""
+  require_per_agent_secret: true
+  agent_secrets: {}
+
+wazuh:
+  alerts_path: "/var/ossec/logs/alerts/alerts.json"
+
+crowdsec:
+  api_url: "http://127.0.0.1:8080"
+  api_key: ""
+
+pihole:
+  enabled: false
+  db_path: "/etc/pihole/pihole-FTL.db"
+  poll_interval_sec: 60
+
+storage:
+  db_path: "/var/lib/shallots/shallots.db"
+  retention_days: 14
+  max_backups: 3
+  backup_dir: "/var/lib/shallots/backups"
+  victorialogs_url: ""
+
+web:
+  host: "0.0.0.0"
+  port: 8844
+  username: "admin"
+  password: ""       # set before LAN exposure
+  tls_cert: ""
+  tls_key: ""
+
+# AI is OPTIONAL. Shallots is fully useful without it: the classifier, Sigma
+# rules, IoC feeds, flow-scan, firewall/auth ingest, and the posture layer are
+# all deterministic and need no GPU. The AI tier only adds smart triage of the
+# ambiguous middle + reasoning. Pick a tier by your hardware:
+#   none        - No LLM at all. Runs on a Raspberry Pi / any GPU-less box.
+#                 Alerts are triaged by rules (Sigma/IoC/flow-scan/severity);
+#                 the ambiguous residue defaults to "investigate" so you still
+#                 see it. This is the default — opt IN to AI below.
+#   local       - Ollama on THIS box. Needs ~6 GB VRAM (GTX 1080 / RTX 3060+).
+#                 Set ollama_url + ollama_model (e.g. granite3.3:8b).
+#   remote_api  - Cloud LLM (OpenAI/Anthropic/DeepSeek). Cheap (~$0.20/mo at
+#                 typical volume) but your alerts leave the network — REDACT
+#                 sensitive fields first. Set the matching *_api_key below.
+ai:
+  tier: none          # none (no GPU) | local (own GPU) | remote_api (cloud)
+  openai_api_key: ""
+  anthropic_api_key: ""
+  ollama_url: ""
+  ollama_model: ""
+  batch_size: 2
+  batch_interval_sec: 900
+  # remote_api only: pseudonymize IPs/MACs/hostnames/usernames/emails before
+  # sending alerts to the cloud model, and restore them in the reply. Cuts
+  # identifier leakage (behavior/timing still leak). No effect on none/local.
+  obfuscate_cloud: false
+  autopilot:
+    mode: copilot     # off | copilot | autopilot
+    noise_threshold: 8
+    noise_window_min: 120
+    auto_silence_after: 20
+    shift_report_hours: 12
+    squawk_sms: false
+    batch_interval_sec: 900
+
+# Non-judgmental edge scout. It surfaces candidate missed signals and context;
+# it must not suppress, page, or change verdicts.
+scout:
+  enabled: false
+  ollama_url: "http://127.0.0.1:11434"
+  model: "granite3.3:8b"
+  batch_size: 10
+  interval_sec: 60
+  lookback_hours: 24
+  min_score: 2
+  corpus_path: "data/fleet_context.db"
+  # Optional scoring hints (all inert if unset):
+  router_ip: ""            # your gateway IP — flags syslog claiming to be the router from a wrong source
+  router_syslog_hint: ""   # substring identifying router-origin syslog (e.g. your router's vendor name)
+  sensor_ips: []           # IPs of hosts running a local Suricata sensor (scopes local-sensor traffic)
+
+ladder:
+  enabled: false
+  claude_bin: "claude"
+  creds_path: "~/.claude/.credentials.json"
+  distill_url: "http://127.0.0.1:11434"
+  distill_model: "granite3.3:8b"
+  build_lookback_min: 720
+  escalate_min_severity: high
+  escalate_verdicts: ["escalate", "investigate"]
+  max_build_cases: 12
+  haiku_max_cases: 15
+  sonnet_max_cases: 8
+  opus_max_cases: 4
+  ping_ntfy_topic: ""
+  ping_ntfy_server: "https://ntfy.sh"
+
+alerting:
+  webhook_url: ""
+  ntfy:
+    enabled: false
+    topic: ""
+    server: "https://ntfy.sh"
+    token: ""
+  email:
+    enabled: false
+    smtp_host: ""
+    smtp_port: 587
+    smtp_username: ""
+    smtp_password: ""
+    from_addr: ""
+    to_addr: ""
+    min_severity: "high"
+  sms:
+    enabled: false
+    twilio_account_sid: ""
+    twilio_auth_token: ""
+    from_number: ""
+    to_number: ""
+    min_severity: "critical"
+
+sigma:
+  enabled: true
+
+ioc_feeds:
+  enabled: true
+  feeds: []
+
+virustotal:
+  enabled: false
+  ip_lookup_enabled: false
+  api_key: ""
+
+abuseipdb:
+  enabled: false
+  api_key: ""
+
+shodan:
+  enabled: true
+
+greynoise:
+  enabled: false
+  api_key: ""
+
+threat_engine:
+  tier: auto
+  baselines: true
+  graph: false
+  ml_detector: false
+  killchain: true
+  correlator_interval_sec: 600
+  baseline_rebuild_sec: 43200
+  ml_retrain_sec: 43200
+  ml_training_samples: 100
+  graph_max_nodes: 300
+  baseline_window_days: 7
+
+suppression:
+  source_cidrs: []
+  dest_cidrs: []
+  source_ips: []
+  dest_ips: []
+  title_patterns: []
+  sig_ids: []
+  # Substrings identifying YOUR own services/scripts/paths whose persistence-surface
+  # changes are routine maintenance, not an attacker establishing persistence.
+  # e.g. ["myapp-worker.service", "/opt/myapp"]
+  maintenance_persistence_patterns: []

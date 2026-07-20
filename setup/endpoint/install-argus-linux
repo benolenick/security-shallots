@@ -1,0 +1,280 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO="/home/user/security-shallots"
+RUN_USER="om"
+HOSTNAME_ARG="$(hostname)"
+SERVER_URL=""
+SECRET=""
+SECRET_FILE=""
+CONFIG_PATH="/etc/argus/config.toml"
+SERVICE_NAME="argus-agent.service"
+ENABLE=false
+START=false
+
+usage() {
+  cat <<EOF
+Usage: sudo $(basename "$0") [OPTIONS]
+
+Options:
+  --repo PATH          security-shallots checkout (default: /home/user/security-shallots)
+  --user USER          service user (default: om)
+  --hostname NAME      Argus agent hostname (default: system hostname)
+  --server-url URL     Argus webhook URL (required, e.g. https://<manager-ip>:8855/api/ingest/argus)
+  --secret SECRET      Argus per-agent secret
+  --secret-file PATH   File containing Argus per-agent secret
+  --config PATH        Argus config path (default: /etc/argus/config.toml)
+  --enable             Enable argus-agent.service
+  --start              Start/restart argus-agent.service
+  -h, --help           Show this help
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --repo) REPO="$2"; shift 2 ;;
+    --user) RUN_USER="$2"; shift 2 ;;
+    --hostname) HOSTNAME_ARG="$2"; shift 2 ;;
+    --server-url) SERVER_URL="$2"; shift 2 ;;
+    --secret) SECRET="$2"; shift 2 ;;
+    --secret-file) SECRET_FILE="$2"; shift 2 ;;
+    --config) CONFIG_PATH="$2"; shift 2 ;;
+    --enable) ENABLE=true; shift ;;
+    --start) START=true; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
+  esac
+done
+
+if [[ ${EUID} -ne 0 ]]; then
+  echo "install-argus-linux must run as root" >&2
+  exit 1
+fi
+
+if [[ -n "$SECRET_FILE" ]]; then
+  SECRET="$(tr -d '\r\n' < "$SECRET_FILE")"
+fi
+if [[ -z "$SECRET" ]]; then
+  echo "Argus per-agent secret is required via --secret or --secret-file" >&2
+  exit 1
+fi
+if [[ -z "$SERVER_URL" ]]; then
+  echo "Argus webhook URL is required via --server-url (e.g. https://<manager-ip>:8855/api/ingest/argus)" >&2
+  exit 1
+fi
+if [[ ! -d "$REPO/argus/argus" ]]; then
+  echo "Argus source not found at $REPO/argus/argus" >&2
+  exit 1
+fi
+if ! id "$RUN_USER" >/dev/null 2>&1; then
+  echo "Service user does not exist: $RUN_USER" >&2
+  exit 1
+fi
+
+install -d -o "$RUN_USER" -g "$RUN_USER" "$REPO/.venv"
+if [[ ! -x "$REPO/.venv/bin/python" ]]; then
+  python3 -m venv "$REPO/.venv"
+  chown -R "$RUN_USER:$RUN_USER" "$REPO/.venv"
+fi
+if [[ -d "$REPO/shallots" && -f "$REPO/pyproject.toml" ]]; then
+  sudo -u "$RUN_USER" "$REPO/.venv/bin/python" -m pip install -q -e "$REPO"
+else
+  sudo -u "$RUN_USER" "$REPO/.venv/bin/python" -m pip install -q aiohttp pyyaml
+fi
+
+install -d -m 0750 -o "$RUN_USER" -g "$RUN_USER" "$(dirname "$CONFIG_PATH")"
+umask 077
+cat > "$CONFIG_PATH" <<EOF
+[argus]
+hostname = "$HOSTNAME_ARG"
+
+[argus.guard]
+inactivity_timeout_seconds = 86400
+heartbeat_seconds = 180
+
+[argus.windows_events]
+enabled = false
+poll_seconds = 300
+watch_event_ids = [4625]
+
+[argus.sms]
+enabled = false
+
+[argus.jsonl]
+enabled = false
+directory = ".argus/events"
+
+[argus.metering]
+profile = "lite"
+queue_max_signals = 128
+max_signal_payload_bytes = 32768
+max_signals_per_minute = 60
+loop_jitter_percent = 0.30
+backoff_seconds = 1.0
+cycle_time_budget_seconds = 5.0
+cpu_max_load_per_core = 1.5
+disk_min_free_mb = 2048
+disk_min_free_percent = 10.0
+reserve_severity = "high"
+
+[argus.process_monitor]
+enabled = false
+poll_seconds = 120
+
+[argus.file_sentinel]
+enabled = false
+poll_seconds = 300
+paths = []
+
+[argus.persistence_monitor]
+enabled = false
+poll_seconds = 600
+watch_paths = []
+
+[argus.anti_tamper]
+enabled = true
+poll_seconds = 300
+watch_files = ["$CONFIG_PATH"]
+required_tasks = ["$SERVICE_NAME"]
+
+[argus.session_monitor]
+enabled = true
+poll_seconds = 300
+logon_types = [3, 10]
+
+[argus.usb_monitor]
+enabled = false
+poll_seconds = 300
+
+[argus.dns_monitor]
+enabled = false
+poll_seconds = 300
+
+[argus.registry_monitor]
+enabled = false
+poll_seconds = 300
+watch_keys = []
+
+[argus.service_monitor]
+enabled = false
+poll_seconds = 300
+suspicious_paths = []
+
+[argus.audit_policy]
+enabled = false
+poll_seconds = 600
+
+[argus.firewall_monitor]
+enabled = false
+poll_seconds = 600
+suspicious_ports = []
+
+[argus.posture_monitor]
+enabled = false
+poll_seconds = 3600
+
+[argus.browser_extensions]
+enabled = false
+poll_seconds = 3600
+
+[argus.wmi_subs]
+enabled = false
+poll_seconds = 3600
+
+[argus.ads_monitor]
+enabled = false
+poll_seconds = 3600
+scan_dirs = []
+
+[argus.evidence]
+enabled = false
+output_dir = ".argus/evidence"
+recent_file_window_minutes = 5
+
+[argus.timelock]
+enabled = false
+lockdown_mode = "passive"
+duration_minutes = 5
+network_isolation = false
+extend_on_failed_disarm_minutes = 0
+
+[argus.threat_response]
+lockdown_enabled = false
+lockdown_min_severity = "critical"
+lockdown_min_confidence = 1.0
+
+[argus.webhook]
+enabled = true
+url = "$SERVER_URL"
+secret = "$SECRET"
+timeout_seconds = 5
+
+[argus.syslog]
+enabled = false
+host = "127.0.0.1"
+port = 514
+protocol = "udp"
+
+[argus.listener]
+enabled = false
+host = "127.0.0.1"
+port = 8913
+secret = ""
+EOF
+chown "$RUN_USER:$RUN_USER" "$CONFIG_PATH"
+chmod 0600 "$CONFIG_PATH"
+
+cat > "/etc/systemd/system/$SERVICE_NAME" <<EOF
+[Unit]
+Description=Argus Host Sentinel Agent
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=$RUN_USER
+Group=$RUN_USER
+WorkingDirectory=$REPO/argus
+Environment=PYTHONUNBUFFERED=1
+ExecStart=$REPO/.venv/bin/python -m argus --config $CONFIG_PATH run-monitor
+Restart=on-failure
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=argus-agent
+MemoryMax=192M
+CPUQuota=15%
+TasksMax=128
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+chmod 0644 "/etc/systemd/system/$SERVICE_NAME"
+
+systemctl unmask "$SERVICE_NAME" >/dev/null 2>&1 || true
+systemctl daemon-reload
+(
+  cd "$REPO/argus"
+  sudo -u "$RUN_USER" "$REPO/.venv/bin/python" -m argus --config "$CONFIG_PATH" check-config >/dev/null
+)
+
+if [[ "$ENABLE" == true ]]; then
+  systemctl enable "$SERVICE_NAME" >/dev/null
+fi
+if [[ "$START" == true ]]; then
+  systemctl restart "$SERVICE_NAME"
+fi
+systemctl show "$SERVICE_NAME" -p LoadState -p UnitFileState -p ActiveState -p SubState --no-pager

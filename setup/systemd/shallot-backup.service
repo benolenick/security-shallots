@@ -1,0 +1,13 @@
+[Unit]
+Description=Security Shallots DB backup
+After=shallotd-home.service
+
+[Service]
+Type=oneshot
+User=om
+ExecStart=/home/user/security-shallots/.venv/bin/python /home/user/security-shallots/tools/shallot_backup.py
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+StandardOutput=journal
+StandardError=journal

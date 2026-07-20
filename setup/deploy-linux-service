@@ -1,0 +1,273 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+    cat <<'USAGE'
+Usage: setup/deploy-linux-service [options]
+
+Install or refresh the Security Shallots systemd service for a Linux host using
+the checked-out repository layout. Defaults match a run-from-home-checkout install:
+  repo:    /home/user/security-shallots
+  user:    om
+  service: shallotd.service
+
+Options:
+  --repo DIR          Repository path (default: /home/user/security-shallots)
+  --user USER         Service user (default: owner of repo, fallback om)
+  --group GROUP       Service group (default: user's primary group)
+  --config FILE       Config path (default: REPO/config.yaml)
+  --db FILE           SQLite DB path for backups (default: REPO/shallots.db)
+  --env FILE          Env file path (default: /etc/shallots/shallotd.env)
+  --service NAME      Service unit name (default: shallotd.service)
+  --no-enable         Install units but do not enable/start timers or service
+  --dry-run           Print actions without changing the host
+  -h, --help          Show this help
+
+Environment variables with the same uppercase names are also honored:
+REPO_DIR, SERVICE_USER, SERVICE_GROUP, CONFIG_FILE, DB_FILE, ENV_FILE,
+SERVICE_NAME, NO_ENABLE=1, DRY_RUN=1.
+USAGE
+}
+
+REPO_DIR="${REPO_DIR:-/home/user/security-shallots}"
+SERVICE_USER="${SERVICE_USER:-}"
+SERVICE_GROUP="${SERVICE_GROUP:-}"
+CONFIG_FILE="${CONFIG_FILE:-}"
+DB_FILE="${DB_FILE:-}"
+ENV_FILE="${ENV_FILE:-/etc/shallots/shallotd.env}"
+SERVICE_NAME="${SERVICE_NAME:-shallotd.service}"
+NO_ENABLE="${NO_ENABLE:-0}"
+DRY_RUN="${DRY_RUN:-0}"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --repo) REPO_DIR="$2"; shift 2 ;;
+        --user) SERVICE_USER="$2"; shift 2 ;;
+        --group) SERVICE_GROUP="$2"; shift 2 ;;
+        --config) CONFIG_FILE="$2"; shift 2 ;;
+        --db) DB_FILE="$2"; shift 2 ;;
+        --env) ENV_FILE="$2"; shift 2 ;;
+        --service) SERVICE_NAME="$2"; shift 2 ;;
+        --no-enable) NO_ENABLE=1; shift ;;
+        --dry-run) DRY_RUN=1; shift ;;
+        -h|--help) usage; exit 0 ;;
+        *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
+    esac
+done
+
+log() { printf '[deploy] %s\n' "$*"; }
+die() { printf '[deploy] ERROR: %s\n' "$*" >&2; exit 1; }
+
+run() {
+    if [[ "$DRY_RUN" == "1" ]]; then
+        printf '[dry-run] '
+        printf '%q ' "$@"
+        printf '\n'
+    else
+        "$@"
+    fi
+}
+
+require_root() {
+    if [[ "$DRY_RUN" != "1" && "$(id -u)" -ne 0 ]]; then
+        die "run as root, for example: sudo bash setup/deploy-linux-service"
+    fi
+}
+
+ensure_dir() {
+    local path="$1"
+    local owner="$2"
+    local group="$3"
+    local mode="$4"
+    if [[ -d "$path" ]]; then
+        log "leaving existing directory unchanged: $path"
+    else
+        run install -d -o "$owner" -g "$group" -m "$mode" "$path"
+    fi
+}
+
+write_root_file() {
+    local path="$1"
+    local mode="$2"
+    local tmp
+    tmp="$(mktemp)"
+    cat > "$tmp"
+    if [[ "$DRY_RUN" == "1" ]]; then
+        log "would write $path"
+        sed 's/^/  | /' "$tmp"
+        rm -f "$tmp"
+        return 0
+    fi
+    install -o root -g root -m "$mode" "$tmp" "$path"
+    rm -f "$tmp"
+}
+
+[[ "$SERVICE_NAME" == *.service ]] || SERVICE_NAME="${SERVICE_NAME}.service"
+REPO_DIR="$(realpath -m "$REPO_DIR")"
+CONFIG_FILE="${CONFIG_FILE:-${REPO_DIR}/config.yaml}"
+DB_FILE="${DB_FILE:-${REPO_DIR}/shallots.db}"
+PYTHON_BIN="${PYTHON_BIN:-${REPO_DIR}/.venv/bin/python}"
+
+[[ -d "$REPO_DIR" ]] || die "repo directory not found: $REPO_DIR"
+[[ -d "$REPO_DIR/shallots" ]] || die "not a Security Shallots checkout: $REPO_DIR"
+[[ -x "$PYTHON_BIN" ]] || die "python not executable: $PYTHON_BIN; create the venv first"
+require_root
+
+if [[ -z "$SERVICE_USER" ]]; then
+    SERVICE_USER="$(stat -c '%U' "$REPO_DIR" 2>/dev/null || true)"
+    [[ -n "$SERVICE_USER" && "$SERVICE_USER" != UNKNOWN ]] || SERVICE_USER="om"
+fi
+if [[ -z "$SERVICE_GROUP" ]]; then
+    SERVICE_GROUP="$(id -gn "$SERVICE_USER" 2>/dev/null || true)"
+    [[ -n "$SERVICE_GROUP" ]] || SERVICE_GROUP="$SERVICE_USER"
+fi
+
+command -v systemctl >/dev/null 2>&1 || die "systemctl not found"
+
+if [[ ! -f "$CONFIG_FILE" ]]; then
+    log "config not found yet: $CONFIG_FILE"
+    log "copy config.example.yaml to that path and edit it before starting"
+fi
+
+ENV_DIR="$(dirname "$ENV_FILE")"
+SYSTEMD_DIR="/etc/systemd/system"
+BACKUP_DEST="${SHALLOT_BACKUP_DEST:-/var/lib/shallots/backups}"
+
+log "installing ${SERVICE_NAME} for ${SERVICE_USER}:${SERVICE_GROUP}"
+ensure_dir "$ENV_DIR" root root 0755
+ensure_dir "$(dirname "$DB_FILE")" "$SERVICE_USER" "$SERVICE_GROUP" 0750
+ensure_dir "$BACKUP_DEST" "$SERVICE_USER" "$SERVICE_GROUP" 0750
+
+if [[ ! -f "$ENV_FILE" ]]; then
+    write_root_file "$ENV_FILE" 0640 <<EOF
+# Security Shallots systemd environment
+PYTHONUNBUFFERED=1
+SHALLOT_HEALTH_URL=https://127.0.0.1:8844/api/health
+SHALLOT_SERVICE=${SERVICE_NAME}
+SHALLOT_WATCHDOG_MAX_FAILURES=3
+SHALLOT_WATCHDOG_TIMEOUT_S=5
+SHALLOT_BACKUP_DEST=${BACKUP_DEST}
+SHALLOT_BACKUP_HOURLY=24
+SHALLOT_BACKUP_DAILY=14
+SHALLOT_BACKUP_WEEKLY=8
+EOF
+else
+    log "leaving existing env file unchanged: $ENV_FILE"
+fi
+
+write_root_file "${SYSTEMD_DIR}/${SERVICE_NAME}" 0644 <<EOF
+[Unit]
+Description=Security Shallots Daemon
+Documentation=https://github.com/benolenick/security-shallots
+After=network-online.target suricata.service
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=${SERVICE_USER}
+Group=${SERVICE_GROUP}
+WorkingDirectory=${REPO_DIR}
+EnvironmentFile=-${ENV_FILE}
+Environment=PYTHONUNBUFFERED=1
+ExecStart=${PYTHON_BIN} -m shallots -c ${CONFIG_FILE} run
+ExecReload=/bin/kill -HUP \$MAINPID
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=shallotd
+LimitNOFILE=65536
+MemoryMax=1G
+TasksMax=512
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+write_root_file "${SYSTEMD_DIR}/shallot-watchdog.service" 0644 <<EOF
+[Unit]
+Description=Security Shallots HTTP liveness watchdog
+After=${SERVICE_NAME}
+
+[Service]
+Type=oneshot
+User=${SERVICE_USER}
+Group=${SERVICE_GROUP}
+WorkingDirectory=${REPO_DIR}
+EnvironmentFile=-${ENV_FILE}
+ExecStart=${PYTHON_BIN} ${REPO_DIR}/tools/shallot_watchdog.py
+StandardOutput=journal
+StandardError=journal
+EOF
+
+write_root_file "${SYSTEMD_DIR}/shallot-watchdog.timer" 0644 <<'EOF'
+[Unit]
+Description=Run Security Shallots HTTP watchdog every minute
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+AccuracySec=10s
+Unit=shallot-watchdog.service
+
+[Install]
+WantedBy=timers.target
+EOF
+
+write_root_file "${SYSTEMD_DIR}/shallot-backup.service" 0644 <<EOF
+[Unit]
+Description=Security Shallots DB backup
+After=${SERVICE_NAME}
+
+[Service]
+Type=oneshot
+User=${SERVICE_USER}
+Group=${SERVICE_GROUP}
+WorkingDirectory=${REPO_DIR}
+EnvironmentFile=-${ENV_FILE}
+ExecStart=${PYTHON_BIN} ${REPO_DIR}/tools/shallot_backup.py --db ${DB_FILE} --config ${CONFIG_FILE} --dest ${BACKUP_DEST}
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+StandardOutput=journal
+StandardError=journal
+EOF
+
+write_root_file "${SYSTEMD_DIR}/shallot-backup.timer" 0644 <<'EOF'
+[Unit]
+Description=Hourly Security Shallots DB backup
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=120
+AccuracySec=30s
+Unit=shallot-backup.service
+
+[Install]
+WantedBy=timers.target
+EOF
+
+run systemctl daemon-reload
+
+if [[ "$NO_ENABLE" == "1" ]]; then
+    log "installed units; skipped enable/start because --no-enable was set"
+else
+    run systemctl enable --now "$SERVICE_NAME"
+    run systemctl enable --now shallot-watchdog.timer
+    run systemctl enable --now shallot-backup.timer
+fi
+
+log "done"
+log "status: systemctl status ${SERVICE_NAME}"
+log "logs:   journalctl -u ${SERVICE_NAME} -f"
