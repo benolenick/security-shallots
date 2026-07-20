@@ -18,6 +18,24 @@ The core idea is simple:
 The scout does not make final security judgments. Its job is to escalate things
 that might otherwise be missed.
 
+## See It
+
+Your whole small network's security, triaged on one small box. (Shots below are the
+built-in demo profile with synthetic data — `python -m tools.demo_seed`.)
+
+![Dashboard overview](docs/img/dashboard.png)
+
+**Alerts are triaged, not just dumped.** Known noise (LLMNR, internal SSH, package
+updates, stream retransmissions) is suppressed automatically; what's left is ranked by
+severity with one-click Suppress / Investigate / Escalate.
+
+![Alert feed](docs/img/alert-feed.png)
+
+**A local LLM turns raw alerts into plain-English incidents** — what happened, why it
+matters, and a runbook — running on your own GPU. Nothing leaves your network.
+
+![AI-generated incidents](docs/img/incidents.png)
+
 ## Best Fit
 
 Shallots is designed for:
