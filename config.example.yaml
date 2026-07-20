@@ -135,6 +135,26 @@ scout:
   router_syslog_hint: ""   # substring identifying router-origin syslog (e.g. your router's vendor name)
   sensor_ips: []           # IPs of hosts running a local Suricata sensor (scopes local-sensor traffic)
 
+# Command-execution monitoring (Linux, via auditd). Captures every command as it
+# runs, scores it with the lexicon ranker, and only alerts on the suspicious tail
+# (the benign 99% is counted and dropped). Closes the biggest blind spot: the
+# process/posture scans are polls and miss short-lived commands.
+#
+# SETUP (Linux host running shallotd):
+#   1. sudo cp setup/audit/shallots-exec.rules /etc/audit/rules.d/ && sudo augenrules --load
+#   2. shallotd must be able to READ /var/log/audit/audit.log (root:adm 0640):
+#      run shallotd as root, or add its user to the "adm" group.
+#   3. set enabled: true and restart shallotd.
+# Exec alerts carry the command line, so process_creation Sigma rules also match
+# (see rules/sigma/process_creation/).
+execmon:
+  enabled: false
+  audit_log_path: "/var/log/audit/audit.log"
+  emit_min_score: 15          # commands scoring below this are dropped (not stored)
+  escalate_threshold: 40      # score at/above this -> critical
+  investigate_threshold: 15
+  poll_seconds: 5
+
 ladder:
   enabled: false
   claude_bin: "claude"

@@ -1,0 +1,20 @@
+title: Linux Reverse Shell via bash /dev/tcp
+id: 5f1e2d3c-0000-4a00-9c00-shallots000001
+status: experimental
+description: >
+  Detects an interactive bash shell redirected to a raw TCP/UDP socket via
+  /dev/tcp - a classic reverse-shell primitive. Starter example for the
+  Shallots process_creation Sigma bridge; replace with the SigmaHQ set.
+logsource:
+  category: process_creation
+  product: linux
+detection:
+  selection:
+    CommandLine|contains:
+      - '/dev/tcp/'
+      - '/dev/udp/'
+  condition: selection
+level: high
+tags:
+  - attack.execution
+  - attack.t1059.004

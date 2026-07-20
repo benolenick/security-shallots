@@ -365,6 +365,12 @@ class Daemon:
             self._tasks.append(asyncio.create_task(ingestor.run()))
             log.info("CrowdSec ingestor started")
 
+        if self.cfg.execmon.enabled:
+            from shallots.ingest.execlog import ExecLogIngestor
+            self._execlog = ExecLogIngestor(self.cfg.execmon, self.alert_queue)
+            self._tasks.append(asyncio.create_task(self._execlog.run()))
+            log.info("ExecLog (command execution) ingestor started: %s", self.cfg.execmon.audit_log_path)
+
         if self.cfg.syslog.enabled:
             from shallots.ingest.syslog_receiver import SyslogReceiver
             receiver = SyslogReceiver(self.cfg.syslog, self.alert_queue, pfsense_queue)

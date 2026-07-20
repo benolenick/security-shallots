@@ -1,0 +1,21 @@
+# Security Shallots - command-execution (execve) capture
+#
+# Records every process execution and tags it with the key "shallots_exec",
+# which the ExecLog ingestor (shallots/ingest/execlog.py) reads from the audit
+# log. Shallots scores each command and only alerts on the suspicious tail, so
+# the volume is fine on the Shallots side - but size the audit buffer for it.
+#
+# Install:
+#   sudo cp shallots-exec.rules /etc/audit/rules.d/
+#   sudo augenrules --load        # or: sudo service auditd restart
+#   sudo auditctl -l | grep shallots_exec   # verify
+# Then set  execmon.enabled: true  in config.yaml and restart shallotd.
+#
+# Uninstall: remove the file from /etc/audit/rules.d/ and reload.
+
+# Bigger backlog so a burst of execs is not lost before auditd drains it.
+-b 8192
+
+# Capture execve on 64-bit and 32-bit ABIs.
+-a exit,always -F arch=b64 -S execve -F key=shallots_exec
+-a exit,always -F arch=b32 -S execve -F key=shallots_exec

@@ -34,6 +34,13 @@ _FIELD_MAP: dict[str, str] = {
     "description": "description",
     "Category": "category",
     "category": "category",
+    # process_creation rules (community Sigma): the exec ingestor stashes the
+    # command line in the alert description, so these map there.
+    "CommandLine": "description",
+    "process.command_line": "description",
+    "Image": "description",
+    "process.executable": "description",
+    "ParentImage": "description",
     "Severity": "severity",
     "severity": "severity",
     "Source": "source",

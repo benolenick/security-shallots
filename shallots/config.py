@@ -162,6 +162,23 @@ class ScoutConfig:
 
 
 @dataclass
+class ExecMonConfig:
+    """Command-execution monitoring via the Linux audit log (auditd EXECVE).
+
+    Captures every command as it runs, scores it with the lexicon ranker, and
+    only alerts on the suspicious tail (score >= emit_min_score) - the benign
+    99% is counted and dropped. Needs an auditd execve rule keyed 'shallots_exec'
+    (setup/audit/shallots-exec.rules). Off by default."""
+    enabled: bool = False
+    audit_log_path: str = "/var/log/audit/audit.log"
+    lexicon_path: str = ""           # optional JSON override; empty uses built-ins
+    escalate_threshold: int = 40
+    investigate_threshold: int = 15
+    emit_min_score: int = 15         # below this a command is scored and dropped
+    poll_seconds: int = 5
+
+
+@dataclass
 class StorageConfig:
     db_path: str = "/var/lib/shallots/shallots.db"
     retention_days: int = 30
@@ -377,6 +394,7 @@ class Config:
     syslog: SyslogConfig = field(default_factory=SyslogConfig)
     ai: AIConfig = field(default_factory=AIConfig)
     scout: ScoutConfig = field(default_factory=ScoutConfig)
+    execmon: ExecMonConfig = field(default_factory=ExecMonConfig)
     storage: StorageConfig = field(default_factory=StorageConfig)
     web: WebConfig = field(default_factory=WebConfig)
     alerting: AlertingConfig = field(default_factory=AlertingConfig)
