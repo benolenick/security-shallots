@@ -334,13 +334,15 @@ async def handle_runbook_execute(request: web.Request) -> web.Response:
         return _json_response({"error": "Command rejected: could not be parsed."}, status=400)
     if not argv:
         raise web.HTTPBadRequest(reason="No command provided")
-    # Read-only diagnostics only, plus ufw (the one mutating response action the
-    # runbooks use). Deliberately EXCLUDES `ip`: `ip netns add/exec` can spawn an
-    # arbitrary command as root, which would turn this allowlist into RCE.
-    _SAFE = {"nslookup", "dig", "host", "whois", "getent", "ping", "ping6",
-             "traceroute", "tracepath", "ss", "arp", "ps", "who", "w",
-             "last", "id", "uptime", "free", "df", "uname", "date", "hostname",
-             "geoiplookup", "journalctl", "ufw"}
+    # INERT local-state diagnostics only, plus ufw (the one mutating response the
+    # runbooks use). Deliberately EXCLUDES everything that can reach the network
+    # or disclose secrets when run as root: `ip` (netns exec = RCE), `whois`
+    # (arbitrary TCP send / SSRF), `dig`/`nslookup`/`host`/`ping`/`traceroute`
+    # (DNS/connectivity SSRF), `getent` (`getent shadow`/`passwd` dumps hashes),
+    # `journalctl` (log secrets), `ps`/`ss` (cmdline/connection disclosure),
+    # `who`/`w`/`last`/`arp`. Anything not here, the operator runs manually.
+    _SAFE = {"id", "uptime", "free", "df", "uname", "date", "hostname",
+             "geoiplookup", "ufw"}
     base = argv[0]
     check = argv[1] if base == "sudo" and len(argv) > 1 else base
     if base == "sudo" and check != "ufw":

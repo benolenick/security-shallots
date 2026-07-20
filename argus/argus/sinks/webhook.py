@@ -41,6 +41,19 @@ class WebhookSink:
         await asyncio.to_thread(self._post_payload, payload)
 
     def _post_payload(self, payload: dict[str, Any] | list[dict[str, Any]]) -> None:
+        # Never send the per-agent secret over plaintext when we intend to verify
+        # the manager. http:// cannot be authenticated; require https or an
+        # explicit verify_tls=false opt-in.
+        if self.verify_tls and self.url.lower().startswith("http://"):
+            self.last_ok = False
+            self.last_status = 0
+            self.last_error = "refused: http:// url with verify_tls=true (use https or set verify_tls=false)"
+            if not self._warned_insecure:
+                import sys
+                print("argus: refusing to POST over plaintext http:// while verify_tls=true — "
+                      "use an https manager URL or explicitly set verify_tls=false", file=sys.stderr)
+                self._warned_insecure = True
+            return
         body = json.dumps(payload, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
         headers = {"Content-Type": "application/json"}
         if self.secret:

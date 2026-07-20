@@ -844,8 +844,16 @@ storage:
   victorialogs_url: "http://127.0.0.1:9428"
 
 web:
-  host: "0.0.0.0"
+  # Local-only by default (reachable at http://127.0.0.1:8844 on this box).
+  # To reach it from your LAN: set host to 0.0.0.0 AND set username + password
+  # below (and ideally TLS). Shallots REFUSES to start if bound to a non-loopback
+  # address without credentials — the API can change config and run firewall
+  # commands, so it must never be open unauthenticated.
+  host: "127.0.0.1"
   port: 8844
+  username: ""
+  password: ""
+  # allowed_hosts: ["shallots.mylan"]   # hostnames you serve it under (anti-rebinding)
 
 alerting:
   webhook_url: ""

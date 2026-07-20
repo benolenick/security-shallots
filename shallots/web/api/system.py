@@ -942,7 +942,7 @@ async def handle_block_ip(request: web.Request) -> web.Response:
                 "detail": f"Blocked by Shallots: {reason}",
             }
             async with session.post(alias_url, json=payload, headers=headers,
-                                     ssl=False) as resp:
+                                     ssl=pf_cfg.verify_ssl) as resp:
                 result = await resp.json()
                 if resp.status >= 400:
                     return _json_response({
@@ -986,7 +986,7 @@ async def handle_unblock_ip(request: web.Request) -> web.Response:
                 "address": ip,
             }
             async with session.delete(alias_url, json=payload, headers=headers,
-                                       ssl=False) as resp:
+                                       ssl=pf_cfg.verify_ssl) as resp:
                 result = await resp.json()
                 if resp.status >= 400:
                     return _json_response({

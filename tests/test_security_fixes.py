@@ -91,3 +91,60 @@ async def test_insert_alert_coerces_bad_ip(tmp_db):
     got = await tmp_db.get_alert(a.id)
     assert got["src_ip"] == ""            # markup stripped
     assert got["dst_ip"] == "10.0.0.1"    # valid IP preserved
+
+
+# --- DNS-rebinding / Host guard (round 2) ----------------------------------
+
+def test_host_only_strips_port():
+    from shallots.web.app import _host_only
+    assert _host_only("127.0.0.1:8844") == "127.0.0.1"
+    assert _host_only("[::1]:8844") == "::1"
+    assert _host_only("evil.example.com:8844") == "evil.example.com"
+    assert _host_only("192.168.1.5") == "192.168.1.5"
+
+
+@pytest.mark.asyncio
+async def test_host_guard_blocks_rebinding_domain():
+    from shallots.web.app import _make_host_guard
+    guard = _make_host_guard({"shallots.mylan"})
+
+    async def ok_handler(_req):
+        return "PASSED"
+
+    def req(host):
+        return types.SimpleNamespace(headers={"Host": host})
+
+    # IP-literal Host can't be a rebinding attack → allowed
+    assert await guard(req("127.0.0.1:8844"), ok_handler) == "PASSED"
+    assert await guard(req("192.168.1.50:8844"), ok_handler) == "PASSED"
+    assert await guard(req("localhost"), ok_handler) == "PASSED"
+    assert await guard(req("shallots.mylan"), ok_handler) == "PASSED"   # allow-listed
+    # An unexpected domain (DNS-rebinding) is rejected 403
+    resp = await guard(req("attacker.example.com"), ok_handler)
+    assert getattr(resp, "status", None) == 403
+
+
+# --- Category silence suppresses by verdict, not by corrupting severity -----
+
+def test_category_silence_suppresses_without_corrupting_severity():
+    from shallots.pipeline.classifier import Classifier, ClassifierConfig
+    cfg = ClassifierConfig()
+    cfg.suppress_categories.append("ET DELETED")
+    clf = Classifier(cfg)
+    out = clf.classify(Alert(source="suricata", severity="high",
+                             title="Some alert", category="ET DELETED noise"))
+    assert out.verdict == TriageVerdict.SUPPRESS
+    assert out.severity == "high"          # severity NOT overwritten to "suppress"
+
+
+# --- AI silence-rule guard refuses to hide real threats --------------------
+
+@pytest.mark.asyncio
+async def test_ai_silence_guard_flags_high_severity_match(tmp_db):
+    from shallots.web.api.rules import _rule_hits_high_severity
+    await tmp_db.insert_alert(Alert(source="suricata", severity="critical",
+                                    title="ET EXPLOIT something", src_ip="203.0.113.9"))
+    # A title rule that would bury the critical alert must be flagged
+    assert await _rule_hits_high_severity(tmp_db, "title", "ET EXPLOIT", "") is True
+    # A rule matching nothing high/critical is fine
+    assert await _rule_hits_high_severity(tmp_db, "title", "totally-benign-xyz", "") is False

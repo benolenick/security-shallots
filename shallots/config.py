@@ -94,7 +94,10 @@ class PfSenseConfig:
     api_url: str = ""
     api_key: str = ""
     api_secret: str = ""
-    verify_ssl: bool = False
+    # Verify the firewall's TLS cert. The API key rides in the Authorization
+    # header, so an unverified channel leaks it to a MITM. Set false only for a
+    # self-signed pfSense you access over a trusted link.
+    verify_ssl: bool = True
 
 
 @dataclass
@@ -176,6 +179,9 @@ class WebConfig:
     port: int = 8844
     username: str = ""
     password: str = ""
+    # Hostnames allowed in the Host header (anti-DNS-rebinding). IP access always
+    # works; add reverse-proxy / LAN hostnames here if you serve via a name.
+    allowed_hosts: list[str] = field(default_factory=list)
     tls_cert: str = ""  # Path to TLS certificate (enables HTTPS)
     tls_key: str = ""   # Path to TLS private key
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import ipaddress
 import json
 import logging
 import secrets
@@ -43,24 +44,57 @@ def _make_auth_middleware(username: str, password: str):
     return auth_middleware
 
 
+def _host_only(host: str) -> str:
+    """Strip an optional :port from a Host header value (IPv4/IPv6/hostname)."""
+    host = (host or "").strip()
+    if host.startswith("["):                      # [::1] or [::1]:8844
+        return host[1:host.index("]")] if "]" in host else host[1:]
+    if host.count(":") == 1:                       # ipv4/hostname:port
+        return host.rsplit(":", 1)[0]
+    return host                                    # bare ipv6 or no port
+
+
+def _make_host_guard(allowed_hostnames: set[str]):
+    """Reject requests whose Host header is an unexpected DOMAIN NAME.
+
+    This defeats DNS-rebinding: an attacker's page (served from evil.com, rebound
+    to 127.0.0.1) sends Host: evil.com, which is not in the allowlist. Direct
+    access by IP (loopback or LAN IP) always carries an IP-literal Host, which
+    cannot be a rebinding attack, so those pass. Hostnames must be allow-listed
+    via web.allowed_hosts (e.g. a reverse-proxy domain)."""
+    allowed = {h.lower() for h in allowed_hostnames} | {"localhost"}
+
+    @middleware
+    async def host_guard(request: web.Request, handler) -> web.Response:
+        raw = request.headers.get("Host", "")
+        if not raw:                                # no Host = not a browser rebind
+            return await handler(request)
+        host = _host_only(raw).lower()
+        try:
+            ipaddress.ip_address(host)             # any IP-literal Host is safe
+            return await handler(request)
+        except ValueError:
+            pass
+        if host in allowed:
+            return await handler(request)
+        return web.Response(
+            status=403, content_type="application/json",
+            body=json.dumps({"error": "Host not allowed", "host": host}),
+        )
+
+    return host_guard
+
+
 @middleware
 async def cors_middleware(request: web.Request, handler) -> web.Response:
-    """Allow all origins for local dev."""
+    """Same-origin dashboard: no cross-origin access is granted. Preflight is
+    answered without Access-Control-Allow-Origin so browsers block cross-site
+    API use (a security dashboard has no cross-origin callers)."""
     if request.method == "OPTIONS":
-        return web.Response(
-            status=204,
-            headers={
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-                "Access-Control-Allow-Headers": "Content-Type, Authorization",
-                "Access-Control-Max-Age": "86400",
-            },
-        )
-    response = await handler(request)
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-    return response
+        return web.Response(status=204,
+                            headers={"Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+                                     "Access-Control-Allow-Headers": "Content-Type, Authorization"})
+    return await handler(request)
 
 
 @middleware
@@ -76,10 +110,11 @@ async def error_middleware(request: web.Request, handler) -> web.Response:
         )
     except Exception as exc:
         log.exception("Unhandled error for %s %s", request.method, request.path)
+        # Do not leak internal exception detail (paths, SQL, deps) to clients.
         return web.Response(
             status=500,
             content_type="application/json",
-            body=json.dumps({"error": "Internal server error", "detail": str(exc)}),
+            body=json.dumps({"error": "Internal server error"}),
         )
 
 
@@ -118,6 +153,13 @@ def create_app(daemon: Daemon) -> web.Application:
             "the dashboard, or bind web.host to 127.0.0.1 for local-only access. "
             "See config.example.yaml."
         )
+
+    # DNS-rebinding guard runs first (outermost). Allow the configured bind host
+    # (if it's a hostname) plus any operator-listed hostnames (reverse proxy, etc).
+    allowed_hosts: set[str] = set(getattr(web_cfg, "allowed_hosts", []) or [])
+    if str(web_cfg.host):
+        allowed_hosts.add(str(web_cfg.host))
+    middlewares.insert(0, _make_host_guard(allowed_hosts))
 
     app = web.Application(middlewares=middlewares)
 

@@ -230,8 +230,12 @@ async def _reload_silence_rules(daemon) -> None:
                 except ValueError:
                     pass
             elif mt == "category":
-                # Add to category → suppress mapping
-                daemon.classifier._cfg.category_severity_map[pattern] = "suppress"
+                # Suppress alerts whose category matches. (Previously this wrote
+                # "suppress" into category_severity_map, which the classifier reads
+                # as a SEVERITY override — corrupting alert.severity to the invalid
+                # string "suppress" instead of actually silencing anything.)
+                if pattern not in daemon.classifier._cfg.suppress_categories:
+                    daemon.classifier._cfg.suppress_categories.append(pattern)
             elif mt == "src_ip+title":
                 pattern2 = rule.get("pattern2", "")
                 if pattern and pattern2:
@@ -270,6 +274,34 @@ Respond with ONLY a JSON object (no markdown, no explanation):
 pattern2 is only used for src_ip+title (the title part). Leave it "" otherwise.
 Pick the most surgical rule that covers the user's request without over-suppressing.
 """
+
+
+async def _rule_hits_high_severity(db, match_type: str, pattern: str, pattern2: str) -> bool:
+    """True if a proposed silence rule matches any existing non-suppressed
+    high/critical alert — i.e. applying it would hide a real threat."""
+    sev = "severity IN ('high','critical') AND verdict != 'suppress'"
+    if match_type == "title":
+        q, args = f"SELECT 1 FROM alerts WHERE title LIKE ? AND {sev} LIMIT 1", (f"%{pattern}%",)
+    elif match_type == "src_ip":
+        q, args = f"SELECT 1 FROM alerts WHERE src_ip = ? AND {sev} LIMIT 1", (pattern,)
+    elif match_type == "dst_ip":
+        q, args = f"SELECT 1 FROM alerts WHERE dst_ip = ? AND {sev} LIMIT 1", (pattern,)
+    elif match_type == "src_ip+title":
+        q, args = (f"SELECT 1 FROM alerts WHERE src_ip = ? AND title LIKE ? AND {sev} LIMIT 1",
+                   (pattern, f"%{pattern2}%"))
+    elif match_type == "sig_id":
+        try:
+            args = (int(pattern),)
+        except (TypeError, ValueError):
+            return False
+        q = f"SELECT 1 FROM alerts WHERE signature_id = ? AND {sev} LIMIT 1"
+    else:
+        return True  # unknown / broad — treat as risky
+    try:
+        cur = await db._db.execute(q, args)
+        return (await cur.fetchone()) is not None
+    except Exception:
+        return True  # fail closed
 
 
 async def handle_ai_silence_rule(request: web.Request) -> web.Response:
@@ -369,6 +401,24 @@ async def handle_ai_silence_rule(request: web.Request) -> web.Response:
             "ok": False,
             "error": f"AI proposed invalid rule: type={match_type!r} pattern={pattern!r}",
             "ai_raw": ai_response,
+        }, status=422)
+
+    # GUARDRAIL: the prompt context above is built from ingested alert text, which
+    # an attacker can influence (agent events, log lines, IDS-visible strings). A
+    # prompt-injected rule must not be able to auto-suppress real detections.
+    # Refuse broad rules and anything that would hide existing high/critical alerts;
+    # the operator can still create such a rule manually via /api/silence-rules.
+    if match_type in ("category", "src_cidr", "dst_cidr"):
+        return _json_response({
+            "ok": False,
+            "error": f"Refusing to auto-apply a broad '{match_type}' silence rule. "
+                     "Review and create it manually if intended.",
+        }, status=422)
+    if await _rule_hits_high_severity(db, match_type, pattern, pattern2):
+        return _json_response({
+            "ok": False,
+            "error": "Refusing to auto-apply: this rule matches existing high/critical "
+                     "alerts and would hide real threats. Create it manually after review.",
         }, status=422)
 
     # Apply the rule

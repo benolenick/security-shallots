@@ -81,6 +81,9 @@ web:
   password: ""       # REQUIRED before setting host to 0.0.0.0
   tls_cert: ""
   tls_key: ""
+  # Hostnames you serve the dashboard under (reverse proxy / LAN name). Access by
+  # IP always works; add names here so the anti-DNS-rebinding guard allows them.
+  allowed_hosts: []
 
 # AI is OPTIONAL. Shallots is fully useful without it: the classifier, Sigma
 # rules, IoC feeds, flow-scan, firewall/auth ingest, and the posture layer are

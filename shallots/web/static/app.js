@@ -2604,7 +2604,7 @@ function renderIncidents(incidents) {
           <span>${inc.alert_count} alert${inc.alert_count !== 1 ? 's' : ''}</span>
           <span>${ago}</span>
           ${ips ? `<span>${escHtml(ips)}</span>` : ''}
-          ${inc.category ? `<span>${inc.category.replace(/_/g, ' ')}</span>` : ''}
+          ${inc.category ? `<span>${escHtml(inc.category.replace(/_/g, ' '))}</span>` : ''}
         </div>
         <div class="incident-summary" onclick="showIncidentDetail('${inc.id}')">${escHtml(inc.summary)}</div>
       </div>`;
@@ -2880,7 +2880,7 @@ async function showIncidentDetail(id) {
         <div class="incident-meta" style="margin-top:0.5rem">
           <span>${inc.alert_count} alert${inc.alert_count !== 1 ? 's' : ''}</span>
           <span>${timeAgo(new Date(inc.created_at))}</span>
-          ${inc.category ? `<span>${inc.category.replace(/_/g, ' ')}</span>` : ''}
+          ${inc.category ? `<span>${escHtml(inc.category.replace(/_/g, ' '))}</span>` : ''}
         </div>
 
         <!-- Affected IPs -->

@@ -632,9 +632,12 @@ class ArgusDaemon:
             await self._emit(hb)
             self._persist_state()
 
-            # Check if manager requested an update
+            # Check if manager requested an update. Ignored unless the operator
+            # explicitly opted in — otherwise anyone who can inject the webhook
+            # response (plaintext http, or a MITM on an unverified channel) could
+            # make the agent git-pull and restart.
             commands = self._webhook.last_response.get("commands", {})
-            if commands.get("update"):
+            if commands.get("update") and self.config.webhook.allow_self_update:
                 await self._do_self_update()
 
     async def _do_self_update(self) -> None:

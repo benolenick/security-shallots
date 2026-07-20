@@ -174,6 +174,10 @@ class ClassifierConfig:
         }
     )
     suppress_asset_prefixes: tuple[str, ...] = _DEFAULT_SUPPRESS_ASSET_PREFIXES
+    # Category substrings the operator has explicitly silenced (via a "category"
+    # silence rule). Suppresses matching alerts by verdict — NOT by overwriting
+    # severity (the old category_severity_map["suppress"] bug).
+    suppress_categories: list[str] = field(default_factory=list)
 
 
 def _severity_up(sev: str) -> str:
@@ -483,6 +487,14 @@ class Classifier:
                 alert.verdict = TriageVerdict.SUPPRESS
                 alert.ai_reasoning = f"native suppression: title matched {pattern.pattern!r}"
                 return alert
+
+        # 3b. Suppress by operator-silenced category substring
+        if self._cfg.suppress_categories and alert.category:
+            for cat in self._cfg.suppress_categories:
+                if cat and cat in alert.category:
+                    alert.verdict = TriageVerdict.SUPPRESS
+                    alert.ai_reasoning = f"native suppression: category matched {cat!r}"
+                    return alert
 
         # 4. Suppress by source IP
         # High-signal bypass mirrors steps 6/7 (CIDR): a critical exploit/C2/scan
