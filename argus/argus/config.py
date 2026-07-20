@@ -265,6 +265,8 @@ class WebhookSinkConfig:
     url: str = ""
     secret: str = ""
     timeout_seconds: int = 5
+    verify_tls: bool = True   # verify the manager's TLS cert (set false only for self-signed)
+    ca_cert: str = ""         # path to a CA/pinned cert for a self-signed manager
 
 
 @dataclass(slots=True)
@@ -581,6 +583,8 @@ def load_config(path: str) -> ArgusConfig:
             url=str(_get(webhook_raw, "url", "")).strip(),
             secret=str(_get(webhook_raw, "secret", "")),
             timeout_seconds=max(1, int(_get(webhook_raw, "timeout_seconds", 5))),
+            verify_tls=bool(_get(webhook_raw, "verify_tls", True)),
+            ca_cert=str(_get(webhook_raw, "ca_cert", "")).strip(),
         ),
         syslog=SyslogSinkConfig(
             enabled=bool(_get(syslog_raw, "enabled", False)),

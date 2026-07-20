@@ -70,10 +70,15 @@ storage:
   victorialogs_url: ""
 
 web:
-  host: "0.0.0.0"
+  # Loopback by default — dashboard reachable only from this machine.
+  # To expose it on your LAN, set host to 0.0.0.0 AND set username + password
+  # (and ideally tls_cert/tls_key). Shallots REFUSES to start if you bind a
+  # non-loopback address without credentials — the API can change config and
+  # run firewall/diagnostic commands, so it must never be open unauthenticated.
+  host: "127.0.0.1"
   port: 8844
   username: "admin"
-  password: ""       # set before LAN exposure
+  password: ""       # REQUIRED before setting host to 0.0.0.0
   tls_cert: ""
   tls_key: ""
 

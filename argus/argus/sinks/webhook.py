@@ -10,11 +10,20 @@ from argus.core.events import ArgusEvent
 
 
 class WebhookSink:
-    def __init__(self, enabled: bool, url: str, secret: str = "", timeout_seconds: int = 5) -> None:
+    def __init__(self, enabled: bool, url: str, secret: str = "", timeout_seconds: int = 5,
+                 verify_tls: bool = True, ca_cert: str = "") -> None:
         self.enabled = bool(enabled) and bool(url.strip())
         self.url = url.strip()
         self.secret = secret
         self.timeout_seconds = max(1, int(timeout_seconds))
+        # Verify the manager's TLS cert by default. This channel carries the
+        # per-agent secret and accepts manager commands (incl. self-update), so an
+        # unverified cert lets a LAN attacker impersonate the manager. Operators
+        # using a self-signed manager cert should pin it via ca_cert rather than
+        # disabling verification.
+        self.verify_tls = bool(verify_tls)
+        self.ca_cert = (ca_cert or "").strip()
+        self._warned_insecure = False
         self.last_response: dict[str, Any] = {}
         self.last_ok: bool | None = None
         self.last_status = 0
@@ -37,9 +46,19 @@ class WebhookSink:
         if self.secret:
             headers["X-Argus-Secret"] = self.secret
         req = request.Request(self.url, data=body, headers=headers, method="POST")
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
+        if self.ca_cert:
+            ctx = ssl.create_default_context(cafile=self.ca_cert)
+        else:
+            ctx = ssl.create_default_context()
+        if not self.verify_tls:
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            if not self._warned_insecure:
+                import sys
+                print("argus: WARNING webhook TLS verification is DISABLED "
+                      "(verify_tls=false) — the manager channel is unauthenticated",
+                      file=sys.stderr)
+                self._warned_insecure = True
         try:
             with request.urlopen(req, timeout=self.timeout_seconds, context=ctx) as resp:
                 self.last_ok = 200 <= int(resp.status) < 300

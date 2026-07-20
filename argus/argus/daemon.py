@@ -90,6 +90,8 @@ class ArgusDaemon:
             url=config.webhook.url,
             secret=config.webhook.secret,
             timeout_seconds=config.webhook.timeout_seconds,
+            verify_tls=config.webhook.verify_tls,
+            ca_cert=config.webhook.ca_cert,
         )
         self._syslog = SyslogSink(
             enabled=config.syslog.enabled,

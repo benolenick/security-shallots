@@ -62,21 +62,16 @@ _DEFAULT_SUPPRESS_TITLE_PATTERNS: list[str] = [
     "PAM: Login session opened",
     "PAM: Login session closed",
     "sshd: authentication success.",
-    # WordPress / web scanning noise — extremely common, rarely actionable
+    # Low-value web enumeration noise. NOTE: we deliberately do NOT title-suppress
+    # anything naming an exploit (RCE), brute force, or a named attack tool — those
+    # stay visible and get severity/direction-classified, even if they are common
+    # internet background. Suppressing "PHP Remote Code Execution" outright would
+    # hide a real hit. Volume from these is managed by dedup + direction-aware
+    # severity, not by blanket suppression.
     "ET SCAN Wordpress",
-    "ET WEB_SERVER Wordpress Login Brute Force",
-    "ET WEB_SPECIFIC_APPS WordPress",
-    "ET WEB_SERVER PHP Remote Code Execution",
     "ET WEB_SERVER robots.txt",
-    "ET HUNTING Possible WordPress Brute Force",
     "ET POLICY HTTP Request to a *.tk domain",
     "ET POLICY HTTP Request to a *.xyz domain",
-    # Common web scanning / enumeration noise
-    "ET SCAN Potential SSH Scan",
-    "ET SCAN Potential VNC Scan",
-    "ET SCAN Sipvicious",
-    "ET SCAN Nmap Scripting Engine",
-    "ET SCAN Behavioral Unusual Port",
     # DNS noise
     "ET DNS Query for .bit TLD",
     "ET DNS Standard query response, Name Error",

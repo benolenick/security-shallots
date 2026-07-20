@@ -170,7 +170,9 @@ class StorageConfig:
 
 @dataclass
 class WebConfig:
-    host: str = "0.0.0.0"
+    # Loopback by default — the dashboard is not exposed to the LAN until the
+    # operator sets host to 0.0.0.0 AND configures credentials (see app.py guard).
+    host: str = "127.0.0.1"
     port: int = 8844
     username: str = ""
     password: str = ""

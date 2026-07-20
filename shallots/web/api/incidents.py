@@ -334,8 +334,11 @@ async def handle_runbook_execute(request: web.Request) -> web.Response:
         return _json_response({"error": "Command rejected: could not be parsed."}, status=400)
     if not argv:
         raise web.HTTPBadRequest(reason="No command provided")
+    # Read-only diagnostics only, plus ufw (the one mutating response action the
+    # runbooks use). Deliberately EXCLUDES `ip`: `ip netns add/exec` can spawn an
+    # arbitrary command as root, which would turn this allowlist into RCE.
     _SAFE = {"nslookup", "dig", "host", "whois", "getent", "ping", "ping6",
-             "traceroute", "tracepath", "ss", "ip", "arp", "ps", "who", "w",
+             "traceroute", "tracepath", "ss", "arp", "ps", "who", "w",
              "last", "id", "uptime", "free", "df", "uname", "date", "hostname",
              "geoiplookup", "journalctl", "ufw"}
     base = argv[0]
@@ -350,7 +353,16 @@ async def handle_runbook_execute(request: web.Request) -> web.Response:
             stdout=_asyncio.subprocess.PIPE,
             stderr=_asyncio.subprocess.PIPE,
         )
-        stdout, stderr = await _asyncio.wait_for(proc.communicate(), timeout=30)
+        try:
+            stdout, stderr = await _asyncio.wait_for(proc.communicate(), timeout=30)
+        except _asyncio.TimeoutError:
+            # Kill the runaway child so repeated timeouts don't leak root processes.
+            try:
+                proc.kill()
+                await proc.wait()
+            except ProcessLookupError:
+                pass
+            raise
         return _json_response({
             "stdout": stdout.decode(errors="replace")[:10000],
             "stderr": stderr.decode(errors="replace")[:5000],

@@ -100,9 +100,24 @@ def create_app(daemon: Daemon) -> web.Application:
 
     # Add basic auth if configured
     web_cfg = daemon.cfg.web
-    if web_cfg.username and web_cfg.password:
+    has_auth = bool(web_cfg.username and web_cfg.password)
+    if has_auth:
         middlewares.insert(0, _make_auth_middleware(web_cfg.username, web_cfg.password))
         log.info("Web dashboard: basic auth enabled (user=%s)", web_cfg.username)
+
+    # Fail-safe: never expose an unauthenticated dashboard on a non-loopback
+    # interface. Without credentials the API (which includes config writes,
+    # firewall actions, and runbook execution) would be open to the whole LAN.
+    # Refuse rather than silently exposing it — the operator must either bind to
+    # loopback or set web.username/web.password.
+    _LOOPBACK = {"127.0.0.1", "::1", "localhost", ""}
+    if not has_auth and str(web_cfg.host) not in _LOOPBACK:
+        raise RuntimeError(
+            f"Refusing to start: web.host is '{web_cfg.host}' (LAN-exposed) but no "
+            "web.username/web.password is set. Set credentials (and TLS) before exposing "
+            "the dashboard, or bind web.host to 127.0.0.1 for local-only access. "
+            "See config.example.yaml."
+        )
 
     app = web.Application(middlewares=middlewares)
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import uuid
 from datetime import datetime, timedelta
@@ -642,6 +643,17 @@ SQLITE_TIMEOUT_SECONDS = 30.0
 SQLITE_BUSY_TIMEOUT_MS = int(SQLITE_TIMEOUT_SECONDS * 1000)
 
 
+def _coerce_ip(value: str) -> str:
+    """Return value if it is a valid IP, else "". IP fields flow into the
+    dashboard and must never carry untrusted free text (XSS defense-in-depth)."""
+    if not value:
+        return ""
+    try:
+        return str(ipaddress.ip_address(str(value).strip()))
+    except ValueError:
+        return ""
+
+
 class AlertDB:
     """Async SQLite database for alert storage with FTS5."""
 
@@ -679,6 +691,8 @@ class AlertDB:
 
     async def insert_alert(self, alert: Alert) -> str:
         """Insert an alert, returns its ID."""
+        alert.src_ip = _coerce_ip(alert.src_ip)
+        alert.dst_ip = _coerce_ip(alert.dst_ip)
         if not alert.id:
             alert.id = str(uuid.uuid4())
         if not alert.ingested_at:

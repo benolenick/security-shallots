@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import ipaddress
 import json
 import logging
 import secrets
@@ -14,6 +15,17 @@ from aiohttp import web
 from . import _json_response, _db
 
 log = logging.getLogger(__name__)
+
+
+def _valid_ip(value) -> str:
+    """Return value if it is a valid IP address, else "". Agent-supplied IPs are
+    untrusted and must never reach the dashboard as free text (XSS)."""
+    if not value:
+        return ""
+    try:
+        return str(ipaddress.ip_address(str(value).strip()))
+    except ValueError:
+        return ""
 
 
 def _secret_rejection(request: web.Request, secret: str, header_name: str) -> web.Response | None:
@@ -250,11 +262,15 @@ async def handle_clove_ingest(request: web.Request) -> web.Response:
     alerts = body.get("alerts", [])
     count = 0
     for alert_data in alerts:
-        alert_type = alert_data.get("alert_type", "unknown")
+        # Clove-watchdog emits "type"; older/other payloads may use "alert_type".
+        # Accept both so agent events aren't silently mislabeled "unknown".
+        alert_type = alert_data.get("alert_type") or alert_data.get("type") or "unknown"
         severity = alert_data.get("severity", "medium")
         title = alert_data.get("title", "")
         details = alert_data.get("details", {})
-        source_ip = alert_data.get("source_ip") or agent_ip
+        # Coerce agent-supplied source_ip to a valid IP (or empty). Never trust it
+        # as free text — it flows into the dashboard and must not carry markup.
+        source_ip = _valid_ip(alert_data.get("source_ip")) or _valid_ip(agent_ip)
         timestamp = alert_data.get("timestamp") or now_iso()
         details_json = json.dumps(details) if isinstance(details, dict) else str(details)
 
