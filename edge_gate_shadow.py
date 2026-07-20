@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Edge-8b escalation gate — SHADOW MODE.
+"""Edge-8b escalation gate - SHADOW MODE.
 Reads real shallots alerts (READ-ONLY), runs the qwen3:8b escalation-gate
 prompt on each, and logs the decision to its OWN table `edge_gate_shadow`.
 Changes NOTHING in shallotd's behavior. Resumable: skips alerts already scored.
@@ -15,7 +15,7 @@ MODEL="qwen3:8b"
 TAXONOMY=("reverse-shell, C2/beacon, cryptominer, malicious-persistence "
   "(cron/systemd pulling remote code), credential-theft, data-exfiltration "
   "(large or covert/DNS egress), unauthorized-root-access, lateral-movement/scan")
-FLEET_NORMAL=("KNOWN-BENIGN fleet behavior — SUPPRESS these: web scrapers via Webshare/residential "
+FLEET_NORMAL=("KNOWN-BENIGN fleet behavior - SUPPRESS these: web scrapers via Webshare/residential "
   "proxy pools + job boards; ollama/vLLM GPU load + local :11434/:8001 + registry.ollama.ai pulls; "
   "SSH between fleet hosts on 192.168.0.0/24 (host02 .212, host03 .224, host04 .129, host01 .172); "
   "apt/unattended-upgrade; mDNS/avahi udp 5353; Umami/TLA deploy egress; host01's own Suricata "
@@ -120,10 +120,10 @@ def report(c):
     if lat: print(f"mean latency            : {sum(lat)/len(lat)/1000:.1f}s/alert")
     print("\n--- DISAGREEMENTS: gate escalated what system suppressed (top 12) ---")
     for r in gate_esc_on_sysup[:12]:
-        print(f"  [{r['category']}/{r['source']}] sev{r['severity']} {str(r['title'])[:58]} :: {r['threat']} — {r['why']}")
+        print(f"  [{r['category']}/{r['source']}] sev{r['severity']} {str(r['title'])[:58]} :: {r['threat']} - {r['why']}")
     print("\n--- DISAGREEMENTS: gate suppressed what system flagged investigate ---")
     for r in gate_sup_on_sysinv[:12]:
-        print(f"  [{r['category']}/{r['source']}] {str(r['title'])[:58]} — {r['why']}")
+        print(f"  [{r['category']}/{r['source']}] {str(r['title'])[:58]} - {r['why']}")
 
 if __name__=="__main__":
     ap=argparse.ArgumentParser()

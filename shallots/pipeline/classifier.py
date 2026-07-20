@@ -17,7 +17,7 @@ from shallots.store.models import Alert, Severity, TriageVerdict
 log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Default suppress lists — well-known noisy / low-value signatures
+# Default suppress lists - well-known noisy / low-value signatures
 # ---------------------------------------------------------------------------
 
 # Signature titles (substring match, case-insensitive) to auto-suppress
@@ -27,7 +27,7 @@ _DEFAULT_SUPPRESS_TITLE_PATTERNS: list[str] = [
     "State changed: DISARMED -> ARMED_HOME",
     "State changed: ARMED_HOME -> DISARMED",
     "Argus heartbeat",
-    # Suricata stream engine noise — TCP reassembly artifacts, not threats
+    # Suricata stream engine noise - TCP reassembly artifacts, not threats
     "SURICATA STREAM Packet with invalid timestamp",
     "SURICATA STREAM ESTABLISHED packet out of window",
     "SURICATA STREAM ESTABLISHED invalid ack",
@@ -56,14 +56,14 @@ _DEFAULT_SUPPRESS_TITLE_PATTERNS: list[str] = [
     "ET INFO Observed Cloudflare DNS over HTTPS Domain",
     "ET INFO DNS Query to Cloudflare Tunneling Domain",
     "Remote Monitoring and Management",
-    # LLMNR/mDNS — noisy on Windows networks, benign unless hunting Responder
+    # LLMNR/mDNS - noisy on Windows networks, benign unless hunting Responder
     "LLMNR query",
-    # PAM session noise — just login/logout logging
+    # PAM session noise - just login/logout logging
     "PAM: Login session opened",
     "PAM: Login session closed",
     "sshd: authentication success.",
     # Low-value web enumeration noise. NOTE: we deliberately do NOT title-suppress
-    # anything naming an exploit (RCE), brute force, or a named attack tool — those
+    # anything naming an exploit (RCE), brute force, or a named attack tool - those
     # stay visible and get severity/direction-classified, even if they are common
     # internet background. Suppressing "PHP Remote Code Execution" outright would
     # hide a real hit. Volume from these is managed by dedup + direction-aware
@@ -170,12 +170,12 @@ class ClassifierConfig:
     suppress_source_ips: set[str] = field(default_factory=set)
     suppress_dest_ips: set[str] = field(
         default_factory=lambda: {
-            "224.0.0.252",   # LLMNR multicast — normal Windows name resolution
+            "224.0.0.252",   # LLMNR multicast - normal Windows name resolution
         }
     )
     suppress_asset_prefixes: tuple[str, ...] = _DEFAULT_SUPPRESS_ASSET_PREFIXES
     # Category substrings the operator has explicitly silenced (via a "category"
-    # silence rule). Suppresses matching alerts by verdict — NOT by overwriting
+    # silence rule). Suppresses matching alerts by verdict - NOT by overwriting
     # severity (the old category_severity_map["suppress"] bug).
     suppress_categories: list[str] = field(default_factory=list)
 
@@ -280,7 +280,7 @@ def _valid_ip(raw: str) -> bool:
 
 
 # Shallots' own install artifacts. FIM (Wazuh syscheck) events on these are
-# self-inflicted — Shallots writes its own units/config/db — and must not be
+# self-inflicted - Shallots writes its own units/config/db - and must not be
 # escalated as "suspicious file added" incidents (it flagged its own
 # shallot-inventory-scan.timer as an unknown binary on 2026-07-19).
 # NB: an attacker with root could name a unit "shallot-evil.service" to ride this
@@ -375,7 +375,7 @@ class Classifier:
             re.compile(p, re.IGNORECASE)
             for p in self._cfg.suppress_title_patterns
         ]
-        # Combo silence rules (src_ip+title) — list of (ip, title_pattern) tuples
+        # Combo silence rules (src_ip+title) - list of (ip, title_pattern) tuples
         self._combo_rules: list[tuple[str, str]] = []
 
     @classmethod
@@ -425,7 +425,7 @@ class Classifier:
         # 0. Flow-fan-out recon (port scan / host sweep) is a deliberate, already
         # noise-filtered, deterministic detection. Escalate it directly and return
         # before the generic internal/self/CIDR suppression rules below (which would
-        # otherwise bury LAN-to-LAN recon as noise). Authoritative by construction —
+        # otherwise bury LAN-to-LAN recon as noise). Authoritative by construction -
         # the fan-out threshold already did the filtering.
         if str(alert.source_ref) in ("flow-portscan", "flow-sweep"):
             alert.verdict = TriageVerdict.ESCALATE
@@ -500,7 +500,7 @@ class Classifier:
         # High-signal bypass mirrors steps 6/7 (CIDR): a critical exploit/C2/scan
         # signature from an ALLOWLISTED internal IP is exactly what a compromised
         # internal host doing lateral movement looks like. Do NOT hard-drop it here
-        # — let it reach AI triage (verdict stays pending) so a real internal threat
+        # - let it reach AI triage (verdict stays pending) so a real internal threat
         # can't hide behind a source_ips allowlist entry. Recurring known-benign
         # tooling should be silenced deliberately via combo rules (step 8), not by
         # blanket-muting every high/critical sig from the host.

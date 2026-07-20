@@ -3,7 +3,7 @@
 Operates in two modes:
   - copilot:   Suggests actions (noise suppression, threat escalation) as pending
                decisions that a human reviews and approves.
-  - autopilot: Acts autonomously — auto-suppresses noise, creates silence rules,
+  - autopilot: Acts autonomously - auto-suppresses noise, creates silence rules,
                raises squawks for threats, generates shift reports.
 
 The worker runs as an asyncio background task alongside TriageWorker. It processes
@@ -173,14 +173,14 @@ class AutopilotWorker:
     """Async background worker providing autonomous or co-pilot AI oversight.
 
     Responsibilities:
-    1. Noise detection — identifies high-volume repetitive alert patterns.
-    2. Threat assessment — sends actionable alerts to the AI for a second opinion.
-    3. Squawk generation — raises high-priority notices for critical threats.
-    4. Shift reports — periodic AI-generated shift summaries.
+    1. Noise detection - identifies high-volume repetitive alert patterns.
+    2. Threat assessment - sends actionable alerts to the AI for a second opinion.
+    3. Squawk generation - raises high-priority notices for critical threats.
+    4. Shift reports - periodic AI-generated shift summaries.
 
     Mode behaviour:
       copilot:   Creates 'pending' ai_decisions for human review. Never auto-suppresses.
-      autopilot: Acts immediately — suppresses noise, creates silence rules, escalates.
+      autopilot: Acts immediately - suppresses noise, creates silence rules, escalates.
       off:       No action. The worker loop runs but _process_batch returns immediately.
     """
 
@@ -198,7 +198,7 @@ class AutopilotWorker:
         self._client: OllamaClient | None = None
         self._running = False
 
-        # Runtime mode — can be changed via set_mode() while running
+        # Runtime mode - can be changed via set_mode() while running
         self._mode: str = cfg.autopilot.mode
 
         # Monotonic clock for shift report scheduling
@@ -265,7 +265,7 @@ class AutopilotWorker:
         ap = self._cfg.autopilot
 
         # Phase 0: Cluster-based bulk noise sweep (works on ALL pending clusters,
-        # not just recent alerts — critical for clearing backlogs).
+        # not just recent alerts - critical for clearing backlogs).
         if self._mode == "autopilot":
             await self._sweep_noisy_clusters()
 
@@ -303,7 +303,7 @@ class AutopilotWorker:
         await self._maybe_shift_report()
 
     # Keywords in alert titles that should NEVER be auto-suppressed.
-    # These get escalated instead — even if noisy, they indicate real threats.
+    # These get escalated instead - even if noisy, they indicate real threats.
     PROTECTED_KEYWORDS = {
         "exploit", "malware", "trojan", "backdoor", "ransomware", "c2",
         "command and control", "reverse shell", "webshell", "rootkit",
@@ -318,9 +318,9 @@ class AutopilotWorker:
         """Bulk-suppress noisy clusters with safety rails.
 
         Safety rails to prevent hiding real threats:
-        1. Severity gate — never suppress critical/high clusters, escalate them
-        2. Title keywords — protect exploit/malware/c2 patterns from suppression
-        3. Grace period — don't suppress clusters created less than 10min ago
+        1. Severity gate - never suppress critical/high clusters, escalate them
+        2. Title keywords - protect exploit/malware/c2 patterns from suppression
+        3. Grace period - don't suppress clusters created less than 10min ago
         """
         ap = self._cfg.autopilot
         try:
@@ -347,7 +347,7 @@ class AutopilotWorker:
             title = (cluster.get("title") or "").lower()
             created = cluster.get("first_seen") or ""
 
-            # Grace period — skip clusters created less than 10 minutes ago
+            # Grace period - skip clusters created less than 10 minutes ago
             try:
                 created_dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
                 if created_dt.tzinfo is None:
@@ -364,12 +364,12 @@ class AutopilotWorker:
             is_protected_title = any(kw in title for kw in self.PROTECTED_KEYWORDS)
 
             if is_high_sev or is_protected_title:
-                # Escalate instead of suppress — this is noisy BUT dangerous
+                # Escalate instead of suppress - this is noisy BUT dangerous
                 try:
                     updated = await self._db.set_cluster_verdict(
                         cluster["id"], "escalate",
                         reasoning=f"Autopilot: noisy but protected cluster "
-                                  f"(sev={sev}, {cluster['alert_count']} events) — escalated for review",
+                                  f"(sev={sev}, {cluster['alert_count']} events) - escalated for review",
                     )
                     escalated += updated
                     log.info("AutopilotWorker: ESCALATED protected cluster %s (%s, %dx, %s)",
@@ -377,7 +377,7 @@ class AutopilotWorker:
                 except Exception:
                     log.debug("AutopilotWorker: failed to escalate cluster %s", cluster.get("id"))
             else:
-                # Safe to suppress — low/medium severity, no dangerous keywords
+                # Safe to suppress - low/medium severity, no dangerous keywords
                 try:
                     updated = await self._db.set_cluster_verdict(
                         cluster["id"], "suppress",
@@ -390,7 +390,7 @@ class AutopilotWorker:
                     log.debug("AutopilotWorker: failed to suppress cluster %s", cluster.get("id"))
 
         if swept or escalated:
-            log.info("AutopilotWorker: cluster sweep — suppressed=%d, escalated=%d, grace_skipped=%d",
+            log.info("AutopilotWorker: cluster sweep - suppressed=%d, escalated=%d, grace_skipped=%d",
                      swept, escalated, skipped_grace)
             await self._broadcast({
                 "type": "ai_decision",
@@ -442,7 +442,7 @@ class AutopilotWorker:
             except Exception:
                 pass
 
-        # Partition alerts — but protect high-severity / dangerous alerts from noise bucket
+        # Partition alerts - but protect high-severity / dangerous alerts from noise bucket
         noise_groups: dict[tuple[str, str], list[dict]] = defaultdict(list)
         for alert in alerts:
             cluster_id = alert.get("cluster_id") or ""
@@ -452,7 +452,7 @@ class AutopilotWorker:
             is_in_noisy_cluster = cluster_id in noisy_cluster_ids
             is_known_noise = src_ip in known_noise_ips
 
-            # Never classify protected alerts as noise — keep in remaining
+            # Never classify protected alerts as noise - keep in remaining
             is_protected = (
                 sev in ("critical", "high")
                 or any(kw in title_lower for kw in self.PROTECTED_KEYWORDS)
@@ -594,7 +594,7 @@ class AutopilotWorker:
         """Send actionable alerts to the AI for threat assessment.
 
         Only processes alerts that are high/critical severity OR have an
-        investigate/escalate verdict — i.e., alerts that warrant a second look.
+        investigate/escalate verdict - i.e., alerts that warrant a second look.
         """
         # Filter to alerts that actually need attention
         candidates = [
@@ -882,7 +882,7 @@ class AutopilotWorker:
 
         if tier in ("remote_micro", "remote_standard", "local"):
             if self._client is None:
-                raise RuntimeError("AI client not initialised — check tier configuration")
+                raise RuntimeError("AI client not initialised - check tier configuration")
             return await self._client.generate(
                 prompt=prompt,
                 model=cfg.ollama_model,
@@ -892,7 +892,7 @@ class AutopilotWorker:
         if tier == "remote_api":
             if cfg.openai_api_key:
                 if self._client is None:
-                    raise RuntimeError("AI client not initialised — check tier configuration")
+                    raise RuntimeError("AI client not initialised - check tier configuration")
                 return await self._client.generate_openai(
                     prompt=prompt,
                     model=cfg.ollama_model or "gpt-4o-mini",
@@ -901,7 +901,7 @@ class AutopilotWorker:
                 )
             if cfg.anthropic_api_key:
                 if self._client is None:
-                    raise RuntimeError("AI client not initialised — check tier configuration")
+                    raise RuntimeError("AI client not initialised - check tier configuration")
                 return await self._client.generate_anthropic(
                     prompt=prompt,
                     model=cfg.ollama_model or "claude-3-haiku-20240307",

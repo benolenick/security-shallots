@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ============================================================
-# shallot-doctor — Diagnose, backup, and repair Security Shallots
+# shallot-doctor - Diagnose, backup, and repair Security Shallots
 # ============================================================
 # Usage:
 #   sudo shallot-doctor check          # run all diagnostics
@@ -69,7 +69,7 @@ require_config() {
 }
 
 # ============================================================
-# CHECK — full diagnostic scan
+# CHECK - full diagnostic scan
 # ============================================================
 cmd_check() {
     local issues=0
@@ -213,11 +213,11 @@ cmd_check() {
             backup_age=$(( ( $(date +%s) - $(stat -c %Y "$latest_backup" 2>/dev/null || echo 0) ) / 86400 ))
             ok "Latest backup: $(basename "$latest_backup") (${backup_age}d ago)"
             if [[ $backup_age -gt 7 ]]; then
-                warn "  Backup is over 7 days old — run: shallot-doctor backup"
+                warn "  Backup is over 7 days old - run: shallot-doctor backup"
                 issues=$((issues + 1))
             fi
         else
-            warn "No backups found — run: shallot-doctor backup"
+            warn "No backups found - run: shallot-doctor backup"
             issues=$((issues + 1))
         fi
     fi
@@ -228,7 +228,7 @@ cmd_check() {
             if [[ -r "$logfile" ]]; then
                 ok "$logfile (readable)"
             else
-                err "$logfile (exists but NOT readable — fix permissions)"
+                err "$logfile (exists but NOT readable - fix permissions)"
                 issues=$((issues + 1))
             fi
         fi
@@ -249,7 +249,7 @@ cmd_check() {
         has_cron=true
     fi
     if [[ "$has_cron" == false ]]; then
-        warn "No maintenance crons detected — run: shallot-doctor fix-crons"
+        warn "No maintenance crons detected - run: shallot-doctor fix-crons"
         issues=$((issues + 1))
     fi
 
@@ -269,7 +269,7 @@ cmd_check() {
 }
 
 # ============================================================
-# BACKUP — snapshot config + DB + certs
+# BACKUP - snapshot config + DB + certs
 # ============================================================
 cmd_backup() {
     require_config
@@ -349,7 +349,7 @@ cmd_backup() {
 }
 
 # ============================================================
-# RESTORE — restore from backup tarball
+# RESTORE - restore from backup tarball
 # ============================================================
 cmd_restore() {
     local tarball="${1:-}"
@@ -387,13 +387,13 @@ cmd_restore() {
         if systemctl is-active "$SERVICE_NAME" &>/dev/null; then
             ok "$SERVICE_NAME restarted"
         else
-            err "$SERVICE_NAME failed to start — check: journalctl -u $SERVICE_NAME -n 30"
+            err "$SERVICE_NAME failed to start - check: journalctl -u $SERVICE_NAME -n 30"
         fi
     fi
 }
 
 # ============================================================
-# FIX-TLS — regenerate self-signed certificate
+# FIX-TLS - regenerate self-signed certificate
 # ============================================================
 cmd_fix_tls() {
     require_config
@@ -438,7 +438,7 @@ cmd_fix_tls() {
 }
 
 # ============================================================
-# FIX-CRONS — reinstall maintenance crons
+# FIX-CRONS - reinstall maintenance crons
 # ============================================================
 cmd_fix_crons() {
     require_config
@@ -505,7 +505,7 @@ BACKUP
 }
 
 # ============================================================
-# FIX-SERVICE — reinstall systemd service
+# FIX-SERVICE - reinstall systemd service
 # ============================================================
 cmd_fix_service() {
     require_config
@@ -565,7 +565,7 @@ SERVICE
 }
 
 # ============================================================
-# FIX-PERMS — fix file permissions
+# FIX-PERMS - fix file permissions
 # ============================================================
 cmd_fix_perms() {
     require_config
@@ -575,7 +575,7 @@ cmd_fix_perms() {
     local current_user
     current_user=$(stat -c '%U' "$CONFIG_DIR/config.yaml" 2>/dev/null || whoami)
 
-    # Config file (readable by owner only — has secrets)
+    # Config file (readable by owner only - has secrets)
     if [[ -f "$CONFIG_DIR/config.yaml" ]]; then
         chmod 600 "$CONFIG_DIR/config.yaml"
         ok "config.yaml: 600 (owner-only)"
@@ -591,7 +591,7 @@ cmd_fix_perms() {
         fi
     fi
 
-    # Suricata EVE log — add user to suricata group
+    # Suricata EVE log - add user to suricata group
     if getent group suricata &>/dev/null; then
         if ! id -nG "$current_user" 2>/dev/null | grep -qw suricata; then
             usermod -aG suricata "$current_user"
@@ -601,7 +601,7 @@ cmd_fix_perms() {
         fi
     fi
 
-    # Wazuh alerts — add user to wazuh group
+    # Wazuh alerts - add user to wazuh group
     if getent group wazuh &>/dev/null; then
         if ! id -nG "$current_user" 2>/dev/null | grep -qw wazuh; then
             usermod -aG wazuh "$current_user"
@@ -619,7 +619,7 @@ cmd_fix_perms() {
 }
 
 # ============================================================
-# RESET-CONFIG — reset config from example
+# RESET-CONFIG - reset config from example
 # ============================================================
 cmd_reset_config() {
     require_config
@@ -654,12 +654,12 @@ cmd_reset_config() {
 }
 
 # ============================================================
-# NUKE — full uninstall
+# NUKE - full uninstall
 # ============================================================
 cmd_nuke() {
     echo ""
     echo -e "${RED}  WARNING: This will remove Security Shallots completely.${RST}"
-    echo -e "${RED}  Database, config, crons, systemd service — all gone.${RST}"
+    echo -e "${RED}  Database, config, crons, systemd service - all gone.${RST}"
     echo ""
     echo -en "  ${YLW}Type 'yes-nuke-it' to confirm: ${RST}"
     read -r confirm
@@ -686,7 +686,7 @@ cmd_nuke() {
 }
 
 # ============================================================
-# fix-rules — Install safe Suricata rule update wrapper
+# fix-rules - Install safe Suricata rule update wrapper
 # ============================================================
 cmd_fix_rules() {
     step "Installing safe rule update wrapper"
@@ -694,7 +694,7 @@ cmd_fix_rules() {
     cat > /usr/local/bin/shallots-rule-update <<'RULEUPDATE'
 #!/usr/bin/env bash
 set -euo pipefail
-# shallots-rule-update — safe suricata-update with auto-rollback
+# shallots-rule-update - safe suricata-update with auto-rollback
 
 LOG="/var/log/suricata/rule-update.log"
 RULES_DIR="/var/lib/suricata/rules"
@@ -759,7 +759,7 @@ if ! suricata -T -c /etc/suricata/suricata.yaml 2>&1 | tee -a "$LOG"; then
     exit 1
 fi
 
-# All good — reload rules
+# All good - reload rules
 log "Syntax check passed. Reloading rules..."
 suricatasc -c reload-rules 2>&1 | tee -a "$LOG" || true
 log "=== Rule update completed successfully ($post_count rules loaded) ==="

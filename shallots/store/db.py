@@ -674,7 +674,7 @@ class AlertDB:
         await self._db.execute("PRAGMA synchronous=NORMAL")
         await self._db.execute("PRAGMA cache_size=-64000")  # 64MB cache
         await self._db.executescript(SCHEMA)
-        # Run column migrations (safe to re-run — ignores "duplicate column" errors)
+        # Run column migrations (safe to re-run - ignores "duplicate column" errors)
         for migration in _MIGRATIONS:
             try:
                 await self._db.execute(migration)
@@ -768,7 +768,7 @@ class AlertDB:
         """Get alerts with optional filters.
 
         Args:
-            since: Time filter — either an ISO timestamp or a relative
+            since: Time filter - either an ISO timestamp or a relative
                    duration like "1h", "24h", "7d", "30d".
             src_ip: Filter by source IP address.
             title: Filter by exact alert title.
@@ -1685,7 +1685,7 @@ class AlertDB:
             "UPDATE silence_rules SET hit_count = hit_count + 1, last_hit = ? WHERE id = ?",
             (now_iso(), rule_id),
         )
-        # Commit batched — caller should commit periodically
+        # Commit batched - caller should commit periodically
 
     # ── Custom Detection Rules ────────────────────────────────
 
@@ -2208,7 +2208,7 @@ class AlertDB:
                 elif verdict == "escalate":
                     threats_external += cnt
                 # NOTE: 'pending' (AI hasn't triaged yet) is the engine's backlog,
-                # not the operator's queue — deliberately excluded from needs_review.
+                # not the operator's queue - deliberately excluded from needs_review.
 
             if verdict == "suppress":
                 auto_handled += cnt
@@ -2756,7 +2756,7 @@ class AlertDB:
         return [{"decision": row[0], "count": row[1]} for row in await cursor.fetchall()]
 
     async def get_auto_dismiss_candidates(self) -> list[dict]:
-        """Get patterns that have been false-positive'd 3+ times — candidates for auto-dismiss."""
+        """Get patterns that have been false-positive'd 3+ times - candidates for auto-dismiss."""
         cursor = await self._db.execute(
             """SELECT pattern_key, category, COUNT(*) as fp_count
                FROM incident_decisions

@@ -1,5 +1,5 @@
 [Unit]
-Description=VictoriaLogs — Fast log storage by VictoriaMetrics
+Description=VictoriaLogs - Fast log storage by VictoriaMetrics
 Documentation=https://docs.victoriametrics.com/victorialogs/
 After=network.target
 Wants=network.target
@@ -28,7 +28,7 @@ ProtectSystem=strict
 ProtectHome=yes
 ReadWritePaths=/var/lib/shallots/vlogs
 
-# Resource limits — tune for profile
+# Resource limits - tune for profile
 LimitNOFILE=1048576
 MemoryMax=1G
 

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ============================================================
-# Clove — Security Shallots Endpoint Agent Installer
+# Clove - Security Shallots Endpoint Agent Installer
 # One-command deployment for Wazuh agent + optional CrowdSec
 # ============================================================
 # Usage:
@@ -125,7 +125,7 @@ PKG_MGR=""        # apt-get or yum/dnf
 
 detect_os() {
     if [[ ! -f /etc/os-release ]]; then
-        die "Cannot detect OS — /etc/os-release not found"
+        die "Cannot detect OS - /etc/os-release not found"
     fi
     # shellcheck disable=SC1091
     source /etc/os-release
@@ -210,7 +210,7 @@ check_manager() {
         if ping -c 1 -W 3 "$MANAGER_IP" &>/dev/null; then
             ok "Manager ${MANAGER_IP} responds to ping"
         else
-            warn "Manager ${MANAGER_IP} not reachable — installation will proceed but agent may not connect"
+            warn "Manager ${MANAGER_IP} not reachable - installation will proceed but agent may not connect"
         fi
     fi
 }
@@ -220,7 +220,7 @@ install_wazuh_agent() {
     step "Installing Wazuh agent"
 
     if dpkg -s wazuh-agent &>/dev/null 2>&1 || rpm -q wazuh-agent &>/dev/null 2>&1; then
-        info "Wazuh agent package already installed — skipping package install"
+        info "Wazuh agent package already installed - skipping package install"
     else
         if [[ "$DISTRO_FAMILY" == "debian" ]]; then
             install_wazuh_debian
@@ -276,7 +276,7 @@ REPO
     WAZUH_MANAGER="$MANAGER_IP" WAZUH_AGENT_NAME="$AGENT_NAME" WAZUH_AGENT_GROUP="$AGENT_GROUP" \
         $PKG_MGR -y install wazuh-agent >/dev/null 2>&1
 
-    # Lock package version — disable repo after install
+    # Lock package version - disable repo after install
     sed -i 's/^enabled=1/enabled=0/' /etc/yum.repos.d/wazuh.repo
     ok "Wazuh agent installed (repo disabled to prevent auto-upgrades)"
 }
@@ -288,7 +288,7 @@ configure_wazuh_agent() {
     local ossec_conf="/var/ossec/etc/ossec.conf"
 
     if [[ ! -f "$ossec_conf" ]]; then
-        die "ossec.conf not found at ${ossec_conf} — installation may have failed"
+        die "ossec.conf not found at ${ossec_conf} - installation may have failed"
     fi
 
     # Set manager address (in case WAZUH_MANAGER env var didn't take effect)
@@ -339,7 +339,7 @@ deploy_custom_rules() {
     mkdir -p "$rules_dir"
 
     cat > "$rules_file" <<'RULES_XML'
-<!-- Security Shallots — Custom OSSEC Rules -->
+<!-- Security Shallots - Custom OSSEC Rules -->
 <!-- Deployed by Clove endpoint agent installer -->
 
 <group name="shallots,">
@@ -452,7 +452,7 @@ install_crowdsec() {
     step "Installing CrowdSec"
 
     if command -v cscli &>/dev/null; then
-        info "CrowdSec already installed — skipping"
+        info "CrowdSec already installed - skipping"
     else
         info "Running CrowdSec install script..."
         curl -fsSL https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.deb.sh 2>/dev/null \
@@ -507,7 +507,7 @@ run_healthcheck() {
         agent_id=$(awk '{print $1}' /var/ossec/etc/client.keys | head -1)
         ok "Agent enrolled with ID: ${agent_id}"
     else
-        warn "client.keys is empty — agent not yet enrolled (may need time or manual key)"
+        warn "client.keys is empty - agent not yet enrolled (may need time or manual key)"
         all_good=false
     fi
 
@@ -536,7 +536,7 @@ run_healthcheck() {
     if [[ "$all_good" == true ]]; then
         ok "All health checks passed"
     else
-        warn "Some checks did not pass — agent may still be initializing"
+        warn "Some checks did not pass - agent may still be initializing"
         info "Re-check in 30 seconds: systemctl status wazuh-agent"
     fi
 }
@@ -571,7 +571,7 @@ do_uninstall() {
 
     # Remove leftover directories
     if [[ -d /var/ossec ]]; then
-        warn "/var/ossec directory still exists — remove manually if desired: rm -rf /var/ossec"
+        warn "/var/ossec directory still exists - remove manually if desired: rm -rf /var/ossec"
     fi
 
     # CrowdSec
@@ -617,7 +617,7 @@ clone_repo() {
         unzip -qo "$zip" -d /tmp
         mv /tmp/security-shallots-main "$repo_dir"
         rm -f "$zip"
-        ok "Source downloaded to ${repo_dir} (no git — self-update requires git)"
+        ok "Source downloaded to ${repo_dir} (no git - self-update requires git)"
     fi
 }
 
@@ -709,7 +709,7 @@ main() {
     check_root
     detect_os
 
-    # Uninstall mode (before resolving manager IP — uninstall doesn't need it)
+    # Uninstall mode (before resolving manager IP - uninstall doesn't need it)
     if [[ "$DO_UNINSTALL" == true ]]; then
         do_uninstall
     fi

@@ -73,14 +73,14 @@ data/live_canaries/
 # Generated posture report
 docs/POSTURE_STATE.md
 
-# Operator posture policy (real network layout) — ship the .example instead
+# Operator posture policy (real network layout) - ship the .example instead
 data/posture_policy.yaml
 data/inventory_seed.yaml
 
 # Internal pre-publish working doc
 docs/PRE_PUBLISH_CHECKLIST.md
 
-# Internal research/telemetry/collab docs — kept on disk, not published
+# Internal research/telemetry/collab docs - kept on disk, not published
 docs/DETECTION_EVAL_RESULTS.json
 docs/EDGE_COLLATOR_EVAL.md
 docs/EDGE_COLLATOR_RANDOM_TELEMETRY.md

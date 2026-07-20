@@ -135,7 +135,7 @@ class NLQueryEngine:
 
         # Strip markdown fences / whitespace
         sql = _strip_markdown(raw).strip()
-        # Remove trailing semicolon — aiosqlite handles that fine, but be tidy
+        # Remove trailing semicolon - aiosqlite handles that fine, but be tidy
         sql = sql.rstrip(";").strip()
         return sql
 
@@ -250,7 +250,7 @@ def _validate_sql(sql: str) -> None:
     # Check all referenced tables are in the allowlist
     tables_from = {m.group(1).lower() for m in _TABLE_RE.finditer(sql)}
     tables_join = {m.group(1).lower() for m in _JOIN_RE.finditer(sql)}
-    # Comma-joined tables ("FROM a, b") — _TABLE_RE only captures the first
+    # Comma-joined tables ("FROM a, b") - _TABLE_RE only captures the first
     # identifier after FROM, so without this "FROM alerts, sqlite_master"
     # would slip an un-allowlisted table (schema/other-table exfiltration).
     tables_comma: set[str] = set()

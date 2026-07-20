@@ -3,9 +3,9 @@
 ## Backup contents
 
 `tools/shallot_backup.py` produces tarballs containing:
-- `shallots.db` — online SQLite snapshot via `sqlite3.backup()` (consistent, no
+- `shallots.db` - online SQLite snapshot via `sqlite3.backup()` (consistent, no
   writer lock)
-- `config.yaml` — config at backup time
+- `config.yaml` - config at backup time
 
 ## Backup tiers and retention
 
@@ -15,7 +15,7 @@
 | Daily | promoted from latest hourly | 14 | `/var/lib/shallots/backups/daily/` |
 | Weekly | promoted from latest hourly | 8 | `/var/lib/shallots/backups/weekly/` |
 
-Daily/weekly are hard links by default — they cost no disk relative to hourly.
+Daily/weekly are hard links by default - they cost no disk relative to hourly.
 
 ## RTO / RPO targets
 
@@ -57,8 +57,8 @@ curl -sk -u admin:<password> https://127.0.0.1:8844/api/health
 A successful restore drill must be performed quarterly:
 1. Pick a recent snapshot.
 2. Restore into a *throwaway* directory + sqlite client.
-3. Run `PRAGMA integrity_check;` — expect `ok`.
-4. Run `SELECT count(*) FROM alerts;` — expect non-zero.
+3. Run `PRAGMA integrity_check;` - expect `ok`.
+4. Run `SELECT count(*) FROM alerts;` - expect non-zero.
 5. Record the result in `docs/DR_DRILL_LOG.md`.
 
 If the drill fails, treat it as a P0 incident.

@@ -43,7 +43,7 @@ def _ingest_queue_metrics(daemon) -> dict:
 # ── /api/health ──────────────────────────────────────────────────────────────
 
 async def handle_health(request: web.Request) -> web.Response:
-    """GET /api/health — liveness check."""
+    """GET /api/health - liveness check."""
     daemon = request.app["daemon"]
     try:
         stats = await daemon.db.get_stats()
@@ -83,7 +83,7 @@ async def handle_health(request: web.Request) -> web.Response:
 # ── /api/stats ────────────────────────────────────────────────────────────────
 
 async def handle_stats(request: web.Request) -> web.Response:
-    """GET /api/stats — dashboard overview statistics."""
+    """GET /api/stats - dashboard overview statistics."""
     try:
         daemon = request.app["daemon"]
         home_cidr = daemon.cfg.network.home_cidr
@@ -95,7 +95,7 @@ async def handle_stats(request: web.Request) -> web.Response:
 
 
 async def handle_security_ops(request: web.Request) -> web.Response:
-    """GET /api/security/ops — compact production/security operations snapshot."""
+    """GET /api/security/ops - compact production/security operations snapshot."""
     now = time.time()
     if _security_ops_cache["data"] and (now - _security_ops_cache["ts"]) < 30:
         return _json_response(_security_ops_cache["data"])
@@ -128,7 +128,7 @@ async def handle_security_ops(request: web.Request) -> web.Response:
 _agent_guide_cache: dict = {"data": None, "ts": 0}
 
 async def handle_agent_guide(request: web.Request) -> web.Response:
-    """GET /api/agent-guide — machine-readable system manifest for CLI agents.
+    """GET /api/agent-guide - machine-readable system manifest for CLI agents.
 
     No auth required. Cached for 60 seconds.
     """
@@ -155,9 +155,9 @@ async def handle_agent_guide(request: web.Request) -> web.Response:
         },
         "api_endpoints": [
             {"method": "GET", "path": "/api/health", "auth": False,
-             "purpose": "Liveness check — returns status and total alert count"},
+             "purpose": "Liveness check - returns status and total alert count"},
             {"method": "GET", "path": "/api/stats", "auth": True,
-             "purpose": "Dashboard statistics — totals, breakdowns by source/severity"},
+             "purpose": "Dashboard statistics - totals, breakdowns by source/severity"},
             {"method": "GET", "path": "/api/alerts", "auth": True,
              "purpose": "Paginated alert list with filters (source, severity, verdict, since)",
              "params": "limit, offset, source, severity, verdict, since"},
@@ -172,13 +172,13 @@ async def handle_agent_guide(request: web.Request) -> web.Response:
             {"method": "GET", "path": "/api/alerts/search", "auth": True,
              "purpose": "FTS5 full-text search over alerts"},
             {"method": "POST", "path": "/api/query", "auth": True,
-             "purpose": "Natural language query — translates question to SQL via AI"},
+             "purpose": "Natural language query - translates question to SQL via AI"},
             {"method": "GET", "path": "/api/correlations", "auth": True,
              "purpose": "AI-detected cross-alert correlation patterns"},
             {"method": "WS", "path": "/ws/alerts", "auth": True,
-             "purpose": "WebSocket live feed — real-time alert stream"},
+             "purpose": "WebSocket live feed - real-time alert stream"},
             {"method": "GET", "path": "/api/agent-guide", "auth": False,
-             "purpose": "This endpoint — system manifest for CLI agents"},
+             "purpose": "This endpoint - system manifest for CLI agents"},
         ],
         "common_commands": {
             "restart": "sudo systemctl restart shallotd",
@@ -242,7 +242,7 @@ def _get_repo_dir() -> Path:
 
 
 async def handle_version(request: web.Request) -> web.Response:
-    """GET /api/version — return version info and update availability."""
+    """GET /api/version - return version info and update availability."""
     repo_dir = _get_repo_dir()
 
     try:
@@ -302,7 +302,7 @@ async def handle_version(request: web.Request) -> web.Response:
 # ── /api/update ──────────────────────────────────────────────────────────
 
 async def handle_update(request: web.Request) -> web.Response:
-    """POST /api/update — pull latest code from remote."""
+    """POST /api/update - pull latest code from remote."""
     repo_dir = _get_repo_dir()
 
     try:
@@ -338,13 +338,13 @@ async def handle_update(request: web.Request) -> web.Response:
 # ── /api/saved-searches ─────────────────────────────────────────────────────
 
 async def handle_get_saved_searches(request: web.Request) -> web.Response:
-    """GET /api/saved-searches — list saved searches."""
+    """GET /api/saved-searches - list saved searches."""
     searches = await _db(request).get_saved_searches()
     return _json_response({"searches": searches})
 
 
 async def handle_save_search(request: web.Request) -> web.Response:
-    """POST /api/saved-searches — save a search query."""
+    """POST /api/saved-searches - save a search query."""
     try:
         body = await request.json()
     except Exception:
@@ -361,7 +361,7 @@ async def handle_save_search(request: web.Request) -> web.Response:
 
 
 async def handle_delete_saved_search(request: web.Request) -> web.Response:
-    """DELETE /api/saved-searches/{id} — delete a saved search."""
+    """DELETE /api/saved-searches/{id} - delete a saved search."""
     search_id = request.match_info["id"]
     deleted = await _db(request).delete_saved_search(search_id)
     if not deleted:
@@ -372,7 +372,7 @@ async def handle_delete_saved_search(request: web.Request) -> web.Response:
 # ── /api/dashboard/* ────────────────────────────────────────────────────────
 
 async def handle_top_talkers(request: web.Request) -> web.Response:
-    """GET /api/dashboard/top-talkers — top source IPs, dest IPs, signatures."""
+    """GET /api/dashboard/top-talkers - top source IPs, dest IPs, signatures."""
     qs = request.rel_url.query
     since = qs.get("since", "24h")
     try:
@@ -384,14 +384,14 @@ async def handle_top_talkers(request: web.Request) -> web.Response:
 
 
 async def handle_timeline(request: web.Request) -> web.Response:
-    """GET /api/dashboard/timeline — hourly alert timeline."""
+    """GET /api/dashboard/timeline - hourly alert timeline."""
     since = request.rel_url.query.get("since", "24h")
     data = await _db(request).get_timeline(since=since)
     return _json_response({"timeline": data})
 
 
 async def handle_connections(request: web.Request) -> web.Response:
-    """GET /api/dashboard/connections — unique connection pairs."""
+    """GET /api/dashboard/connections - unique connection pairs."""
     qs = request.rel_url.query
     since = qs.get("since", "24h")
     try:
@@ -405,7 +405,7 @@ async def handle_connections(request: web.Request) -> web.Response:
 # ── /api/network/hosts ──────────────────────────────────────────────────────
 
 async def handle_network_hosts(request: web.Request) -> web.Response:
-    """GET /api/network/hosts — local network hosts only."""
+    """GET /api/network/hosts - local network hosts only."""
     import ipaddress
     since = request.rel_url.query.get("since", "7d")
     all_hosts = await _db(request).get_network_hosts(since=since)
@@ -431,21 +431,21 @@ async def handle_network_hosts(request: web.Request) -> web.Response:
 # ── /api/vulnerabilities ────────────────────────────────────────────────────
 
 async def handle_vulnerabilities(request: web.Request) -> web.Response:
-    """GET /api/vulnerabilities — CVE summary from Wazuh alerts."""
+    """GET /api/vulnerabilities - CVE summary from Wazuh alerts."""
     since = request.rel_url.query.get("since", "30d")
     data = await _db(request).get_vulnerability_summary(since=since)
     return _json_response(data)
 
 
 async def handle_vuln_correlation(request: web.Request) -> web.Response:
-    """GET /api/vulnerabilities/correlation — cross-reference Wazuh CVEs with Suricata exploits."""
+    """GET /api/vulnerabilities/correlation - cross-reference Wazuh CVEs with Suricata exploits."""
     days = int(request.rel_url.query.get("days", "30"))
     data = await _db(request).get_vuln_alert_correlation(days=days)
     return _json_response(data)
 
 
 async def handle_mitre_coverage(request: web.Request) -> web.Response:
-    """GET /api/mitre — MITRE ATT&CK coverage based on actual detections."""
+    """GET /api/mitre - MITRE ATT&CK coverage based on actual detections."""
     db = _db(request)
 
     # Static mapping: category patterns / correlation types → MITRE techniques
@@ -548,7 +548,7 @@ async def handle_mitre_coverage(request: web.Request) -> web.Response:
 # ── Audit Log ─────────────────────────────────────────────────────────────
 
 async def handle_audit_log(request: web.Request) -> web.Response:
-    """GET /api/audit-log — view action audit trail."""
+    """GET /api/audit-log - view action audit trail."""
     qs = request.rel_url.query
     limit = min(int(qs.get("limit", 100)), 500)
     offset = int(qs.get("offset", 0))
@@ -562,13 +562,13 @@ async def handle_audit_log(request: web.Request) -> web.Response:
 # ── Asset Inventory ───────────────────────────────────────────────────────
 
 async def handle_get_assets(request: web.Request) -> web.Response:
-    """GET /api/assets — list all known assets."""
+    """GET /api/assets - list all known assets."""
     assets = await _db(request).get_assets()
     return _json_response(assets)
 
 
 async def handle_get_asset(request: web.Request) -> web.Response:
-    """GET /api/assets/{id} — single asset detail."""
+    """GET /api/assets/{id} - single asset detail."""
     aid = request.match_info["id"]
     asset = await _db(request).get_asset(aid)
     if not asset:
@@ -577,7 +577,7 @@ async def handle_get_asset(request: web.Request) -> web.Response:
 
 
 async def handle_update_asset(request: web.Request) -> web.Response:
-    """PATCH /api/assets/{id} — update asset fields."""
+    """PATCH /api/assets/{id} - update asset fields."""
     aid = request.match_info["id"]
     body = await request.json()
     db = _db(request)
@@ -589,7 +589,7 @@ async def handle_update_asset(request: web.Request) -> web.Response:
 
 
 async def handle_create_asset(request: web.Request) -> web.Response:
-    """POST /api/assets — manually create an asset."""
+    """POST /api/assets - manually create an asset."""
     body = await request.json()
     ip = (body.get("ip") or "").strip()
     if not ip:
@@ -616,7 +616,7 @@ async def handle_create_asset(request: web.Request) -> web.Response:
 # ── Known Devices ─────────────────────────────────────────────────────────
 
 async def handle_known_devices(request: web.Request) -> web.Response:
-    """GET /api/devices — list all known MAC addresses."""
+    """GET /api/devices - list all known MAC addresses."""
     devices = await _db(request).get_known_devices()
     return _json_response(devices)
 
@@ -624,13 +624,13 @@ async def handle_known_devices(request: web.Request) -> web.Response:
 # ── System Admin ──────────────────────────────────────────────────────────
 
 async def handle_db_stats(request: web.Request) -> web.Response:
-    """GET /api/system/db-stats — database size and table counts."""
+    """GET /api/system/db-stats - database size and table counts."""
     stats = await _db(request).get_db_stats()
     return _json_response(stats)
 
 
 async def handle_backup(request: web.Request) -> web.Response:
-    """POST /api/system/backup — create database backup."""
+    """POST /api/system/backup - create database backup."""
     db = _db(request)
     try:
         path = await db.backup_database()
@@ -641,7 +641,7 @@ async def handle_backup(request: web.Request) -> web.Response:
 
 
 async def handle_system_health(request: web.Request) -> web.Response:
-    """GET /api/system/health — comprehensive system health."""
+    """GET /api/system/health - comprehensive system health."""
     import os
     import json
     from datetime import datetime, timezone
@@ -751,7 +751,7 @@ async def handle_system_health(request: web.Request) -> web.Response:
 # ── Storage Settings ─────────────────────────────────────────────────────────
 
 async def handle_get_storage_settings(request: web.Request) -> web.Response:
-    """GET /api/settings/storage — current storage config."""
+    """GET /api/settings/storage - current storage config."""
     daemon = request.app["daemon"]
     cfg = daemon.cfg.storage
     return _json_response({
@@ -762,7 +762,7 @@ async def handle_get_storage_settings(request: web.Request) -> web.Response:
 
 
 async def handle_patch_storage_settings(request: web.Request) -> web.Response:
-    """PATCH /api/settings/storage — update retention/backup settings (runtime only)."""
+    """PATCH /api/settings/storage - update retention/backup settings (runtime only)."""
     daemon = request.app["daemon"]
     data = await request.json()
     cfg = daemon.cfg.storage
@@ -786,7 +786,7 @@ async def handle_patch_storage_settings(request: web.Request) -> web.Response:
 # ── DHCP Lease History ────────────────────────────────────────────────────────
 
 async def handle_dhcp_history(request: web.Request) -> web.Response:
-    """GET /api/dhcp — DHCP lease history with optional IP/MAC filter."""
+    """GET /api/dhcp - DHCP lease history with optional IP/MAC filter."""
     qs = request.rel_url.query
     ip = qs.get("ip")
     mac = qs.get("mac")
@@ -796,7 +796,7 @@ async def handle_dhcp_history(request: web.Request) -> web.Response:
 
 
 async def handle_dhcp_changes(request: web.Request) -> web.Response:
-    """GET /api/dhcp/changes — IPs that changed MAC address (possible spoofing)."""
+    """GET /api/dhcp/changes - IPs that changed MAC address (possible spoofing)."""
     days = int(request.rel_url.query.get("days", 7))
     changes = await _db(request).get_dhcp_ip_changes(days=days)
     return _json_response({"changes": changes, "total": len(changes)})
@@ -805,7 +805,7 @@ async def handle_dhcp_changes(request: web.Request) -> web.Response:
 # ── Protocol / DNS Analytics ─────────────────────────────────────────────────
 
 async def handle_protocol_analytics(request: web.Request) -> web.Response:
-    """GET /api/analytics/protocols — alert breakdown by protocol, port, category, source."""
+    """GET /api/analytics/protocols - alert breakdown by protocol, port, category, source."""
     qs = request.rel_url.query
     since = qs.get("since")
     db = _db(request)
@@ -822,7 +822,7 @@ async def handle_protocol_analytics(request: web.Request) -> web.Response:
 
 
 async def handle_dns_analytics(request: web.Request) -> web.Response:
-    """GET /api/analytics/dns — DNS-specific alert analytics."""
+    """GET /api/analytics/dns - DNS-specific alert analytics."""
     since = request.rel_url.query.get("since")
     data = await _db(request).get_dns_analytics(since=since)
     return _json_response(data)
@@ -831,14 +831,14 @@ async def handle_dns_analytics(request: web.Request) -> web.Response:
 # ── Scheduled Reports ────────────────────────────────────────────────────────
 
 async def handle_get_report_summary(request: web.Request) -> web.Response:
-    """GET /api/reports/summary — generate activity summary for the last N hours."""
+    """GET /api/reports/summary - generate activity summary for the last N hours."""
     hours = int(request.rel_url.query.get("hours", 24))
     summary = await _db(request).get_report_summary(hours=hours)
     return _json_response(summary)
 
 
 async def handle_send_report_email(request: web.Request) -> web.Response:
-    """POST /api/reports/send — send an email report now."""
+    """POST /api/reports/send - send an email report now."""
     daemon = request.app["daemon"]
     hours = 24
     try:
@@ -858,7 +858,7 @@ async def handle_send_report_email(request: web.Request) -> web.Response:
 
     # Build the report email
     lines = [
-        "Security Shallots — Daily Report",
+        "Security Shallots - Daily Report",
         "=" * 40,
         f"Period: last {summary['period_hours']} hours",
         f"Total new alerts: {summary['total_alerts']}",
@@ -876,7 +876,7 @@ async def handle_send_report_email(request: web.Request) -> web.Response:
         lines.append(f"  [{item['count']}x] {item['title']}")
 
     body_text = "\n".join(lines)
-    subject = f"[Security Shallots] Daily Report — {summary['total_alerts']} alerts"
+    subject = f"[Security Shallots] Daily Report - {summary['total_alerts']} alerts"
 
     try:
         try:
@@ -895,7 +895,7 @@ async def handle_send_report_email(request: web.Request) -> web.Response:
 # ── pfSense IP Blocking ─────────────────────────────────────────────────────
 
 async def handle_block_ip(request: web.Request) -> web.Response:
-    """POST /api/firewall/block — block an IP via pfSense API."""
+    """POST /api/firewall/block - block an IP via pfSense API."""
     body = await request.json()
     ip = body.get("ip", "").strip()
     reason = body.get("reason", "Blocked by Security Shallots")
@@ -959,7 +959,7 @@ async def handle_block_ip(request: web.Request) -> web.Response:
 
 
 async def handle_unblock_ip(request: web.Request) -> web.Response:
-    """POST /api/firewall/unblock — remove an IP from the pfSense blocklist."""
+    """POST /api/firewall/unblock - remove an IP from the pfSense blocklist."""
     body = await request.json()
     ip = body.get("ip", "").strip()
     if not ip:
@@ -1087,7 +1087,7 @@ async def handle_test_detection(request: web.Request) -> web.Response:
         if ws_count > 0:
             await daemon._ws_broadcast({
                 "type": "test_detection",
-                "data": {"test_id": test_id, "message": "Pipeline test — alert injected successfully"},
+                "data": {"test_id": test_id, "message": "Pipeline test - alert injected successfully"},
             })
             results["stages"]["websocket"] = {"status": "pass", "clients": ws_count}
         else:

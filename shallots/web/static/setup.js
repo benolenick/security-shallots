@@ -1,5 +1,5 @@
 /**
- * Security Shallots — Setup Guide
+ * Security Shallots - Setup Guide
  * Tab-based onboarding overlay: Get Started, Agents, Manage, Troubleshoot.
  * Pattern: standalone overlay module (matches wiki.js).
  */
@@ -41,7 +41,7 @@ function isWazuhEnabled() {
 }
 
 function getRepoUrl() {
-  // Base URL for agent installer downloads — override via config if forked
+  // Base URL for agent installer downloads - override via config if forked
   return '${getRepoUrl()}';
 }
 
@@ -177,7 +177,7 @@ function renderTabStart() {
   `;
 }
 
-// ── Tab: Agents (hub — fleet status + install) ───────────────────────────────
+// ── Tab: Agents (hub - fleet status + install) ───────────────────────────────
 
 function renderTabAgents() {
   const ip = getServerIP();

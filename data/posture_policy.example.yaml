@@ -1,8 +1,8 @@
-# Security Shallots — posture policy (example)
+# Security Shallots - posture policy (example)
 #
 # Copy to data/posture_policy.yaml and edit for YOUR network. This file is
 # deep-merged over the built-in defaults, so you only need the keys you want to
-# change. data/posture_policy.yaml is gitignored — your real network layout
+# change. data/posture_policy.yaml is gitignored - your real network layout
 # never lands in version control.
 
 # Your LAN range. Used to decide what counts as "internal".
@@ -33,7 +33,7 @@ drift_targets:
   - {path: /etc/sudoers, kind: sudoers}
   - {path: /etc/crontab, kind: cron}
 
-# Decoy files. A read/touch of any of these is high-signal — nothing legitimate
+# Decoy files. A read/touch of any of these is high-signal - nothing legitimate
 # should ever open them.
 canaries:
   enabled: true

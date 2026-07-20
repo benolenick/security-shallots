@@ -1,4 +1,4 @@
-"""Argus TimeLock — total system isolation for a configurable duration.
+"""Argus TimeLock - total system isolation for a configurable duration.
 
 When a threat triggers LOCKDOWN, TimeLock:
 1. Disables all network adapters (no reverse shells, no C2, no exfil).
@@ -7,7 +7,7 @@ When a threat triggers LOCKDOWN, TimeLock:
 4. Starts a countdown timer.  System cannot be disarmed until the timer expires.
 5. Failed disarm attempts extend the timer.
 
-State is persisted in state.json so it survives reboots — the machine
+State is persisted in state.json so it survives reboots - the machine
 stays bricked for the full duration even if the attacker restarts it.
 """
 from __future__ import annotations
@@ -107,7 +107,7 @@ def check_timelock(state: dict) -> tuple[bool, int]:
 
     now = datetime.now(timezone.utc)
     if now >= expiry:
-        # Timer expired — auto-release
+        # Timer expired - auto-release
         return False, 0
 
     remaining = int((expiry - now).total_seconds())

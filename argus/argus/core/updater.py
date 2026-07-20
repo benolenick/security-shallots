@@ -1,4 +1,4 @@
-"""Argus self-update — git pull + restart when instructed by manager."""
+"""Argus self-update - git pull + restart when instructed by manager."""
 
 from __future__ import annotations
 

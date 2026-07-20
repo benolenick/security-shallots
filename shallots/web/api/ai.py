@@ -43,7 +43,7 @@ async def _build_ai_context(db, alert: dict, action: str,
             if rep:
                 reputation_section += (
                     f"\n{label} ({ip}) reputation: {rep.get('verdict', 'unknown')}"
-                    f" — VT: {rep.get('vt_malicious', 0)} malicious"
+                    f" - VT: {rep.get('vt_malicious', 0)} malicious"
                     f", AbuseIPDB: {rep.get('abuse_score', 0)}%"
                     f", Country: {rep.get('country', '?')}"
                     f", ISP: {rep.get('isp', '?')}"
@@ -196,7 +196,7 @@ async def _stream_ai_response(request, daemon, db, alert_id, action, ctx):
 
 
 async def handle_ai_consult(request: web.Request) -> web.Response:
-    """POST /api/alerts/{id}/ai/{action} — AI investigation actions."""
+    """POST /api/alerts/{id}/ai/{action} - AI investigation actions."""
     alert_id = request.match_info["id"]
     action = request.match_info["action"]
 
@@ -242,7 +242,7 @@ async def handle_ai_consult(request: web.Request) -> web.Response:
 # ── /api/settings/ai ─────────────────────────────────────────────────────────
 
 async def handle_get_ai_settings(request: web.Request) -> web.Response:
-    """GET /api/settings/ai — current AI configuration (secrets masked)."""
+    """GET /api/settings/ai - current AI configuration (secrets masked)."""
     cfg = request.app["daemon"].cfg.ai
     return _json_response({
         "tier": cfg.tier,
@@ -255,7 +255,7 @@ async def handle_get_ai_settings(request: web.Request) -> web.Response:
 
 
 async def handle_patch_ai_settings(request: web.Request) -> web.Response:
-    """PATCH /api/settings/ai — update AI config at runtime + persist to config.yaml."""
+    """PATCH /api/settings/ai - update AI config at runtime + persist to config.yaml."""
     try:
         body = await request.json()
     except Exception:
@@ -306,7 +306,7 @@ async def handle_patch_ai_settings(request: web.Request) -> web.Response:
 
 
 async def handle_ai_scan(request: web.Request) -> web.Response:
-    """POST /api/settings/ai/scan — auto-discover available LLM providers."""
+    """POST /api/settings/ai/scan - auto-discover available LLM providers."""
     providers = []
     cfg = request.app["daemon"].cfg.ai
 
@@ -376,7 +376,7 @@ async def handle_ai_scan(request: web.Request) -> web.Response:
 # ── AI Autopilot API ──────────────────────────────────────────────────────────
 
 async def handle_ai_status(request: web.Request) -> web.Response:
-    """GET /api/ai/status — current autopilot mode, stats, last action."""
+    """GET /api/ai/status - current autopilot mode, stats, last action."""
     db = _db(request)
     daemon = request.app["daemon"]
     stats = await db.get_ai_stats()
@@ -389,7 +389,7 @@ async def handle_ai_status(request: web.Request) -> web.Response:
 
 
 async def handle_ai_set_mode(request: web.Request) -> web.Response:
-    """POST /api/ai/mode — set autopilot mode (off/copilot/autopilot)."""
+    """POST /api/ai/mode - set autopilot mode (off/copilot/autopilot)."""
     daemon = request.app["daemon"]
     try:
         body = await request.json()
@@ -404,7 +404,7 @@ async def handle_ai_set_mode(request: web.Request) -> web.Response:
 
 
 async def handle_ai_decisions(request: web.Request) -> web.Response:
-    """GET /api/ai/decisions — paginated decision log."""
+    """GET /api/ai/decisions - paginated decision log."""
     db = _db(request)
     limit = int(request.query.get("limit", "50"))
     offset = int(request.query.get("offset", "0"))
@@ -413,14 +413,14 @@ async def handle_ai_decisions(request: web.Request) -> web.Response:
 
 
 async def handle_ai_suggestions(request: web.Request) -> web.Response:
-    """GET /api/ai/suggestions — pending copilot suggestions."""
+    """GET /api/ai/suggestions - pending copilot suggestions."""
     db = _db(request)
     suggestions = await db.get_ai_decisions(limit=50, status="pending")
     return _json_response(suggestions)
 
 
 async def handle_ai_suggestion_approve(request: web.Request) -> web.Response:
-    """POST /api/ai/suggestions/{id}/approve — approve a copilot suggestion."""
+    """POST /api/ai/suggestions/{id}/approve - approve a copilot suggestion."""
     db = _db(request)
     daemon = request.app["daemon"]
     decision_id = request.match_info["id"]
@@ -457,7 +457,7 @@ async def handle_ai_suggestion_approve(request: web.Request) -> web.Response:
 
 
 async def handle_ai_suggestion_reject(request: web.Request) -> web.Response:
-    """POST /api/ai/suggestions/{id}/reject — reject a copilot suggestion."""
+    """POST /api/ai/suggestions/{id}/reject - reject a copilot suggestion."""
     db = _db(request)
     daemon = request.app["daemon"]
     decision_id = request.match_info["id"]
@@ -470,14 +470,14 @@ async def handle_ai_suggestion_reject(request: web.Request) -> web.Response:
 
 
 async def handle_ai_squawks(request: web.Request) -> web.Response:
-    """GET /api/ai/squawks — active (undismissed) squawks."""
+    """GET /api/ai/squawks - active (undismissed) squawks."""
     db = _db(request)
     squawks = await db.get_active_squawks()
     return _json_response(squawks)
 
 
 async def handle_ai_squawk_dismiss(request: web.Request) -> web.Response:
-    """POST /api/ai/squawks/{id}/dismiss — dismiss a squawk."""
+    """POST /api/ai/squawks/{id}/dismiss - dismiss a squawk."""
     db = _db(request)
     daemon = request.app["daemon"]
     squawk_id = request.match_info["id"]
@@ -490,14 +490,14 @@ async def handle_ai_squawk_dismiss(request: web.Request) -> web.Response:
 
 
 async def handle_ai_reports(request: web.Request) -> web.Response:
-    """GET /api/ai/reports — shift reports list."""
+    """GET /api/ai/reports - shift reports list."""
     db = _db(request)
     reports = await db.get_shift_reports(limit=20)
     return _json_response(reports)
 
 
 async def handle_ai_report_detail(request: web.Request) -> web.Response:
-    """GET /api/ai/reports/{id} — single shift report."""
+    """GET /api/ai/reports/{id} - single shift report."""
     db = _db(request)
     report_id = request.match_info["id"]
     report = await db.get_shift_report(report_id)
@@ -507,7 +507,7 @@ async def handle_ai_report_detail(request: web.Request) -> web.Response:
 
 
 async def handle_ai_verdicts(request: web.Request) -> web.Response:
-    """GET /api/ai/verdicts — learned verdict patterns."""
+    """GET /api/ai/verdicts - learned verdict patterns."""
     db = _db(request)
     verdicts = await db.get_ai_verdicts(limit=100)
     return _json_response(verdicts)
@@ -516,7 +516,7 @@ async def handle_ai_verdicts(request: web.Request) -> web.Response:
 # ── Investigations (JTTW) ─────────────────────────────────────────────────────
 
 async def handle_run_investigation(request: web.Request) -> web.Response:
-    """POST /api/investigations/run — Trigger deep AI investigation."""
+    """POST /api/investigations/run - Trigger deep AI investigation."""
     daemon = request.app["daemon"]
     db = daemon.db
 
@@ -546,7 +546,7 @@ async def handle_run_investigation(request: web.Request) -> web.Response:
 
 
 async def handle_get_investigation(request: web.Request) -> web.Response:
-    """GET /api/investigations/{id} — Get investigation report."""
+    """GET /api/investigations/{id} - Get investigation report."""
     inv_id = request.match_info["id"]
     inv = await _db(request).get_investigation(inv_id)
     if not inv:
@@ -555,7 +555,7 @@ async def handle_get_investigation(request: web.Request) -> web.Response:
 
 
 async def handle_list_investigations(request: web.Request) -> web.Response:
-    """GET /api/investigations — List past investigations."""
+    """GET /api/investigations - List past investigations."""
     limit = min(int(request.query.get("limit", "20")), 100)
     investigations = await _db(request).get_recent_investigations(limit=limit)
     return _json_response(investigations)
@@ -564,7 +564,7 @@ async def handle_list_investigations(request: web.Request) -> web.Response:
 # ── /api/wiki ─────────────────────────────────────────────────────────────────
 
 async def handle_wiki_stats(request: web.Request) -> web.Response:
-    """GET /api/wiki/stats — aggregate stats for a wiki article's alert type."""
+    """GET /api/wiki/stats - aggregate stats for a wiki article's alert type."""
     qs = request.rel_url.query
     source = qs.get("source") or None
     category = qs.get("category") or None
@@ -595,7 +595,7 @@ async def handle_wiki_stats(request: web.Request) -> web.Response:
 
 
 async def handle_wiki_recent(request: web.Request) -> web.Response:
-    """GET /api/wiki/recent — recent alerts for a wiki article's alert type."""
+    """GET /api/wiki/recent - recent alerts for a wiki article's alert type."""
     qs = request.rel_url.query
     source = qs.get("source") or None
     category = qs.get("category") or None
@@ -632,7 +632,7 @@ async def handle_wiki_recent(request: web.Request) -> web.Response:
 
 
 async def handle_wiki_ai(request: web.Request) -> web.Response:
-    """POST /api/wiki/ai — ask AI about a wiki topic."""
+    """POST /api/wiki/ai - ask AI about a wiki topic."""
     try:
         body = await request.json()
     except Exception:

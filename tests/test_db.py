@@ -1,4 +1,4 @@
-"""Tests for shallots.store.db.AlertDB — async SQLite backend."""
+"""Tests for shallots.store.db.AlertDB - async SQLite backend."""
 
 from __future__ import annotations
 

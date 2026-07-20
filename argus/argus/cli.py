@@ -195,12 +195,12 @@ def cmd_disarm(args: argparse.Namespace) -> int:
         print("Argus already off.")
         return 0
 
-    # TimeLock check — cannot disarm while timelocked
+    # TimeLock check - cannot disarm while timelocked
     if is_timelocked(st):
         locked, remaining = check_timelock(st)
         mins = remaining // 60
         secs = remaining % 60
-        print(f"TIMELOCK ACTIVE — system isolated for {mins}m {secs}s more.")
+        print(f"TIMELOCK ACTIVE - system isolated for {mins}m {secs}s more.")
         print("Cannot disarm until timelock expires.")
         print("Network adapters are disabled. Do not attempt to bypass.")
         return 1
@@ -249,7 +249,7 @@ def cmd_disarm(args: argparse.Namespace) -> int:
             _handle_failed_disarm(cfg, st, state_store, sms)
             return 1
 
-    # ── Step 3: Fallback — if neither PIN nor SMS, use legacy code flow ──
+    # ── Step 3: Fallback - if neither PIN nor SMS, use legacy code flow ──
     if not pin_configured and not sms_configured:
         code = (getattr(args, "code", "") or "").strip()
         if not code:
@@ -257,7 +257,7 @@ def cmd_disarm(args: argparse.Namespace) -> int:
             if not code:
                 print("No code entered. Argus remains active.")
                 return 1
-        # Without PIN or SMS, we can't verify — just accept any input
+        # Without PIN or SMS, we can't verify - just accept any input
         # (user should configure at least one auth method)
         print("WARNING: No PIN or SMS configured. Set a PIN with: argus set-pin")
 

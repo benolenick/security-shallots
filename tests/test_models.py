@@ -1,4 +1,4 @@
-"""Tests for shallots.store.models — Alert dataclass and enums."""
+"""Tests for shallots.store.models - Alert dataclass and enums."""
 
 from __future__ import annotations
 

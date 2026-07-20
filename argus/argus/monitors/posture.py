@@ -1,4 +1,4 @@
-"""Security posture monitor — hourly audit of BitLocker, Secure Boot, and UAC.
+"""Security posture monitor - hourly audit of BitLocker, Secure Boot, and UAC.
 
 Unlike change-detection monitors, this audits absolute posture:
   - On first poll: checks all items and alerts on anything currently weak.
@@ -6,9 +6,9 @@ Unlike change-detection monitors, this audits absolute posture:
     the previous check).  Recovery (improvement) silently clears the state.
 
 Checks:
-  1. BitLocker    — C: drive protection status (ProtectionStatus 0 = Off)
-  2. Secure Boot  — Confirm-SecureBootUEFI (True/False/unavailable)
-  3. UAC          — EnableLUA and ConsentPromptBehaviorAdmin registry values
+  1. BitLocker    - C: drive protection status (ProtectionStatus 0 = Off)
+  2. Secure Boot  - Confirm-SecureBootUEFI (True/False/unavailable)
+  3. UAC          - EnableLUA and ConsentPromptBehaviorAdmin registry values
 """
 
 from __future__ import annotations
@@ -75,7 +75,7 @@ class PostureMonitor:
                 out.append(ThreatSignal(
                     event_type="posture_risk",
                     title="Disk encryption (LUKS) not active",
-                    description="No LUKS/dm-crypt volume detected — data may be readable without authentication",
+                    description="No LUKS/dm-crypt volume detected - data may be readable without authentication",
                     severity="high",
                     confidence=0.9,
                     category="defense_evasion",
@@ -89,7 +89,7 @@ class PostureMonitor:
                 out.append(ThreatSignal(
                     event_type="posture_risk",
                     title="BitLocker: OS drive is NOT encrypted",
-                    description="Drive C: is not BitLocker-protected — data is readable without authentication",
+                    description="Drive C: is not BitLocker-protected - data is readable without authentication",
                     severity="high",
                     confidence=0.9,
                     category="defense_evasion",
@@ -105,7 +105,7 @@ class PostureMonitor:
             out.append(ThreatSignal(
                 event_type="posture_risk",
                 title="Secure Boot is disabled",
-                description="Secure Boot is OFF — unsigned bootloaders and bootkits can execute at startup",
+                description="Secure Boot is OFF - unsigned bootloaders and bootkits can execute at startup",
                 severity="medium",
                 confidence=0.9,
                 category="defense_evasion",
@@ -122,7 +122,7 @@ class PostureMonitor:
                 out.append(ThreatSignal(
                     event_type="posture_risk",
                     title="Root account direct login is enabled",
-                    description="Root account has an unlocked password — direct root login is possible",
+                    description="Root account has an unlocked password - direct root login is possible",
                     severity="medium",
                     confidence=0.9,
                     category="defense_evasion",
@@ -136,7 +136,7 @@ class PostureMonitor:
                 out.append(ThreatSignal(
                     event_type="posture_risk",
                     title="UAC is fully disabled (EnableLUA=0)",
-                    description="User Account Control is disabled — all processes run with full admin rights",
+                    description="User Account Control is disabled - all processes run with full admin rights",
                     severity="medium",
                     confidence=0.9,
                     category="defense_evasion",
@@ -153,7 +153,7 @@ class PostureMonitor:
                     event_type="posture_risk",
                     title="UAC consent prompt is disabled for admins",
                     description=(
-                        "ConsentPromptBehaviorAdmin=0 — admin operations silently elevate "
+                        "ConsentPromptBehaviorAdmin=0 - admin operations silently elevate "
                         "without any prompt, removing a key malware barrier"
                     ),
                     severity="medium",
@@ -261,7 +261,7 @@ class PostureMonitor:
                     event_type="posture_risk",
                     title="UAC consent prompt silenced for admins",
                     description=(
-                        "ConsentPromptBehaviorAdmin changed to 0 — "
+                        "ConsentPromptBehaviorAdmin changed to 0 - "
                         "admin elevation now happens silently without any user prompt"
                     ),
                     severity="medium",
@@ -368,7 +368,7 @@ class PostureMonitor:
         """Check if root direct login is locked (Linux equivalent of UAC).
 
         Returns uac_enabled (True = root login locked = good, False = root login enabled = bad)
-        and uac_consent (None on Linux — not applicable).
+        and uac_consent (None on Linux - not applicable).
         """
         result: dict[str, object] = {"uac_enabled": None, "uac_consent": None}
 

@@ -1,4 +1,4 @@
-"""Edge-Grounded Triage — the experimental core.
+"""Edge-Grounded Triage - the experimental core.
 
 A local small-LLM triage grader for ONE specific network that grounds its verdict in
 (a) the operator's OWN past dispositions (retrieved by semantic similarity) and
@@ -9,7 +9,7 @@ Run two ways for the shadow experiment:
   - PLAIN:    the same alert, no retrieval, no baseline (the A/B control).
 
 Novel, measurable claim: grounded beats plain and the gap GROWS as the operator's
-disposition memory accumulates — without silently missing threats (audited separately).
+disposition memory accumulates - without silently missing threats (audited separately).
 See docs/EDGE_TRIAGE_SIGIL.md.
 """
 from __future__ import annotations
@@ -27,7 +27,7 @@ log = logging.getLogger(__name__)
 
 async def _ollama_grade(system: str, user: str, model: str, base_url: str,
                         timeout: float = 30.0) -> str:
-    """Direct Ollama call with THINKING DISABLED (qwen3 is a thinking model — leaving
+    """Direct Ollama call with THINKING DISABLED (qwen3 is a thinking model - leaving
     it on makes each grade 8s+; off it's ~1s and emits clean JSON). Never raises."""
     payload = {
         "model": model,
@@ -61,7 +61,7 @@ _SYS_GROUNDED = (
     "Use (1) how the OPERATOR handled similar alerts before and (2) what is NORMAL for the "
     "involved host. Use the operator's history ONLY to DOWNGRADE genuinely-ambiguous, benign-"
     "LOOKING activity (their own cron/scrapers/logins). "
-    "HARD RULE — history NEVER outweighs a concrete threat signal: if the alert names a known-"
+    "HARD RULE - history NEVER outweighs a concrete threat signal: if the alert names a known-"
     "malware domain / threat-intel feed match, a malicious-reputation IP, or a brute-force / C2 / "
     "beaconing pattern, ESCALATE regardless of what was suppressed before. A host being usually-"
     "benign does NOT make a malware hit on that host benign. "
@@ -70,7 +70,7 @@ _SYS_GROUNDED = (
 )
 
 # Deterministic safety floor: phrases that indicate a HARD threat signal. Grounding
-# must never suppress these — this is the "dumb reliable" layer under the model.
+# must never suppress these - this is the "dumb reliable" layer under the model.
 _HARD_THREAT_MARKERS = (
     "known-malware", "malware domain", "malware feed", "malware-domain", "urlhaus",
     "threat-intel", "brute force", "brute-force", "c2", "beacon", "command-and-control",
@@ -123,7 +123,7 @@ def _parse(text: str) -> dict:
 async def host_baseline(db, host: str, days: int = 7) -> str:
     """A cheap, factual 'what's normal for this host' string from recent alerts."""
     if not host:
-        return "unknown host — no baseline."
+        return "unknown host - no baseline."
     try:
         rows = await db.execute_sql(
             "SELECT category, COUNT(*) n FROM alerts WHERE src_asset = ? "

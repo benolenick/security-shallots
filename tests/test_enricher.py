@@ -1,4 +1,4 @@
-"""Tests for shallots.pipeline.enricher — IP classification and hash extraction."""
+"""Tests for shallots.pipeline.enricher - IP classification and hash extraction."""
 
 from __future__ import annotations
 

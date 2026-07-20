@@ -1,4 +1,4 @@
-"""Remote log shipper — sends alerts to Elasticsearch or VictoriaLogs."""
+"""Remote log shipper - sends alerts to Elasticsearch or VictoriaLogs."""
 
 from __future__ import annotations
 

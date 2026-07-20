@@ -143,7 +143,7 @@ def create_app(daemon: Daemon) -> web.Application:
     # Fail-safe: never expose an unauthenticated dashboard on a non-loopback
     # interface. Without credentials the API (which includes config writes,
     # firewall actions, and runbook execution) would be open to the whole LAN.
-    # Refuse rather than silently exposing it — the operator must either bind to
+    # Refuse rather than silently exposing it - the operator must either bind to
     # loopback or set web.username/web.password.
     _LOOPBACK = {"127.0.0.1", "::1", "localhost", ""}
     if not has_auth and str(web_cfg.host) not in _LOOPBACK:

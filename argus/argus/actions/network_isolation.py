@@ -49,7 +49,7 @@ def _run_cmd(args: list[str], timeout: int = 30) -> tuple[int, str]:
 def isolate_network() -> bool:
     """Kill all network connectivity.
 
-    Windows: Two layers — disable adapters + firewall block-all rules.
+    Windows: Two layers - disable adapters + firewall block-all rules.
     Linux: iptables DROP rules on INPUT/OUTPUT (preserving loopback).
 
     Returns True if isolation was successfully applied.
@@ -109,7 +109,7 @@ def _isolate_network_linux() -> bool:
     ]:
         rc, out = _run_cmd(args)
         if rc != 0:
-            log.error("iptables command failed: %s — %s", args, out)
+            log.error("iptables command failed: %s - %s", args, out)
             success = False
 
     if success:
@@ -171,8 +171,8 @@ def _restore_network_linux() -> bool:
     ]:
         rc, out = _run_cmd(args)
         if rc != 0:
-            log.warning("iptables delete may have already been removed: %s — %s", args, out)
-            # Not necessarily a failure — rule may already be gone
+            log.warning("iptables delete may have already been removed: %s - %s", args, out)
+            # Not necessarily a failure - rule may already be gone
 
     # Remove the loopback ACCEPT rules we added
     for args in [
@@ -181,7 +181,7 @@ def _restore_network_linux() -> bool:
     ]:
         rc, out = _run_cmd(args)
         if rc != 0:
-            log.warning("loopback rule removal: %s — %s", args, out)
+            log.warning("loopback rule removal: %s - %s", args, out)
 
     log.info("Linux network isolation rules removed")
     return success

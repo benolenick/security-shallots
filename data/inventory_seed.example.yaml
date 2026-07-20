@@ -4,13 +4,13 @@
 #
 # Keyed by MAC (lowercase) so DHCP address churn never reclassifies a device.
 # Tiers, most-privileged first:
-#   crown  — approval authority (the device that says "yes")
-#   vault  — credential authority (mints short-lived secrets)
-#   core   — infrastructure you own/operate
-#   daily  — personal daily-use machines
-#   iot    — appliances (printers, speakers, TVs, cameras)
-#   guest  — transient but known-benign
-#   unknown— unclassified; surfaces for a human look
+#   crown  - approval authority (the device that says "yes")
+#   vault  - credential authority (mints short-lived secrets)
+#   core   - infrastructure you own/operate
+#   daily  - personal daily-use machines
+#   iot    - appliances (printers, speakers, TVs, cameras)
+#   guest  - transient but known-benign
+#   unknown- unclassified; surfaces for a human look
 #
 # Edit freely. `shallot inventory scan` re-applies this on every run.
 
@@ -28,4 +28,4 @@ rules:
   - {match: {vendor_contains: amazon},  tier: iot,   role: "amazon device"}
   - {match: {os_guess: apple},          tier: daily, role: "apple device (unseeded)"}
   - {match: {os_guess: windows},        tier: daily, role: "windows device (unseeded)"}
-  # Unseeded linux hosts stay 'unknown' on purpose — they should get a human look.
+  # Unseeded linux hosts stay 'unknown' on purpose - they should get a human look.

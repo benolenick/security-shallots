@@ -9,7 +9,7 @@ locally.
 
 HONEST LIMIT: reduces IDENTIFIER leakage, NOT anonymization. Behavior/timing/
 preserved-semantics still leak; tier=local is the only no-leak path. Aggressive
-masking can also over-mask (e.g. a version string that parses as an IP) — that's
+masking can also over-mask (e.g. a version string that parses as an IP) - that's
 the deliberate fail-safe trade.
 """
 from __future__ import annotations

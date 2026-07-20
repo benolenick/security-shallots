@@ -17,20 +17,20 @@ def _load_config_safe(path: str | None):
     try:
         return load_config(path)
     except FileNotFoundError as e:
-        print(f"Error: config file not found — {e}", file=sys.stderr)
+        print(f"Error: config file not found - {e}", file=sys.stderr)
         sys.exit(1)
     except yaml.YAMLError as e:
-        print(f"Error: invalid YAML in config — {e}", file=sys.stderr)
+        print(f"Error: invalid YAML in config - {e}", file=sys.stderr)
         sys.exit(1)
     except Exception as e:
-        print(f"Error: could not load config — {e}", file=sys.stderr)
+        print(f"Error: could not load config - {e}", file=sys.stderr)
         sys.exit(1)
 
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         prog="shallot",
-        description="Security Shallots — AI-augmented security monitoring",
+        description="Security Shallots - AI-augmented security monitoring",
     )
     parser.add_argument("-V", "--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("-c", "--config", help="Path to config.yaml")
@@ -60,7 +60,7 @@ def main(argv: list[str] | None = None) -> None:
     sub.add_parser("doctor", help="Diagnose common issues (DB, Suricata, agents, disk)")
 
     # shallot jttw / investigate
-    jttw_p = sub.add_parser("jttw", help="Jesus Take The Wheel — AI deep investigation",
+    jttw_p = sub.add_parser("jttw", help="Jesus Take The Wheel - AI deep investigation",
                             aliases=["investigate"])
     jttw_p.add_argument("--since", default="24h", help="Time window (default: 24h)")
     jttw_p.add_argument("--severity", default="medium", help="Min severity (default: medium)")
@@ -73,7 +73,7 @@ def main(argv: list[str] | None = None) -> None:
     actx_p = sub.add_parser("agent-context", help="Print full alert context JSON for an agent")
     actx_p.add_argument("alert_id", help="Alert ID")
 
-    # shallot ladder — tiered AI escalation ladder
+    # shallot ladder - tiered AI escalation ladder
     ladder_p = sub.add_parser(
         "ladder", help="Tiered AI escalation ladder (qwen3 → Haiku → Sonnet → Opus)")
     ladder_sub = ladder_p.add_subparsers(dest="ladder_action")
@@ -144,9 +144,9 @@ def _cmd_ladder(args) -> None:
     elif action == "test-auth":
         try:
             res = ladder.brain.self_test()
-            print(f"OK — {res.model} replied {res.text!r} in {res.latency_ms}ms")
+            print(f"OK - {res.model} replied {res.text!r} in {res.latency_ms}ms")
         except Exception as e:  # noqa: BLE001
-            print(f"FAILED — {e}", file=sys.stderr)
+            print(f"FAILED - {e}", file=sys.stderr)
             sys.exit(1)
     else:
         print("usage: shallot ladder {build|run --tier|status|test-auth}", file=sys.stderr)
@@ -296,7 +296,7 @@ async def _run_jttw(cfg, since: str, severity: str, auto_verdict: bool) -> None:
         )
 
         print(f"\n{'=' * 60}")
-        print(f"JTTW Investigation Report — {report.created_at}")
+        print(f"JTTW Investigation Report - {report.created_at}")
         print(f"Window: {report.since_window} | Alerts: {report.alert_count} | Model: {report.model}")
         print(f"Latency: {report.latency_ms}ms | Verdicts applied: {report.verdicts_applied}")
         print(f"{'=' * 60}\n")
@@ -317,7 +317,7 @@ async def _run_jttw(cfg, since: str, severity: str, auto_verdict: bool) -> None:
         if report.verdicts:
             print(f"VERDICTS ({len(report.verdicts)})")
             for v in report.verdicts:
-                print(f"  {v.alert_id[:12]}... → {v.verdict} — {v.reasoning[:80]}")
+                print(f"  {v.alert_id[:12]}... → {v.verdict} - {v.reasoning[:80]}")
             print()
 
         if report.recommendations:
@@ -507,7 +507,7 @@ def _cmd_setup(args) -> None:
         print("Delete it first if you want to regenerate.")
         sys.exit(1)
 
-    print("Security Shallots — Quick Setup")
+    print("Security Shallots - Quick Setup")
     print("=" * 40)
 
     # Detect home CIDR
@@ -570,7 +570,7 @@ def _cmd_setup(args) -> None:
     retention = args.retention
 
     # Write config
-    config_content = f"""# Security Shallots — auto-generated config
+    config_content = f"""# Security Shallots - auto-generated config
 # Edit to taste, then run: shallot run
 
 profile: auto
@@ -593,7 +593,7 @@ web:
   # username: "admin"
   # password: "changeme"
 
-# AI triage (optional — uncomment one):
+# AI triage (optional - uncomment one):
 # ai:
 #   tier: remote_api
 #   anthropic_api_key: "sk-ant-..."

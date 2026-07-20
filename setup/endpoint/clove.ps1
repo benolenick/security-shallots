@@ -1,15 +1,15 @@
 #Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-    Clove — Security Shallots Windows Endpoint Installer
+    Clove - Security Shallots Windows Endpoint Installer
 .DESCRIPTION
     One-command deployment of Argus (Python endpoint monitor) + optional Wazuh agent (Clove).
     Configures webhook reporting to a central shallotd server.
 .EXAMPLE
-    # Minimal — Argus only:
+    # Minimal - Argus only:
     .\clove.ps1 -Manager <manager-ip>
 
-    # Full — Argus + Clove (Wazuh agent):
+    # Full - Argus + Clove (Wazuh agent):
     .\clove.ps1 -Manager <manager-ip> -Wazuh
 
     # Or via IEX one-liner (run as admin):
@@ -64,7 +64,7 @@ function Show-Banner {
   | |   | |/ _ \ \ / / _ \
   | |___| | (_) \ V /  __/
    \____|_|\___/ \_/ \___|
-   Security Shallots — Windows Endpoint
+   Security Shallots - Windows Endpoint
 
 "@ -ForegroundColor Yellow
 }
@@ -393,7 +393,7 @@ if (`$counter % 10 -eq 0) {
 # Check if process is alive
 `$pid = `$state.monitor_pid
 if (`$pid -and (Get-Process -Id `$pid -ErrorAction SilentlyContinue)) { exit }
-# Process dead — restart
+# Process dead - restart
 & $Python -m argus --config "$ArgusDir\config.toml" on 2>`$null
 "@
     $watchdogPath = Join-Path $ArgusDir "watchdog.ps1"

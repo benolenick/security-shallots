@@ -36,7 +36,7 @@ try:
     HAS_SKLEARN = True
 except ImportError:
     HAS_SKLEARN = False
-    log.warning("scikit-learn not installed — ML anomaly detection will use heuristic fallback")
+    log.warning("scikit-learn not installed - ML anomaly detection will use heuristic fallback")
 
 _RETRAIN_INTERVAL_SEC = 6 * 3600  # 6 hours
 _TRAINING_WINDOW_DAYS = 7
@@ -531,7 +531,7 @@ class MLDetectorEngine:
         else:
             stats["device_classifier"] = {"trained": False, "reason": "no baselines"}
 
-        log.info("ML: retrain complete — %s", json.dumps(stats))
+        log.info("ML: retrain complete - %s", json.dumps(stats))
         return stats
 
     # ── Prediction ────────────────────────────────────────────

@@ -1,4 +1,4 @@
-"""Windows Event Log monitor — Security, System, Defender, Firewall.
+"""Windows Event Log monitor - Security, System, Defender, Firewall.
 
 Polls multiple event logs for high-value security events and maps them
 to ThreatSignals for the Argus pipeline.
@@ -17,7 +17,7 @@ from .types import ThreatSignal
 
 # ── Event ID registries per log ──────────────────────────────────────────
 
-# Security log — IDs passed via config (user-customizable) plus these extras
+# Security log - IDs passed via config (user-customizable) plus these extras
 SECURITY_EXTRA_IDS = [
     4648,  # Explicit credential use (runas / pass-the-hash)
     4672,  # Special privileges assigned to new logon (admin used)
@@ -205,7 +205,7 @@ class WindowsEventsMonitor:
         if (cursor is None
                 or cursor[0] != st.st_ino
                 or cursor[1] > st.st_size):
-            # First read OR rotation OR truncation — start from current end so
+            # First read OR rotation OR truncation - start from current end so
             # we don't replay history on first boot.
             cursor = (st.st_ino, 0 if cursor is None else 0)
             # On first ever read, jump to EOF so we only see new events going
@@ -357,7 +357,7 @@ class WindowsEventsMonitor:
             return ThreatSignal(
                 event_type="audit_tamper",
                 title="Security audit log cleared",
-                description="Security audit log was cleared — possible evidence destruction",
+                description="Security audit log was cleared - possible evidence destruction",
                 severity="critical",
                 confidence=1.0,
                 category="defense_evasion",
@@ -409,7 +409,7 @@ class WindowsEventsMonitor:
             return ThreatSignal(
                 event_type="audit_tamper",
                 title="System audit policy changed",
-                description=msg[:300] if msg else "Audit policy was modified — attacker may be disabling logging",
+                description=msg[:300] if msg else "Audit policy was modified - attacker may be disabling logging",
                 severity="critical",
                 confidence=0.9,
                 category="defense_evasion",
@@ -426,7 +426,7 @@ class WindowsEventsMonitor:
                 return ThreatSignal(
                     event_type="kerberoast",
                     title="Kerberos TGS request with RC4 (possible kerberoasting)",
-                    description=msg[:300] if msg else "TGS request using weak RC4 encryption — may indicate kerberoasting",
+                    description=msg[:300] if msg else "TGS request using weak RC4 encryption - may indicate kerberoasting",
                     severity="high",
                     confidence=0.8,
                     category="credential_access",
@@ -458,7 +458,7 @@ class WindowsEventsMonitor:
             return ThreatSignal(
                 event_type="audit_tamper",
                 title="System event log cleared",
-                description="System event log was cleared — possible evidence destruction",
+                description="System event log was cleared - possible evidence destruction",
                 severity="critical",
                 confidence=1.0,
                 category="defense_evasion",
@@ -514,7 +514,7 @@ class WindowsEventsMonitor:
             return ThreatSignal(
                 event_type="defender_tamper",
                 title="Defender: tamper protection DISABLED",
-                description="Windows Defender tamper protection was turned off — possible attacker activity",
+                description="Windows Defender tamper protection was turned off - possible attacker activity",
                 severity="critical",
                 confidence=1.0,
                 category="defense_evasion",
@@ -526,7 +526,7 @@ class WindowsEventsMonitor:
             return ThreatSignal(
                 event_type="defender_config_change",
                 title="Defender: configuration changed",
-                description=msg[:500] if msg else f"Defender config event {event_id} — check for new exclusions",
+                description=msg[:500] if msg else f"Defender config event {event_id} - check for new exclusions",
                 severity="medium",
                 confidence=0.8,
                 category="defense_evasion",
@@ -552,10 +552,10 @@ class WindowsEventsMonitor:
     # ── Specialized mappers ──────────────────────────────────────────
 
     def _map_process_creation(self, item: dict, msg: str, ts: str) -> ThreatSignal | None:
-        """Map Event ID 4688 — process creation with command line analysis."""
+        """Map Event ID 4688 - process creation with command line analysis."""
         msg_lower = msg.lower()
 
-        # Check for ransomware indicators (CRITICAL — act immediately)
+        # Check for ransomware indicators (CRITICAL - act immediately)
         for pattern in _RANSOMWARE_PATTERNS:
             if pattern.search(msg):
                 return ThreatSignal(
@@ -598,11 +598,11 @@ class WindowsEventsMonitor:
                 timestamp=ts,
             )
 
-        # Generic 4688 — log but at low severity (high volume when enabled)
+        # Generic 4688 - log but at low severity (high volume when enabled)
         return None  # Skip generic process creation to avoid noise
 
     def _map_logon(self, item: dict, msg: str, ts: str) -> ThreatSignal | None:
-        """Map Event ID 4624 — only report interesting logon types."""
+        """Map Event ID 4624 - only report interesting logon types."""
         # Type 10 = RDP, Type 3 = Network (SMB/WMI/PsExec)
         # We only care about Type 10 (RDP) since Type 3 is very noisy
         if "Logon Type:\t\t10" in msg or "Logon Type:  10" in msg or "LogonType.*10" in msg:
@@ -646,7 +646,7 @@ class WindowsEventsMonitor:
             if event_id == 1117 and action_name:
                 title += f" ({action_name})"
             elif event_id in {1118, 1119}:
-                title += " — remediation FAILED"
+                title += " - remediation FAILED"
 
         desc_parts = []
         if threat_name:

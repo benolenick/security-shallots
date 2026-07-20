@@ -1,4 +1,4 @@
-"""Standalone CLI for the device census — `python -m shallots.inventory ...`.
+"""Standalone CLI for the device census - `python -m shallots.inventory ...`.
 
 Kept independent of the main `shallot` CLI/daemon for Phase 1 so it can be
 proven on the LAN without touching the live control plane. Wiring into
@@ -126,9 +126,9 @@ def _print_table(rows: list[dict]) -> None:
             cur = d["tier"]
         g = _TIER_GLYPH.get(d["tier"], " ")
         ports = ",".join(str(p) for p in d["open_ports"][:8])
-        name = d["hostname"] or d["role"] or "—"
-        print(f"{g:2} {d['tier']:7} {d['ip'] or '—':15} {name[:22]:22} "
-              f"{d['os_guess'][:10]:10} {(d['vendor'] or '—')[:22]:22} {ports}")
+        name = d["hostname"] or d["role"] or "-"
+        print(f"{g:2} {d['tier']:7} {d['ip'] or '-':15} {name[:22]:22} "
+              f"{d['os_guess'][:10]:10} {(d['vendor'] or '-')[:22]:22} {ports}")
 
 
 def cmd_list(args) -> int:

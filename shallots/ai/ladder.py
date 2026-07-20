@@ -1,4 +1,4 @@
-"""The Escalation Ladder — a tiered AI SOC-analyst pipeline.
+"""The Escalation Ladder - a tiered AI SOC-analyst pipeline.
 
 Design (operator's spec):
 
@@ -11,16 +11,16 @@ Design (operator's spec):
                                           Only Opus may PING the operator.
 
 The load-bearing idea: **each rung reads only the distilled output of the rung
-below**, never the raw alert firehose. So Opus typically sees 0–2 cases per run,
+below**, never the raw alert firehose. So Opus typically sees 0-2 cases per run,
 which makes the whole ladder cost a rounding error even on subscription quota.
 
-Every rung may *close* a case (dismiss / resolve) as well as *promote* it — a
+Every rung may *close* a case (dismiss / resolve) as well as *promote* it - a
 higher tier closing something is the signal that the lower tier over-reacted.
 The full model-by-model reasoning chain is persisted on each case, which doubles
 as the audit trail and the training/eval corpus for tuning the funnel later.
 
 Implementation notes:
-  * Fully decoupled from the async daemon — the ladder runs as short-lived
+  * Fully decoupled from the async daemon - the ladder runs as short-lived
     CLI/timer processes over the same SQLite DB, in its own ``escalations`` table
     the daemon never touches. Zero risk to the live pipeline.
   * Claude tiers go through the operator's OAuth login (see ``oauth_brain``);
@@ -57,7 +57,7 @@ def _cutoff_iso(minutes: int) -> str:
 def _as_float(value: Any, default: float) -> float:
     """Coerce a model-supplied confidence to float; never raise.
 
-    Models occasionally return "high"/"0.9 (approx)"/None — a bare float() here
+    Models occasionally return "high"/"0.9 (approx)"/None - a bare float() here
     wedged the case open and burned a Claude call every cycle retrying it.
     """
     try:
@@ -358,7 +358,7 @@ class Ladder:
             obj = self._ollama_json(_DISTILL_SYSTEM, user)
         except Exception as exc:  # noqa: BLE001
             # If qwen is unavailable, fail safe by escalating (let Haiku decide).
-            log.warning("distill: ollama failed (%s) — escalating conservatively", exc)
+            log.warning("distill: ollama failed (%s) - escalating conservatively", exc)
             worst = max(alerts, key=lambda a: _SEV_RANK.get((a.get("severity") or "").lower(), 0))
             return {
                 "escalate": True,
@@ -454,7 +454,7 @@ class Ladder:
                               tier_name, case["id"], exc)
                     counts["error"] += 1
                     # Leave the case open; the next scheduled run retries it.
-                    break  # likely auth/systemic — stop hammering this run
+                    break  # likely auth/systemic - stop hammering this run
                 except Exception:
                     log.exception("tier %s: case %s failed", tier_name, case["id"])
                     counts["error"] += 1
@@ -574,7 +574,7 @@ class Ladder:
 
         # 2) Push to the operator via ntfy if configured.
         self._ntfy(sev, f"🔺 {headline}", body)
-        log.warning("LADDER PING (opus): case #%s — %s", case["id"], headline)
+        log.warning("LADDER PING (opus): case #%s - %s", case["id"], headline)
 
     def _ntfy(self, severity: str, title: str, body: str) -> None:
         ntfy = getattr(getattr(self.cfg, "alerting", None), "ntfy", None)
@@ -583,7 +583,7 @@ class Ladder:
         lc = self._lc
         topic = getattr(lc, "ping_ntfy_topic", "") or topic
         if not topic:
-            log.info("ping: no ntfy topic configured — squawk only")
+            log.info("ping: no ntfy topic configured - squawk only")
             return
         server = (getattr(lc, "ping_ntfy_server", "")
                   or getattr(ntfy, "server", "") or "https://ntfy.sh").rstrip("/")

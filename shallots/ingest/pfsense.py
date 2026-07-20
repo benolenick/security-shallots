@@ -181,7 +181,7 @@ async def poll_pfsense_assets(
     try:
         import aiohttp
     except ImportError:
-        log.warning("aiohttp not available — skipping pfSense asset poll")
+        log.warning("aiohttp not available - skipping pfSense asset poll")
         return {}
 
     url = f"{config.api_url.rstrip('/')}/api/v1/services/dhcpd/leases"

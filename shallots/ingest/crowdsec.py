@@ -66,7 +66,7 @@ class CrowdSecIngestor:
         try:
             import aiohttp
         except ImportError:
-            log.error("aiohttp not installed — CrowdSec ingestor disabled")
+            log.error("aiohttp not installed - CrowdSec ingestor disabled")
             return
 
         headers = {
@@ -138,10 +138,10 @@ class CrowdSecIngestor:
                                 await self.queue.put(alert)
                     self._last_poll = poll_time
                 elif resp.status == 204:
-                    # No content — no new decisions, still advance timestamp
+                    # No content - no new decisions, still advance timestamp
                     self._last_poll = poll_time
                 elif resp.status == 403:
-                    log.error("CrowdSec LAPI auth failed — check api_key in config")
+                    log.error("CrowdSec LAPI auth failed - check api_key in config")
                 else:
                     body = await resp.text()
                     log.warning("CrowdSec LAPI returned %d: %s", resp.status, body[:200])

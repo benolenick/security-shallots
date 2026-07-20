@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# clove-watchdog — Endpoint security monitor for security-shallots
+# clove-watchdog - Endpoint security monitor for security-shallots
 # Runs via cron every 2 minutes on Linux endpoints
 # Requires: bash, ss, curl, awk, sha256sum (all standard)
 set -euo pipefail
@@ -73,7 +73,7 @@ json_str() {
 # 1. LOG TAILING WITH SEEK
 # ══════════════════════════════════════════════════════════════
 
-# tail_log FILE STATE_KEY — reads new lines since last seek position
+# tail_log FILE STATE_KEY - reads new lines since last seek position
 # Outputs new lines to stdout; updates seek position var
 declare -A NEW_SEEK_POSITIONS=()
 
@@ -243,7 +243,7 @@ current_ports="${current_ports%,}"  # trim trailing comma
 baseline_ports=$(state_get "baseline_ports")
 
 if [ -z "$baseline_ports" ]; then
-    # First run — establish baseline
+    # First run - establish baseline
     baseline_ports="$current_ports"
 else
     # Compare: find new listeners

@@ -30,9 +30,9 @@ _BRUTE_FORCE_THRESHOLD = 15    # auth failures to same target in window
 _BEACON_THRESHOLD = 12         # repeat connections to same dst at regular intervals
 _BEACON_MAX_CV = 0.35          # max interval jitter (stddev/mean) to call it a beacon
 
-# Known infrastructure IPs — never flag traffic between these as suspicious.
+# Known infrastructure IPs - never flag traffic between these as suspicious.
 # Populated at runtime from config (suppression.source_ips) + auto-detected
-# server IP. The default is empty — users add their own via config.yaml.
+# server IP. The default is empty - users add their own via config.yaml.
 _INFRA_IPS: frozenset = frozenset()
 
 
@@ -181,7 +181,7 @@ class Correlator:
         else:
             correlations = _rule_based_correlations(groups)
 
-        # Step 3: persist (with deduplication — skip if same pattern+key exists recently)
+        # Step 3: persist (with deduplication - skip if same pattern+key exists recently)
         existing = await self._get_recent_correlation_keys()
         for corr in correlations:
             # Dedup key: pattern + sorted IPs from summary
@@ -193,7 +193,7 @@ class Correlator:
                 corr_id = await self._db.insert_correlation(corr)
                 existing.add(dedup_key)
                 log.info(
-                    "Correlator: stored correlation %s — pattern=%s severity=%s alerts=%d",
+                    "Correlator: stored correlation %s - pattern=%s severity=%s alerts=%d",
                     corr_id, corr.pattern, corr.severity, len(corr.alert_ids),
                 )
             except Exception:
@@ -210,7 +210,7 @@ class Correlator:
                     escalated = self._killchain.evaluate_correlation(corr_dict)
                     if escalated:
                         log.warning(
-                            "KILL CHAIN ESCALATED: %s — %d stages hit: %s",
+                            "KILL CHAIN ESCALATED: %s - %d stages hit: %s",
                             escalated.entity, escalated.stage_count,
                             list(escalated.stages_hit.keys()),
                         )
@@ -282,7 +282,7 @@ class Correlator:
         try:
             raw = await self._dispatch_ai(prompt, CORRELATION_SYSTEM.strip())
         except Exception as exc:
-            log.error("Correlator: AI call failed: %s — falling back to rules", exc)
+            log.error("Correlator: AI call failed: %s - falling back to rules", exc)
             return _rule_based_correlations(groups)
 
         return _parse_correlation_response(raw)
@@ -293,7 +293,7 @@ class Correlator:
         tier = cfg.tier
         client = self._client
         if client is None:
-            raise RuntimeError("AI client not initialised — check tier configuration")
+            raise RuntimeError("AI client not initialised - check tier configuration")
 
         if tier in ("remote_micro", "remote_standard", "local"):
             return await client.generate(
@@ -377,14 +377,14 @@ def _group_alerts(alerts: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]
     for a in alerts:
         src = a.get("src_ip") or ""
         dst = a.get("dst_ip") or ""
-        # Skip all infra↔infra traffic — it's expected
+        # Skip all infra↔infra traffic - it's expected
         if src in _INFRA_IPS and dst in _INFRA_IPS:
             continue
         if _is_rfc1918(src) and _is_rfc1918(dst) and src != dst:
             internal_to_internal[src].append(a)
 
     for src_ip, lat_alerts in internal_to_internal.items():
-        # Require significant volume — 10+ alerts from a non-infra internal host
+        # Require significant volume - 10+ alerts from a non-infra internal host
         if len(lat_alerts) >= 10:
             key = f"lateral_movement:{src_ip}"
             groups[key] = lat_alerts
@@ -394,7 +394,7 @@ def _group_alerts(alerts: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]
     for a in alerts:
         src = a.get("src_ip") or ""
         dst = a.get("dst_ip") or ""
-        # Skip known infra hosts talking outbound — normal internet use
+        # Skip known infra hosts talking outbound - normal internet use
         if src in _INFRA_IPS:
             continue
         if _is_rfc1918(src) and dst and not _is_rfc1918(dst):

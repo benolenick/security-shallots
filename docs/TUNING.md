@@ -1,6 +1,6 @@
 # Tuning Security Shallots
 
-Shallots does **not** ship pre-tuned to your network — it can't, because it doesn't
+Shallots does **not** ship pre-tuned to your network - it can't, because it doesn't
 know what "normal" looks like for you yet. Out of the box it errs toward *showing*
 you things; tuning is the process of teaching it what to stop showing you. Budget a
 few evenings over the first week or two. This guide is the map.
@@ -24,7 +24,7 @@ ingest → CLASSIFIER (suppress/severity) → AI TRIAGE (optional) → AUTOPILOT
 ```
 
 - The **classifier** is deterministic and runs first. Most noise should be killed
-  here — it's free, predictable, and needs no GPU.
+  here - it's free, predictable, and needs no GPU.
 - **AI triage** only sees what survives the classifier. If AI is off (`ai.tier: none`),
   rules decide everything and the ambiguous middle defaults to *investigate*.
 - **Autopilot** decides what's worth interrupting you for (a "squawk").
@@ -40,20 +40,20 @@ hot-loads a rule without a restart.
 ## 2. The first-week soak loop
 
 1. Install, point your router syslog at it, deploy a couple of agents.
-2. Let it run **24–48h untouched.** Real baselines need real time.
+2. Let it run **24-48h untouched.** Real baselines need real time.
 3. Open the dashboard and sort by volume. The loudest sources are your tuning list.
 4. For each noisy pattern, decide: *is this always benign here?*
    - Yes → add a suppression rule (below) or hit **Silence**.
    - Sometimes → leave it; that's what triage is for.
 5. Re-check daily for a week. Noise drops fast once the top offenders are handled.
-6. Run the gate (`tools/shallot_production_gate.py --json`) — it tells you when
+6. Run the gate (`tools/shallot_production_gate.py --json`) - it tells you when
    coverage and noise are in a healthy place to trust it unattended.
 
 ---
 
 ## 3. Reducing noise (the classifier)
 
-All under the `suppression:` block. Ships **empty** — you add your own.
+All under the `suppression:` block. Ships **empty** - you add your own.
 
 ```yaml
 suppression:
@@ -81,12 +81,12 @@ Guidance:
   `/16` because one host is chatty is how you go blind.
 - `maintenance_persistence_patterns` is the fix for "my own cron job / systemd unit
   keeps getting flagged." List the path or unit name.
-- The dashboard **Silence** button writes these for you and applies them live —
+- The dashboard **Silence** button writes these for you and applies them live -
   the fastest way to tune day-to-day. Periodically fold them into `config.yaml` so
   they survive a rebuild.
 
 Built-in defaults already suppress common benign chatter (LLMNR/mDNS, internal SSH
-logins, package updates, Suricata stream noise) — you're only adding what's specific
+logins, package updates, Suricata stream noise) - you're only adding what's specific
 to *your* network.
 
 ---
@@ -113,8 +113,8 @@ network where "internal" isn't trusted, that's when you'd reconsider it.
 ```yaml
 ai:
   tier: local              # none | local | remote_api
-  batch_size: 2            # alerts per LLM call — raise on a fast box, lower on a Pi
-  batch_interval_sec: 900  # how often triage runs — longer = calmer, cheaper, slower
+  batch_size: 2            # alerts per LLM call - raise on a fast box, lower on a Pi
+  batch_interval_sec: 900  # how often triage runs - longer = calmer, cheaper, slower
   obfuscate_cloud: false   # remote_api only: pseudonymize identifiers before sending
   autopilot:
     mode: copilot          # off | copilot | autopilot
@@ -126,7 +126,7 @@ ai:
 
 - **`autopilot.mode`**: `off` = AI advises only; `copilot` = suggests suppressions,
   you approve; `autopilot` = acts on its own. Start at `copilot`.
-- **Too many pages?** Lower what squawks — autopilot only pages for genuinely
+- **Too many pages?** Lower what squawks - autopilot only pages for genuinely
   dangerous activity (active exploit, C2, exfil, ransomware, priv-esc). If routine
   stuff is paging you, it's usually a *classifier* miss upstream, not an AI setting.
 - **Pi / no GPU:** keep `tier: none`. Rules + posture + canaries still work fully.
@@ -148,7 +148,7 @@ scout:
   sensor_ips: ["192.168.0.10"]  # hosts running a local Suricata sensor
 ```
 
-All the hints are optional — set them and the scout gets sharper; leave them blank
+All the hints are optional - set them and the scout gets sharper; leave them blank
 and those specific heuristics simply stay off.
 
 ---
@@ -164,7 +164,7 @@ expected_services:      # a service bound outside this list = drift alert
     - {proto: tcp, bind: 0.0.0.0, port: 8844, name: "shallots dashboard"}
 execution_allow_prefixes:   # executables here are expected (your app venvs)
   - /opt/myapp/.venv/
-canaries:               # decoy files — any touch is high-signal
+canaries:               # decoy files - any touch is high-signal
   enabled: true
   files: [fake-prod.env, fake-backup-manifest.txt]
 ```
@@ -188,7 +188,7 @@ setup: ntfy for `high`+, SMS for `critical` only, email off.
 
 ---
 
-## 9. Instrumentation — how to know if your tuning is working
+## 9. Instrumentation - how to know if your tuning is working
 
 These commands are your feedback loop (all take `--json`):
 
@@ -210,7 +210,7 @@ green gate means your tuning has reached "trust it while you sleep."
 
 `profile:` and the auto-detected `threat_engine.tier` scale the heavy features to your
 box (a Pi runs longer intervals and smaller ML windows; a server runs tighter loops).
-You rarely touch these — the defaults follow your CPU/RAM/GPU. Override
+You rarely touch these - the defaults follow your CPU/RAM/GPU. Override
 `threat_engine.tier` (`pi` | `mid` | `server`) only if auto-detection guesses wrong.
 
 ---
@@ -221,4 +221,4 @@ You rarely touch these — the defaults follow your CPU/RAM/GPU. Override
 2. Quiet the loudest sources with `suppression.*` rules (or the Silence button).
 3. Tell posture what services you run on purpose.
 4. Set per-channel `min_severity` so only real things page you.
-5. Run `shallot_production_gate.py` until it's green — then trust it.
+5. Run `shallot_production_gate.py` until it's green - then trust it.

@@ -82,7 +82,7 @@ class PersistenceMonitor:
             # Cron persistence. `crontab -l` is unreliable under systemd
             # sandboxing (NoNewPrivileges neuters crontab's setgid, so it
             # returns "Permission denied"/empty). Read the spool + system cron
-            # files directly — the running user owns its own crontab file and
+            # files directly - the running user owns its own crontab file and
             # system cron is world-readable, so this works inside the sandbox.
             import pwd
             try:

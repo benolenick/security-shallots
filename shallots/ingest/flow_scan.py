@@ -1,11 +1,11 @@
 """Flow-fan-out scan/sweep detector for Security Shallots.
 
 Signature IDS (Suricata/Snort) reliably catches known *tools* and *exploits* but
-NOT a quiet generic port scan — its scan rules are tool-specific. Yet Suricata
+NOT a quiet generic port scan - its scan rules are tool-specific. Yet Suricata
 already emits `flow` records for every connection, and a scan is obvious there:
 one source touching many ports on a host (port scan) or the same port across many
 hosts (host sweep). This detector consumes those flow records and emits a Shallots
-alert on that fan-out — the east-west signal (e.g. a compromised iLO/IoT knocking
+alert on that fan-out - the east-west signal (e.g. a compromised iLO/IoT knocking
 on its neighbours' doors) that no signature fires on.
 
 Pure logic: `observe(flow_event)` returns an Alert or None. No I/O, so it is unit
@@ -22,7 +22,7 @@ from shallots.store.models import Alert, AlertSource, now_iso
 
 def _epoch(ts: str) -> float:
     # Suricata timestamps: "2026-07-19T15:04:05.123456+0000". Parse cheaply without
-    # a hard dependency on tz parsing correctness — we only need monotonic-ish deltas.
+    # a hard dependency on tz parsing correctness - we only need monotonic-ish deltas.
     from datetime import datetime
     try:
         return datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
@@ -65,7 +65,7 @@ class FlowScanDetector:
     @staticmethod
     def _is_scan_like(flow: dict) -> bool:
         """A scan flow is short and mostly unanswered. Established data transfers
-        (many bytes/packets back) are not scans — filtering them keeps precision."""
+        (many bytes/packets back) are not scans - filtering them keeps precision."""
         pkts_to_client = flow.get("pkts_toclient", 0) or 0
         bytes_to_client = flow.get("bytes_toclient", 0) or 0
         # No/low response, or a tiny handshake-only flow.
@@ -119,7 +119,7 @@ class FlowScanDetector:
                 title=f"Port scan: {src} probed {n} ports on {dst}",
                 description=(f"Attempted recon (flow fan-out): {src} contacted {n} distinct "
                             f"TCP/UDP ports on {dst} within {self.window_sec}s. No IDS "
-                            f"signature required — detected from connection fan-out."),
+                            f"signature required - detected from connection fan-out."),
                 src_ip=src, dst_ip=dst, dst_port=int(port), proto=evt.get("proto", ""),
                 category="attempted-recon", signature_id=990101,
             )
@@ -136,7 +136,7 @@ class FlowScanDetector:
                 severity="high",
                 title=f"Host sweep: {src} hit port {port} on {n} hosts",
                 description=(f"Attempted recon (flow fan-out): {src} contacted port {port} on "
-                            f"{n} distinct hosts within {self.window_sec}s — lateral scan pattern."),
+                            f"{n} distinct hosts within {self.window_sec}s - lateral scan pattern."),
                 src_ip=src, dst_ip=dst, dst_port=int(port), proto=evt.get("proto", ""),
                 category="attempted-recon", signature_id=990102,
             )

@@ -596,7 +596,7 @@ class NetworkGraph:
                     self._reverse[dst].discard(n)
                 del self._edges[n]
             # Incoming edges (* -> n): without this they dangle at a deleted
-            # node — _edge_count stays inflated and graph queries return edges
+            # node - _edge_count stays inflated and graph queries return edges
             # whose dst is gone from self._nodes (unguarded self._nodes[dst]).
             for src in list(self._reverse.get(n, ())):
                 emap = self._edges.get(src)

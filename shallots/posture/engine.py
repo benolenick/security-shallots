@@ -564,7 +564,7 @@ def scan_dns(con: sqlite3.Connection) -> dict[str, Any]:
         return {"dns": "blind"}
     # Incremental offset-tracked read. The old code read only the last 500 lines,
     # which on a busy resolver (~250 log lines/sec) is a ~2-second window every scan
-    # — it observed <1% of DNS traffic and missed almost all DGA/first-seen domains.
+    # - it observed <1% of DNS traffic and missed almost all DGA/first-seen domains.
     # We now consume every line since the previous scan (deduped to unique domains).
     MAX_READ = 96 * 1024 * 1024  # safety cap; ~100x more than 10 min of busy DNS
     size = src.stat().st_size

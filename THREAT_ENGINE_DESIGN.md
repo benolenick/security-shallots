@@ -1,4 +1,4 @@
-# Threat Correlation Engine + ML — Design Document
+# Threat Correlation Engine + ML - Design Document
 
 **Status:** IMPLEMENTED AND DEPLOYED
 **Date:** 2026-03-07 (designed) → 2026-03-08 (implemented + deployed)
@@ -139,7 +139,7 @@ class NetworkGraph:
 
 ### Graph Update Strategy
 
-- **On each alert:** `ingest_alert()` — O(1) graph update
+- **On each alert:** `ingest_alert()` - O(1) graph update
 - **Every hour:** Prune edges older than 48h (configurable)
 - **On demand:** `pivot()` for investigation console, `find_paths()` for kill chain detection
 
@@ -187,7 +187,7 @@ GET /api/graph/stats
 
 ### Models (all scikit-learn, no GPU needed)
 
-#### 1. Isolation Forest — Global Anomaly Detection
+#### 1. Isolation Forest - Global Anomaly Detection
 ```python
 from sklearn.ensemble import IsolationForest
 
@@ -225,7 +225,7 @@ class AlertAnomalyDetector:
         """Returns (is_anomaly, anomaly_score)."""
 ```
 
-#### 2. Time-Series Anomaly — Alert Volume Spikes
+#### 2. Time-Series Anomaly - Alert Volume Spikes
 ```python
 class VolumeAnomalyDetector:
     """Detects unusual spikes in alert volume per source."""
@@ -233,10 +233,10 @@ class VolumeAnomalyDetector:
     # Simple approach: rolling mean + 3σ threshold
     # Per-source-IP and global
     # Checked every correlation cycle
-    # No sklearn needed — just numpy
+    # No sklearn needed - just numpy
 ```
 
-#### 3. Behavioral Clustering — Device Type Classification
+#### 3. Behavioral Clustering - Device Type Classification
 ```python
 from sklearn.cluster import DBSCAN
 
@@ -290,7 +290,7 @@ CREATE TABLE IF NOT EXISTS ml_models (
 
 ### Integration with Correlator
 
-The ML detector doesn't replace the rule-based correlator — it supplements it:
+The ML detector doesn't replace the rule-based correlator - it supplements it:
 
 ```python
 # In correlator._correlate():
@@ -328,7 +328,7 @@ async def _correlate(self):
 - Model in memory: ~5 MB (Isolation Forest with 100 trees on 10K samples)
 - Prediction: <1ms per alert
 - Training: ~2 sec every 6 hours
-- **No GPU needed** — CPU-only sklearn
+- **No GPU needed** - CPU-only sklearn
 
 ---
 
@@ -378,7 +378,7 @@ When the graph, baselines, or ML detector flag something interesting, generate a
 
 ```
 "At 14:32, your security camera (192.168.0.45) made its first-ever DNS query
-to update.sinkhole.ru — a domain not in its 30-day baseline. This happened
+to update.sinkhole.ru - a domain not in its 30-day baseline. This happened
 3 minutes after a port scan from 45.33.32.156 hit 23 ports on your network.
 The camera has never communicated with any .ru domain before. This matches
 stages 1 (reconnaissance) and 6 (C2) of a potential kill chain targeting
@@ -416,24 +416,24 @@ Write a clear, contextual narrative (2-4 sentences)."""
 
 ### New UI Components
 
-1. **Network Graph Visualization** — Interactive D3.js force-directed graph
+1. **Network Graph Visualization** - Interactive D3.js force-directed graph
    - Nodes = devices/IPs, edges = connections
    - Color by risk score, size by alert volume
    - Click to pivot
    - Endpoint: `GET /api/graph/pivot`
 
-2. **Device Baseline Cards** — Per-device profile showing:
+2. **Device Baseline Cards** - Per-device profile showing:
    - Normal behavior summary
    - Current deviations (highlighted red)
    - Historical behavior sparklines
    - Endpoint: `GET /api/baselines/{ip}`
 
-3. **Kill Chain Timeline** — Horizontal timeline showing attack progression
+3. **Kill Chain Timeline** - Horizontal timeline showing attack progression
    - Each stage as a node, filled if detected
    - Click stage to see contributing alerts
    - Endpoint: `GET /api/killchain/active`
 
-4. **ML Insights Panel** — Shows:
+4. **ML Insights Panel** - Shows:
    - Recent anomalies with scores
    - Model health (last trained, accuracy, drift)
    - Top anomalous devices today
@@ -445,26 +445,26 @@ Write a clear, contextual narrative (2-4 sentences)."""
 
 ```
 # Baselines
-GET  /api/baselines                   — all device profiles
-GET  /api/baselines/{ip}              — single device profile
-POST /api/baselines/rebuild           — force baseline rebuild
+GET  /api/baselines                   - all device profiles
+GET  /api/baselines/{ip}              - single device profile
+POST /api/baselines/rebuild           - force baseline rebuild
 
 # Graph
-GET  /api/graph/pivot                 — entity neighborhood
-GET  /api/graph/paths                 — attack paths between entities
-GET  /api/graph/communities           — entity clusters
-GET  /api/graph/entity-score          — risk score
-GET  /api/graph/stats                 — graph size/health
+GET  /api/graph/pivot                 - entity neighborhood
+GET  /api/graph/paths                 - attack paths between entities
+GET  /api/graph/communities           - entity clusters
+GET  /api/graph/entity-score          - risk score
+GET  /api/graph/stats                 - graph size/health
 
 # ML
-GET  /api/ml/anomalies                — recent ML-flagged anomalies
-GET  /api/ml/health                   — model status and stats
-POST /api/ml/retrain                  — force model retrain
-GET  /api/ml/predictions/{alert_id}   — ML predictions for an alert
+GET  /api/ml/anomalies                - recent ML-flagged anomalies
+GET  /api/ml/health                   - model status and stats
+POST /api/ml/retrain                  - force model retrain
+GET  /api/ml/predictions/{alert_id}   - ML predictions for an alert
 
 # Kill Chain
-GET  /api/killchain/active            — active multi-stage progressions
-GET  /api/killchain/history           — completed/dismissed chains
+GET  /api/killchain/active            - active multi-stage progressions
+GET  /api/killchain/history           - completed/dismissed chains
 ```
 
 ---
@@ -473,8 +473,8 @@ GET  /api/killchain/history           — completed/dismissed chains
 
 ```
 # requirements.txt additions
-scikit-learn>=1.4       # ~30 MB — Isolation Forest, DBSCAN
-networkx>=3.2           # ~10 MB — graph engine (pure Python)
+scikit-learn>=1.4       # ~30 MB - Isolation Forest, DBSCAN
+networkx>=3.2           # ~10 MB - graph engine (pure Python)
 # numpy comes with scikit-learn
 ```
 
@@ -484,29 +484,29 @@ No new system packages. No new containers. No GPU needed for ML (CPU sklearn).
 
 ## Implementation Order
 
-### Phase 1 — Baselines (foundation for everything else)
+### Phase 1 - Baselines (foundation for everything else)
 1. Add `device_baselines` table to schema
-2. Build `baselines.py` — DeviceProfile, baseline builder, deviation checker
+2. Build `baselines.py` - DeviceProfile, baseline builder, deviation checker
 3. Wire into daemon lifecycle (start/stop)
 4. Add `/api/baselines` endpoints
 5. Add baseline deviation injection into correlator
 
-### Phase 2 — Network Graph
+### Phase 2 - Network Graph
 1. Add `graph_edges` table to schema
-2. Build `graph_engine.py` — NetworkGraph with ingest, pivot, paths, communities
+2. Build `graph_engine.py` - NetworkGraph with ingest, pivot, paths, communities
 3. Hook `ingest_alert()` into pipeline (after store)
 4. Add `/api/graph/*` endpoints
 5. Build D3.js graph visualization in frontend
 
-### Phase 3 — ML Anomaly Detection
+### Phase 3 - ML Anomaly Detection
 1. Add `ml_predictions` and `ml_models` tables
-2. Build `ml_detector.py` — IsolationForest, VolumeAnomaly, DeviceClassifier
+2. Build `ml_detector.py` - IsolationForest, VolumeAnomaly, DeviceClassifier
 3. Wire training schedule into daemon
 4. Inject anomaly scores into correlator
 5. Add `/api/ml/*` endpoints and UI panel
 
-### Phase 4 — Kill Chain + Narratives
-1. Build `killchain.py` — stage mapping, chain tracker
+### Phase 4 - Kill Chain + Narratives
+1. Build `killchain.py` - stage mapping, chain tracker
 2. Add narrative prompt template
 3. Wire kill chain into incident generation
 4. Build timeline UI component
@@ -534,25 +534,25 @@ After this: ~2.06 GB RAM, 1.15 GB disk
 ## Files to Create
 
 ```
-shallots/ai/baselines.py      — Module 1: behavioral baselines
-shallots/ai/graph_engine.py    — Module 2: network graph
-shallots/ai/ml_detector.py     — Module 3: ML anomaly detection
-shallots/ai/killchain.py       — Module 4: kill chain detector
-shallots/web/static/js/graph.js — D3.js graph visualization
+shallots/ai/baselines.py      - Module 1: behavioral baselines
+shallots/ai/graph_engine.py    - Module 2: network graph
+shallots/ai/ml_detector.py     - Module 3: ML anomaly detection
+shallots/ai/killchain.py       - Module 4: kill chain detector
+shallots/web/static/js/graph.js - D3.js graph visualization
 ```
 
 ## Files to Modify
 
 ```
-shallots/store/db.py           — new tables (device_baselines, graph_edges, ml_predictions, ml_models)
-shallots/store/models.py       — new dataclasses (DeviceProfile, GraphEdge, MLPrediction)
-shallots/daemon.py             — wire new modules into lifecycle
-shallots/ai/correlator.py      — inject ML scores + baseline deviations
-shallots/ai/prompts.py         — narrative template
-shallots/ai/incidents.py       — kill chain integration
-shallots/web/api.py            — new endpoints
-shallots/web/static/index.html — new dashboard panels
-shallots/config.py             — ML/graph config options
+shallots/store/db.py           - new tables (device_baselines, graph_edges, ml_predictions, ml_models)
+shallots/store/models.py       - new dataclasses (DeviceProfile, GraphEdge, MLPrediction)
+shallots/daemon.py             - wire new modules into lifecycle
+shallots/ai/correlator.py      - inject ML scores + baseline deviations
+shallots/ai/prompts.py         - narrative template
+shallots/ai/incidents.py       - kill chain integration
+shallots/web/api.py            - new endpoints
+shallots/web/static/index.html - new dashboard panels
+shallots/config.py             - ML/graph config options
 ```
 
 ---

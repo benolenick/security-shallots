@@ -1,7 +1,7 @@
 """Pi-hole DNS query log poller.
 
 Polls Pi-hole's API for recently blocked queries and converts them to alerts.
-Only blocked queries generate alerts — permitted queries are ignored to avoid
+Only blocked queries generate alerts - permitted queries are ignored to avoid
 flooding the alert pipeline.
 """
 
@@ -19,7 +19,7 @@ from shallots.store.models import Alert, AlertSource, now_iso
 
 log = logging.getLogger(__name__)
 
-POLL_INTERVAL = 60  # seconds — Pi-hole updates once per second but we batch
+POLL_INTERVAL = 60  # seconds - Pi-hole updates once per second but we batch
 
 # Pi-hole block reason codes (from FTL) that indicate a block
 _BLOCKED_STATUSES = {
@@ -54,7 +54,7 @@ class PiHoleIngestor:
     Uses GET /admin/api.php?getAllQueries=N&auth=TOKEN or the newer
     /api/queries endpoint (Pi-hole v6+).  Falls back gracefully.
 
-    Only blocked queries are emitted as alerts — we don't care about
+    Only blocked queries are emitted as alerts - we don't care about
     permitted DNS traffic for the security pipeline.
     """
 
@@ -72,7 +72,7 @@ class PiHoleIngestor:
         try:
             import aiohttp
         except ImportError:
-            log.error("aiohttp not installed — Pi-hole ingestor disabled")
+            log.error("aiohttp not installed - Pi-hole ingestor disabled")
             return
 
         # On first start, only look at queries from now onwards
@@ -110,7 +110,7 @@ class PiHoleIngestor:
                     await self._process_v5_queries(queries)
                     return
                 elif resp.status == 401:
-                    log.error("Pi-hole auth failed — check api_key")
+                    log.error("Pi-hole auth failed - check api_key")
                     return
         except aiohttp.ClientConnectorError:
             log.warning("Cannot connect to Pi-hole at %s", self.api_url)

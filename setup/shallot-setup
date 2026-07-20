@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ============================================================
-# Security Shallots — Interactive Setup Wizard
+# Security Shallots - Interactive Setup Wizard
 # ============================================================
 
 # --------------- Colors & formatting -----------------------
@@ -41,7 +41,7 @@ print_banner() {
    ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚══════╝ ╚═════╝    ╚═╝   ╚══════╝
 BANNER
     echo -e "${RST}"
-    echo -e "${DIM}  The everyman's SIEM — version 0.1.0${RST}"
+    echo -e "${DIM}  The everyman's SIEM - version 0.1.0${RST}"
     echo -e "${DIM}  Runs on a Raspberry Pi, scales to a server${RST}"
     echo ""
 }
@@ -218,10 +218,10 @@ detect_hardware() {
 
     echo ""
     echo -e "  ${WHT}Profile definitions:${RST}"
-    echo -e "  ${DIM}  lite     (<2 GB)  — Suricata + syslog only, no threat engine${RST}"
-    echo -e "  ${DIM}  micro    (2-4 GB) — + CrowdSec, basic correlations${RST}"
-    echo -e "  ${DIM}  standard (4-8 GB) — + Wazuh, VictoriaLogs, Grafana${RST}"
-    echo -e "  ${DIM}  full     (8+ GB)  — Everything including full threat engine${RST}"
+    echo -e "  ${DIM}  lite     (<2 GB)  - Suricata + syslog only, no threat engine${RST}"
+    echo -e "  ${DIM}  micro    (2-4 GB) - + CrowdSec, basic correlations${RST}"
+    echo -e "  ${DIM}  standard (4-8 GB) - + Wazuh, VictoriaLogs, Grafana${RST}"
+    echo -e "  ${DIM}  full     (8+ GB)  - Everything including full threat engine${RST}"
     echo ""
     echo -e "  ${GRN}Auto-selected profile: ${auto_profile}${RST}"
     echo ""
@@ -312,7 +312,7 @@ detect_nic() {
 
     # Validate
     if [[ ! -d "/sys/class/net/${MONITOR_NIC}" ]]; then
-        warn "Interface '${MONITOR_NIC}' not found — proceeding anyway"
+        warn "Interface '${MONITOR_NIC}' not found - proceeding anyway"
     else
         ok "Monitoring interface: ${MONITOR_NIC}"
     fi
@@ -439,7 +439,7 @@ configure_ai() {
         fi
     else
         AI_TIER="none"
-        warn "AI triage disabled — alerts will be queued for manual review"
+        warn "AI triage disabled - alerts will be queued for manual review"
     fi
 
     echo ""
@@ -452,7 +452,7 @@ configure_ai() {
         if [[ -n "$VIRUSTOTAL_API_KEY" ]]; then
             ok "VirusTotal API key set"
         else
-            warn "No key entered — VirusTotal integration will be disabled"
+            warn "No key entered - VirusTotal integration will be disabled"
             VIRUSTOTAL_API_KEY=""
         fi
     fi
@@ -480,12 +480,12 @@ configure_pfsense() {
             prompt PFSENSE_API_SECRET "  pfSense API secret" ""
             ok "pfSense API configured: ${PFSENSE_API_URL}"
         else
-            warn "No pfSense API — syslog-only integration will be used"
+            warn "No pfSense API - syslog-only integration will be used"
         fi
 
         # If syslog not already enabled, enable it
         if [[ "$COMP_SYSLOG" == false ]]; then
-            warn "pfSense integration requires the syslog receiver — enabling it"
+            warn "pfSense integration requires the syslog receiver - enabling it"
             COMP_SYSLOG=true
         fi
     else
@@ -518,15 +518,15 @@ install_packages() {
             info "Updating apt package lists..."
             apt-get update -qq
             info "Installing packages: ${pkgs_debian[*]}"
-            DEBIAN_FRONTEND=noninteractive apt-get install -y "${pkgs_debian[@]}" || warn "Some packages failed to install — continuing"
+            DEBIAN_FRONTEND=noninteractive apt-get install -y "${pkgs_debian[@]}" || warn "Some packages failed to install - continuing"
             ;;
         redhat)
             info "Installing packages: ${pkgs_redhat[*]}"
-            dnf install -y "${pkgs_redhat[@]}" || warn "Some packages failed to install — continuing"
+            dnf install -y "${pkgs_redhat[@]}" || warn "Some packages failed to install - continuing"
             ;;
         alpine)
             info "Installing packages: ${pkgs_alpine[*]}"
-            apk add --no-cache "${pkgs_alpine[@]}" || warn "Some packages failed to install — continuing"
+            apk add --no-cache "${pkgs_alpine[@]}" || warn "Some packages failed to install - continuing"
             ;;
     esac
 
@@ -543,17 +543,17 @@ install_packages() {
         python3 -m venv "$VENV_DIR"
         ok "Virtual environment created"
     else
-        ok "Virtual environment already exists — skipping"
+        ok "Virtual environment already exists - skipping"
     fi
 
     info "Installing Security Shallots Python package..."
     if [[ -f "${REPO_ROOT}/pyproject.toml" ]]; then
         "$VENV_DIR/bin/pip" install --quiet --upgrade pip
-        "$VENV_DIR/bin/pip" install --quiet -e "${REPO_ROOT}" || warn "pip install from local source failed — continuing"
+        "$VENV_DIR/bin/pip" install --quiet -e "${REPO_ROOT}" || warn "pip install from local source failed - continuing"
         ok "Installed from local source"
     else
         "$VENV_DIR/bin/pip" install --quiet --upgrade pip
-        "$VENV_DIR/bin/pip" install --quiet security-shallots 2>/dev/null || warn "PyPI install failed — package may not be published yet"
+        "$VENV_DIR/bin/pip" install --quiet security-shallots 2>/dev/null || warn "PyPI install failed - package may not be published yet"
         ok "pip install attempted"
     fi
 }
@@ -584,7 +584,7 @@ download_victorialogs() {
 
     local bin_path="${BIN_DIR}/victoria-logs"
     if [[ -f "$bin_path" ]]; then
-        ok "VictoriaLogs already present at ${bin_path} — skipping download"
+        ok "VictoriaLogs already present at ${bin_path} - skipping download"
         return 0
     fi
 
@@ -594,7 +594,7 @@ download_victorialogs() {
 
     if [[ -z "$url" ]]; then
         # Fallback to known-good URL pattern
-        warn "Could not determine latest release URL — using fallback"
+        warn "Could not determine latest release URL - using fallback"
         url="https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest/download/victoria-logs-linux-amd64-v0.tar.gz"
     fi
 
@@ -617,7 +617,7 @@ download_victorialogs() {
         ok "VictoriaLogs downloaded to ${bin_path}"
     else
         rm -f "$tmpfile"
-        warn "VictoriaLogs download failed — install manually to ${bin_path}"
+        warn "VictoriaLogs download failed - install manually to ${bin_path}"
     fi
 }
 
@@ -629,7 +629,7 @@ install_crowdsec() {
     step "Installing CrowdSec"
 
     if command -v cscli &>/dev/null; then
-        ok "CrowdSec already installed — skipping"
+        ok "CrowdSec already installed - skipping"
         return 0
     fi
 
@@ -637,7 +637,7 @@ install_crowdsec() {
     if curl -sSL https://install.crowdsec.net | bash -s -- -y; then
         ok "CrowdSec installed"
     else
-        warn "CrowdSec install script failed — install manually from https://install.crowdsec.net"
+        warn "CrowdSec install script failed - install manually from https://install.crowdsec.net"
         return 0
     fi
 
@@ -651,7 +651,7 @@ install_crowdsec() {
         if [[ -n "$CROWDSEC_BOUNCER_KEY" ]]; then
             ok "CrowdSec bouncer registered"
         else
-            warn "Could not register bouncer automatically — run: cscli bouncers add shallots-bouncer"
+            warn "Could not register bouncer automatically - run: cscli bouncers add shallots-bouncer"
         fi
     fi
 }
@@ -664,7 +664,7 @@ install_grafana() {
     step "Installing Grafana"
 
     if command -v grafana-server &>/dev/null || command -v grafana &>/dev/null; then
-        ok "Grafana already installed — skipping"
+        ok "Grafana already installed - skipping"
         return 0
     fi
 
@@ -695,7 +695,7 @@ EOF
             dnf install -y grafana
             ;;
         alpine)
-            warn "Grafana not available via apk — downloading binary..."
+            warn "Grafana not available via apk - downloading binary..."
             local url
             url=$(get_latest_github_release_url "grafana/grafana" "grafana_.*_linux_amd64.tar.gz")
             if [[ -n "$url" ]]; then
@@ -707,7 +707,7 @@ EOF
                 rm -rf "$tmpdir"
                 ok "Grafana downloaded"
             else
-                warn "Could not download Grafana — install manually"
+                warn "Could not download Grafana - install manually"
             fi
             ;;
     esac
@@ -724,7 +724,7 @@ install_wazuh() {
 
     if systemctl is-active --quiet wazuh-manager 2>/dev/null || \
        systemctl list-unit-files wazuh-manager.service &>/dev/null; then
-        ok "Wazuh manager already installed — skipping"
+        ok "Wazuh manager already installed - skipping"
         return 0
     fi
 
@@ -742,7 +742,7 @@ install_wazuh() {
             apt-get update -qq
             info "Installing wazuh-manager..."
             DEBIAN_FRONTEND=noninteractive apt-get install -y wazuh-manager || \
-                warn "Wazuh manager install failed — install manually from https://documentation.wazuh.com"
+                warn "Wazuh manager install failed - install manually from https://documentation.wazuh.com"
             ;;
         redhat)
             info "Adding Wazuh GPG key..."
@@ -759,7 +759,7 @@ protect=1
 EOF
             info "Installing wazuh-manager..."
             yum install -y wazuh-manager || \
-                warn "Wazuh manager install failed — install manually from https://documentation.wazuh.com"
+                warn "Wazuh manager install failed - install manually from https://documentation.wazuh.com"
             ;;
         alpine)
             warn "Wazuh manager packages are not available for Alpine Linux"
@@ -847,7 +847,7 @@ web:
   # Local-only by default (reachable at http://127.0.0.1:8844 on this box).
   # To reach it from your LAN: set host to 0.0.0.0 AND set username + password
   # below (and ideally TLS). Shallots REFUSES to start if bound to a non-loopback
-  # address without credentials — the API can change config and run firewall
+  # address without credentials - the API can change config and run firewall
   # commands, so it must never be open unauthenticated.
   host: "127.0.0.1"
   port: 8844
@@ -885,14 +885,14 @@ configure_suricata() {
 
     local suricata_conf="/etc/suricata/suricata.yaml"
     if [[ ! -f "$suricata_conf" ]]; then
-        warn "Suricata config not found at ${suricata_conf} — skipping configuration"
+        warn "Suricata config not found at ${suricata_conf} - skipping configuration"
         return 0
     fi
 
     # Set HOME_NET
     info "Setting HOME_NET to ${HOME_CIDR}..."
     sed -i "s|HOME_NET: .*|HOME_NET: \"[${HOME_CIDR}]\"|g" "$suricata_conf" || \
-        warn "Could not update HOME_NET — edit manually"
+        warn "Could not update HOME_NET - edit manually"
 
     # Set EVE JSON output interface
     info "Setting monitor interface to ${MONITOR_NIC}..."
@@ -900,14 +900,14 @@ configure_suricata() {
 
     # Ensure EVE JSON log is enabled
     if ! grep -q "eve-log" "$suricata_conf" 2>/dev/null; then
-        warn "EVE JSON output not found in suricata config — enable manually"
+        warn "EVE JSON output not found in suricata config - enable manually"
     else
         ok "Suricata: EVE JSON output already configured"
     fi
 
     # Update rules
     info "Updating Suricata rules (ET Open)..."
-    suricata-update --no-reload 2>/dev/null || warn "suricata-update failed — run manually"
+    suricata-update --no-reload 2>/dev/null || warn "suricata-update failed - run manually"
 
     ok "Suricata configured"
 }
@@ -946,7 +946,7 @@ configure_grafana() {
     fi
 
     if [[ ! -d "$grafana_prov_dir" ]]; then
-        warn "Grafana provisioning directory not found — dashboards must be imported manually"
+        warn "Grafana provisioning directory not found - dashboards must be imported manually"
         warn "Dashboard files are at: ${SCRIPT_DIR}/grafana/dashboards/"
         return 0
     fi
@@ -1007,7 +1007,7 @@ configure_crowdsec() {
     step "Configuring CrowdSec"
 
     if ! command -v cscli &>/dev/null; then
-        warn "cscli not found — skipping CrowdSec configuration"
+        warn "cscli not found - skipping CrowdSec configuration"
         return 0
     fi
 
@@ -1039,7 +1039,7 @@ install_systemd_services() {
     step "Installing systemd services"
 
     if ! command -v systemctl &>/dev/null; then
-        warn "systemd not available — skipping service installation"
+        warn "systemd not available - skipping service installation"
         return 0
     fi
 
@@ -1073,7 +1073,7 @@ install_systemd_services() {
         if systemctl list-unit-files "$svc" &>/dev/null; then
             info "Enabling and starting ${svc}..."
             systemctl enable "$svc" 2>/dev/null || warn "Could not enable ${svc}"
-            systemctl start "$svc" 2>/dev/null || warn "Could not start ${svc} — check: journalctl -u ${svc}"
+            systemctl start "$svc" 2>/dev/null || warn "Could not start ${svc} - check: journalctl -u ${svc}"
         else
             warn "Service not found: ${svc} (may not be installed)"
         fi
@@ -1142,7 +1142,7 @@ run_health_check() {
     if [[ "$all_ok" == true ]]; then
         ok "All health checks passed"
     else
-        warn "Some checks failed — see warnings above"
+        warn "Some checks failed - see warnings above"
     fi
 }
 
@@ -1155,7 +1155,7 @@ print_summary() {
 
     echo ""
     echo -e "${GRN}╔══════════════════════════════════════════════════════════╗${RST}"
-    echo -e "${GRN}║          Security Shallots — Setup Complete              ║${RST}"
+    echo -e "${GRN}║          Security Shallots - Setup Complete              ║${RST}"
     echo -e "${GRN}╚══════════════════════════════════════════════════════════╝${RST}"
     echo ""
     echo -e "  ${WHT}Profile:${RST}    ${PROFILE}"

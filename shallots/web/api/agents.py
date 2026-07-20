@@ -41,7 +41,7 @@ def _secret_rejection(request: web.Request, secret: str, header_name: str) -> we
 # ── /api/heartbeat ────────────────────────────────────────────────────────
 
 async def handle_heartbeat(request: web.Request) -> web.Response:
-    """POST /api/heartbeat — receive agent heartbeat."""
+    """POST /api/heartbeat - receive agent heartbeat."""
     daemon = request.app["daemon"]
     rejection = _secret_rejection(
         request,
@@ -92,7 +92,7 @@ async def handle_heartbeat(request: web.Request) -> web.Response:
 # ── /api/agents ──────────────────────────────────────────────────────────
 
 async def handle_agents(request: web.Request) -> web.Response:
-    """GET /api/agents — list all registered agents with health data."""
+    """GET /api/agents - list all registered agents with health data."""
     agents = await _db(request).get_agents()
     # Parse health_data JSON strings
     for a in agents:
@@ -106,7 +106,7 @@ async def handle_agents(request: web.Request) -> web.Response:
 # ── Agent API (CLI agent compat) ─────────────────────────────────────────────
 
 async def handle_agent_briefing(request: web.Request) -> web.Response:
-    """GET /api/agent/briefing — Structured briefing for AI agents."""
+    """GET /api/agent/briefing - Structured briefing for AI agents."""
     db = _db(request)
     stats = await db.get_stats()
     top = await db.get_top_talkers(since="24h", limit=5)
@@ -128,7 +128,7 @@ async def handle_agent_briefing(request: web.Request) -> web.Response:
 
 
 async def handle_agent_investigate(request: web.Request) -> web.Response:
-    """POST /api/agent/investigate — Agent submits investigation findings."""
+    """POST /api/agent/investigate - Agent submits investigation findings."""
     db = _db(request)
     try:
         body = await request.json()
@@ -162,7 +162,7 @@ async def handle_agent_investigate(request: web.Request) -> web.Response:
 
 
 async def handle_agent_context(request: web.Request) -> web.Response:
-    """GET /api/agent/context/{alert_id} — Full enriched context for one alert."""
+    """GET /api/agent/context/{alert_id} - Full enriched context for one alert."""
     alert_id = request.match_info["alert_id"]
     db = _db(request)
 
@@ -204,7 +204,7 @@ async def handle_agent_context(request: web.Request) -> web.Response:
 # ── /api/ingest/clove ──────────────────────────────────────────────────────
 
 async def handle_clove_ingest(request: web.Request) -> web.Response:
-    """POST /api/ingest/clove — receive clove-watchdog payload."""
+    """POST /api/ingest/clove - receive clove-watchdog payload."""
     from shallots.store.models import Alert, now_iso
 
     daemon = request.app["daemon"]
@@ -269,7 +269,7 @@ async def handle_clove_ingest(request: web.Request) -> web.Response:
         title = alert_data.get("title", "")
         details = alert_data.get("details", {})
         # Coerce agent-supplied source_ip to a valid IP (or empty). Never trust it
-        # as free text — it flows into the dashboard and must not carry markup.
+        # as free text - it flows into the dashboard and must not carry markup.
         source_ip = _valid_ip(alert_data.get("source_ip")) or _valid_ip(agent_ip)
         timestamp = alert_data.get("timestamp") or now_iso()
         details_json = json.dumps(details) if isinstance(details, dict) else str(details)
@@ -315,7 +315,7 @@ async def handle_clove_ingest(request: web.Request) -> web.Response:
 # ── /api/ingest/argus ──────────────────────────────────────────────────────
 
 async def handle_argus_ingest(request: web.Request) -> web.Response:
-    """POST /api/ingest/argus — receive Argus agent events.
+    """POST /api/ingest/argus - receive Argus agent events.
 
     Accepts either a single ArgusEvent dict or a list of them.
     Each event has: host, event_type, severity, title, description, details, timestamp, etc.
@@ -373,7 +373,7 @@ async def handle_argus_ingest(request: web.Request) -> web.Response:
 # ── /api/agents (clove) ────────────────────────────────────────────────────
 
 async def handle_clove_agents(request: web.Request) -> web.Response:
-    """GET /api/agents/clove — list all clove agent heartbeats with stale/dead flags."""
+    """GET /api/agents/clove - list all clove agent heartbeats with stale/dead flags."""
     db = _db(request)
     agents = await db.get_agent_heartbeats()
     now = datetime.now(timezone.utc)
@@ -407,7 +407,7 @@ async def handle_clove_agents(request: web.Request) -> web.Response:
 
 
 async def handle_clove_agent_alerts(request: web.Request) -> web.Response:
-    """GET /api/agents/{name}/alerts — clove alerts for a specific agent."""
+    """GET /api/agents/{name}/alerts - clove alerts for a specific agent."""
     agent_name = request.match_info["name"]
     qs = request.rel_url.query
     resolved = None
@@ -429,7 +429,7 @@ async def handle_clove_agent_alerts(request: web.Request) -> web.Response:
 
 
 async def handle_clove_agent_update(request: web.Request) -> web.Response:
-    """POST /api/agents/{name}/update — request agent self-update."""
+    """POST /api/agents/{name}/update - request agent self-update."""
     agent_name = request.match_info["name"]
     db = _db(request)
     await db.request_agent_update(agent_name)

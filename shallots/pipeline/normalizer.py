@@ -1,4 +1,4 @@
-"""Alert normalization — ensures consistent schema."""
+"""Alert normalization - ensures consistent schema."""
 
 from __future__ import annotations
 

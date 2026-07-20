@@ -1,5 +1,5 @@
 /**
- * Security Shallots — Dashboard SPA
+ * Security Shallots - Dashboard SPA
  * Vanilla JS, no frameworks, no build tools.
  */
 
@@ -180,7 +180,7 @@ const dom = {
 // ── Utilities ──────────────────────────────────────────────────────────────
 
 function fmtTime(iso) {
-  if (!iso) return '—';
+  if (!iso) return '-';
   try {
     const d = new Date(iso);
     return d.toLocaleString(undefined, {
@@ -1461,7 +1461,7 @@ function renderAlertList(alerts) {
     const summary = card.querySelector('.alert-summary');
     const cb = card.querySelector('.alert-select-cb');
 
-    // Checkbox click — don't expand card
+    // Checkbox click - don't expand card
     if (cb) {
       cb.addEventListener('click', e => {
         e.stopPropagation();
@@ -1584,9 +1584,9 @@ function buildAlertCard(a) {
   const verdictButtons = `
     <div class="verdict-actions" data-alert-id="${escHtml(a.id)}">
       <span class="verdict-actions-label">Set verdict:</span>
-      <button class="verdict-btn v-suppress${a.verdict === 'suppress' ? ' active' : ''}" data-verdict="suppress" data-tooltip="Benign / false positive — hide from feed">Suppress</button>
-      <button class="verdict-btn v-investigate${a.verdict === 'investigate' ? ' active' : ''}" data-verdict="investigate" data-tooltip="Needs human review — keep on radar">Investigate</button>
-      <button class="verdict-btn v-escalate${a.verdict === 'escalate' ? ' active' : ''}" data-verdict="escalate" data-tooltip="Confirmed threat — escalate to incident response">Escalate</button>
+      <button class="verdict-btn v-suppress${a.verdict === 'suppress' ? ' active' : ''}" data-verdict="suppress" data-tooltip="Benign / false positive - hide from feed">Suppress</button>
+      <button class="verdict-btn v-investigate${a.verdict === 'investigate' ? ' active' : ''}" data-verdict="investigate" data-tooltip="Needs human review - keep on radar">Investigate</button>
+      <button class="verdict-btn v-escalate${a.verdict === 'escalate' ? ' active' : ''}" data-verdict="escalate" data-tooltip="Confirmed threat - escalate to incident response">Escalate</button>
       <button class="ack-btn${acked ? ' acked' : ''}" data-alert-id="${escHtml(a.id)}" title="${acked ? 'Unacknowledge' : 'Acknowledge'}">${acked ? 'Ack\'d' : 'Ack'}</button>
       <button class="btn btn-sm btn-pivot-card" onclick="event.stopPropagation(); openPivotView([${a.src_ip ? "'" + escHtml(a.src_ip) + "'" : ''}${a.src_ip && a.dst_ip ? ',' : ''}${a.dst_ip ? "'" + escHtml(a.dst_ip) + "'" : ''}].filter(Boolean))">Pivot</button>
       <button class="btn btn-sm btn-silence-card" onclick="event.stopPropagation(); silenceAndForget('${escHtml(a.id)}', '${escHtml((a.title || '').replace(/'/g, "\\'"))}')">Silence</button>
@@ -1711,7 +1711,7 @@ function connectWS() {
     if (msg.type === 'alert' && msg.data) {
       prependLiveAlert(msg.data);
     } else if (msg.type === 'connected') {
-      // welcome packet — update client count if we had a stat for it
+      // welcome packet - update client count if we had a stat for it
     } else if (msg.type === 'squawk' && msg.data) {
       showSquawk(msg.data);
     } else if (msg.type === 'ai_decision' && msg.data) {
@@ -1737,7 +1737,7 @@ function connectWS() {
   ws.onclose = () => {
     setWsStatus('disconnected');
     state.ws = null;
-    toast('Live feed disconnected — reconnecting…', 'warning', 6000);
+    toast('Live feed disconnected - reconnecting…', 'warning', 6000);
     // Reconnect with backoff
     setTimeout(connectWS, 5000);
   };
@@ -1795,7 +1795,7 @@ function prependLiveAlert(alertData) {
   wireCopyButtons(alertCard);
   wireAiButtons(alertCard);
   wirePivotClicks(alertCard);
-  // wireWhatIsThis needs the alert in state.alerts — prepend it
+  // wireWhatIsThis needs the alert in state.alerts - prepend it
   state.alerts.unshift(alertData);
   wireWhatIsThis(alertCard);
 
@@ -1844,7 +1844,7 @@ async function askQuestion(question) {
     if (data.results && data.results.length) {
       state.searchMode = true;
       state.alerts = data.results;
-      dom.alertCount.textContent = `${data.results.length} result(s) — AI query`;
+      dom.alertCount.textContent = `${data.results.length} result(s) - AI query`;
       renderAlertList(data.results);
       updatePagination(data.results.length, 0, true);
     }
@@ -1923,7 +1923,7 @@ function showPostVerdictActions(card, alertId, verdict) {
   panel.innerHTML = `
     <div class="post-verdict-header">
       <span class="post-verdict-icon">${isEscalate ? '!' : '?'}</span>
-      <span>${isEscalate ? 'Alert escalated' : 'Marked for investigation'} — what next?</span>
+      <span>${isEscalate ? 'Alert escalated' : 'Marked for investigation'} - what next?</span>
       <button class="post-verdict-dismiss" title="Dismiss">&times;</button>
     </div>
     <div class="post-verdict-note-wrap">
@@ -2251,7 +2251,7 @@ async function fetchAiHistory() {
       for (const item of shown) {
         const t = item.timestamp || item.created_at;
         const time = t ? timeAgo(new Date(t)) : '';
-        const text = item.reason || item.summary || item.title || item.action || '—';
+        const text = item.reason || item.summary || item.title || item.action || '-';
         html += `<div class="ai-history-item">
           <span class="ai-history-item-time">${time}</span>
           <span class="ai-history-item-text">${escHtml(text)}</span>
@@ -2328,7 +2328,7 @@ function scrollToAlert(alertId) {
     }
     return;
   }
-  // Not in current view — fetch it directly and show in a modal-like overlay
+  // Not in current view - fetch it directly and show in a modal-like overlay
   showAlertOverlay(alertId);
 }
 
@@ -2394,9 +2394,9 @@ async function showAlertOverlay(alertId) {
     const verdictButtonsHtml = `
       <div class="verdict-actions" data-alert-id="${escHtml(a.id)}">
         <span class="verdict-actions-label">Set verdict:</span>
-        <button class="verdict-btn v-suppress${a.verdict === 'suppress' ? ' active' : ''}" data-verdict="suppress" data-tooltip="Benign / false positive — hide from feed">Suppress</button>
-        <button class="verdict-btn v-investigate${a.verdict === 'investigate' ? ' active' : ''}" data-verdict="investigate" data-tooltip="Needs human review — keep on radar">Investigate</button>
-        <button class="verdict-btn v-escalate${a.verdict === 'escalate' ? ' active' : ''}" data-verdict="escalate" data-tooltip="Confirmed threat — escalate to incident response">Escalate</button>
+        <button class="verdict-btn v-suppress${a.verdict === 'suppress' ? ' active' : ''}" data-verdict="suppress" data-tooltip="Benign / false positive - hide from feed">Suppress</button>
+        <button class="verdict-btn v-investigate${a.verdict === 'investigate' ? ' active' : ''}" data-verdict="investigate" data-tooltip="Needs human review - keep on radar">Investigate</button>
+        <button class="verdict-btn v-escalate${a.verdict === 'escalate' ? ' active' : ''}" data-verdict="escalate" data-tooltip="Confirmed threat - escalate to incident response">Escalate</button>
       </div>`;
 
     const overlay = document.createElement('div');
@@ -2828,7 +2828,7 @@ async function showIncidentDetail(id) {
         </div>`;
     }).join('');
 
-    // Build linked alerts — clickable to expand
+    // Build linked alerts - clickable to expand
     const alertsHtml = (inc.alerts || []).slice(0, 20).map(a => {
       const t = a.timestamp ? new Date(a.timestamp).toLocaleTimeString() : '';
       const aid = a.id || '';
@@ -2907,7 +2907,7 @@ async function showIncidentDetail(id) {
               <ul>
                 <li>Are the affected IPs <strong>devices you recognize</strong> on your network?</li>
                 <li>Is the traffic pattern <strong>normal for these devices</strong>? (e.g., a server talking to a workstation)</li>
-                <li>Check the <strong>IP reputation cards</strong> above — red = known bad</li>
+                <li>Check the <strong>IP reputation cards</strong> above - red = known bad</li>
                 <li>Look at the <strong>Alerts tab</strong> to see exactly what triggered this</li>
                 <li>Use <strong>Deep AI Investigation</strong> to get a full analysis</li>
               </ul>
@@ -3036,7 +3036,7 @@ async function decideIncident(id, decision) {
             <button class="btn btn-resolve" onclick="this.closest('.learning-banner').innerHTML = '&#10003; Got it! Similar incidents will be flagged as noise.'">Yes, auto-dismiss</button>
             <button class="btn btn-close-overlay" onclick="this.closest('.learning-banner').remove()">No thanks</button>
           </div>`;
-        return;  // Don't close overlay — let them see the suggestion
+        return;  // Don't close overlay - let them see the suggestion
       }
     }
 
@@ -3049,7 +3049,7 @@ async function decideIncident(id, decision) {
 }
 
 async function updateIncidentStatus(id, status) {
-  // Legacy wrapper — redirect to decideIncident
+  // Legacy wrapper - redirect to decideIncident
   await decideIncident(id, status);
 }
 
@@ -3066,7 +3066,7 @@ async function checkSystemHealth() {
     let banner = document.getElementById(bannerId);
     if (cb?.tripped) {
       const sec = cb.cooldown_remaining_sec ?? 0;
-      const msg = `AI triage is paused (circuit breaker open — resets in ${sec}s). Alerts are being rule-tagged only.`;
+      const msg = `AI triage is paused (circuit breaker open - resets in ${sec}s). Alerts are being rule-tagged only.`;
       if (!banner) {
         banner = document.createElement('div');
         banner.id = bannerId;
@@ -3077,7 +3077,7 @@ async function checkSystemHealth() {
     } else if (banner) {
       banner.remove();
     }
-  } catch { /* silently ignore — WS disconnect already toasted */ }
+  } catch { /* silently ignore - WS disconnect already toasted */ }
 }
 
 function init() {
@@ -3132,7 +3132,7 @@ function init() {
   dom.incidentFilter?.addEventListener('change', fetchIncidents);
   dom.scoutRefresh?.addEventListener('click', fetchScoutCards);
 
-  // Search box — FTS on Enter or debounce
+  // Search box - FTS on Enter or debounce
   let searchDebounce;
   dom.searchBox.addEventListener('input', () => {
     clearTimeout(searchDebounce);
@@ -3344,17 +3344,17 @@ function showTips() {
     { id: 'pending-explained', condition: pending > 0, content:
       '<strong>Pending</strong> alerts haven\'t been triaged yet. The AI reviews them in batches. You can also manually set verdicts.' },
     { id: 'suppress-explained', condition: total > 0 && suppressed > total * 0.4, content:
-      'A large portion of your alerts are suppressed — this is normal. Suppressed means the alert is known noise (benign scanners, internal traffic, etc). Use <strong>Suppress All Filtered</strong> to clear backlogs.' },
+      'A large portion of your alerts are suppressed - this is normal. Suppressed means the alert is known noise (benign scanners, internal traffic, etc). Use <strong>Suppress All Filtered</strong> to clear backlogs.' },
     { id: 'external-internal', condition: true, content:
       '<strong>External→Internal</strong> traffic (internet hitting your network) is generally more concerning than internal→internal. Shallots automatically bumps severity for inbound threats.' },
     { id: 'what-is-suricata', condition: 'suricata' in bySource, content:
-      '<strong>Suricata</strong> is your network IDS — it inspects all traffic and flags known malicious signatures. Alerts here mean packets matched a threat pattern.' },
+      '<strong>Suricata</strong> is your network IDS - it inspects all traffic and flags known malicious signatures. Alerts here mean packets matched a threat pattern.' },
     { id: 'what-is-wazuh', condition: 'wazuh' in bySource, content:
-      '<strong>Wazuh</strong> monitors your endpoints — file integrity, log analysis, rootkit detection. Alerts here mean something changed on a host.' },
+      '<strong>Wazuh</strong> monitors your endpoints - file integrity, log analysis, rootkit detection. Alerts here mean something changed on a host.' },
     { id: 'what-is-argus', condition: 'argus' in bySource, content:
-      '<strong>Argus</strong> is the heavy endpoint sentinel — it watches for physical access, screen locks, USB devices, and runs forensic captures.' },
+      '<strong>Argus</strong> is the heavy endpoint sentinel - it watches for physical access, screen locks, USB devices, and runs forensic captures.' },
     { id: 'correlation-meaning', condition: correlations > 0, content:
-      '<strong>Correlations</strong> are patterns the AI found across multiple alerts — for example, the same IP triggering different rules, or a sequence of events suggesting lateral movement.' },
+      '<strong>Correlations</strong> are patterns the AI found across multiple alerts - for example, the same IP triggering different rules, or a sequence of events suggesting lateral movement.' },
     { id: 'try-ai-query', condition: true, content:
       'The <strong>AI Query</strong> bar understands plain English. Try: <em>"What external IPs hit my network in the last 24 hours?"</em>' },
     { id: 'bulk-select-tip', condition: true, content:
@@ -3387,17 +3387,17 @@ function showTips() {
 
 const EDUCATION_LOOKUP = {
   'ET MALWARE': 'This alert matched a known malware communication signature from Emerging Threats. It could indicate malware beaconing, downloading payloads, or exfiltrating data.',
-  'ET SCAN': 'Network scanning detected — someone is probing your systems for open ports or services. Common in reconnaissance, the first stage of an attack.',
+  'ET SCAN': 'Network scanning detected - someone is probing your systems for open ports or services. Common in reconnaissance, the first stage of an attack.',
   'ET TROJAN': 'Traffic matched a known trojan command-and-control pattern. This could indicate an infected host communicating with an attacker.',
-  'ET EXPLOIT': 'An exploit attempt was detected — someone is trying to leverage a vulnerability in a service or application.',
-  'ET INFO': 'Informational alert — not necessarily malicious, but noteworthy. Examples: uncommon user agents, known VPN/proxy usage, or unusual DNS queries.',
-  'ET POLICY': 'Policy violation detected — traffic that may violate your security policies, like P2P file sharing or unauthorized software.',
-  'ET DOS': 'Denial-of-service activity detected — someone may be flooding your systems to disrupt availability.',
-  'ET WEB_SERVER': 'Web server attack detected — could be SQL injection, XSS, directory traversal, or other web application attacks against your servers.',
-  'ET WEB_CLIENT': 'Web client compromise attempt — malicious content targeting a browser or web client on your network.',
-  'Authentication Failure': 'A login attempt failed — could be a brute force attack, credential stuffing, or just a user who forgot their password. Multiple failures from the same source are more concerning.',
-  'File integrity': 'A monitored file was modified — check if this was an expected change (update, config edit) or potentially unauthorized tampering.',
-  'Rootkit': 'Possible rootkit detected — this is a serious finding. Rootkits hide malicious software at the OS level. Investigate immediately.',
+  'ET EXPLOIT': 'An exploit attempt was detected - someone is trying to leverage a vulnerability in a service or application.',
+  'ET INFO': 'Informational alert - not necessarily malicious, but noteworthy. Examples: uncommon user agents, known VPN/proxy usage, or unusual DNS queries.',
+  'ET POLICY': 'Policy violation detected - traffic that may violate your security policies, like P2P file sharing or unauthorized software.',
+  'ET DOS': 'Denial-of-service activity detected - someone may be flooding your systems to disrupt availability.',
+  'ET WEB_SERVER': 'Web server attack detected - could be SQL injection, XSS, directory traversal, or other web application attacks against your servers.',
+  'ET WEB_CLIENT': 'Web client compromise attempt - malicious content targeting a browser or web client on your network.',
+  'Authentication Failure': 'A login attempt failed - could be a brute force attack, credential stuffing, or just a user who forgot their password. Multiple failures from the same source are more concerning.',
+  'File integrity': 'A monitored file was modified - check if this was an expected change (update, config edit) or potentially unauthorized tampering.',
+  'Rootkit': 'Possible rootkit detected - this is a serious finding. Rootkits hide malicious software at the OS level. Investigate immediately.',
   'USB': 'A USB device event was detected. Could be a new device connected to a monitored endpoint. Unauthorized USB devices can be used for data theft or malware delivery.',
   'Screen lock': 'A screen lock/unlock event was recorded. Useful for tracking physical access patterns to workstations.',
   'Network anomaly': 'Unusual network behavior detected that doesn\'t match known signatures. Could indicate new or evolving threats.',
@@ -3465,7 +3465,7 @@ function wireWhatIsThis(card) {
 const _repCache = {};
 
 async function fetchReputation(ip) {
-  if (!ip || ip === '—') return null;
+  if (!ip || ip === '-') return null;
   if (_repCache[ip]) return _repCache[ip];
   try {
     const res = await fetch(`/api/reputation/${encodeURIComponent(ip)}`);
@@ -3826,7 +3826,7 @@ function buildClusterCard(c) {
   const badge = cnt > 1 ? `<span class="group-count">&times;${cnt}</span>` : '';
   const srcLabel = escHtml(c.src_ip || '(no IP)');
   const timeRange = cnt > 1
-    ? `${fmtRelative(c.first_seen)} — ${fmtRelative(c.last_seen)}`
+    ? `${fmtRelative(c.first_seen)} - ${fmtRelative(c.last_seen)}`
     : fmtRelative(c.last_seen);
   const verdictClass = c.verdict ? `verdict-${c.verdict}` : '';
   const verdictLabel = c.verdict || 'pending';
@@ -4855,7 +4855,7 @@ function smartEmptyState(context) {
     'no-alerts': {
       icon: '&#x1F6E1;',
       title: 'All clear',
-      desc: 'No events to show. Your sensors are monitoring the network — alerts will appear here when something is detected. This is a good thing.',
+      desc: 'No events to show. Your sensors are monitoring the network - alerts will appear here when something is detected. This is a good thing.',
     },
     'no-filter-results': {
       icon: '&#x2714;',
@@ -5052,7 +5052,7 @@ function buildArgusDetailPanel(a) {
 
   const stateDescs = {
     ARMED_HOME: 'Monitoring with home-mode sensitivity. Auto-escalates to ARMED_AWAY on inactivity.',
-    ARMED_AWAY: 'Elevated monitoring — user is away. All monitors at full sensitivity.',
+    ARMED_AWAY: 'Elevated monitoring - user is away. All monitors at full sensitivity.',
     LOCKDOWN: 'Threat detected. Workstation locked, evidence captured, SMS sent.',
     DISARMED: 'Monitoring is off. No active protection.',
   };
@@ -5064,7 +5064,7 @@ function buildArgusDetailPanel(a) {
     const mins = Math.floor(rem / 60);
     const secs = rem % 60;
     timelockHtml = `<div class="timelock-banner">
-      <strong>TIMELOCK ACTIVE</strong> — System isolated.
+      <strong>TIMELOCK ACTIVE</strong> - System isolated.
       Network disabled. ${mins}m ${secs}s remaining.
       ${health.timelock_expires_utc ? `<br>Expires: ${new Date(health.timelock_expires_utc).toLocaleTimeString()}` : ''}
     </div>`;
@@ -5249,7 +5249,7 @@ async function runTestDetection() {
 
     const overallColor = data.overall === 'pass' ? 'var(--sev-low)' : data.overall === 'fail' ? 'var(--sev-critical)' : 'var(--sev-medium)';
     html += `<div style="padding:0.5rem 1rem;border-radius:6px;background:${overallColor}22;border:1px solid ${overallColor};margin-bottom:1rem;font-weight:600;color:${overallColor}">`;
-    html += `Overall: ${data.overall === 'pass' ? 'ALL SYSTEMS GO' : data.overall === 'fail' ? 'PIPELINE FAILURE' : 'PARTIAL — CHECK WARNINGS'}</div>`;
+    html += `Overall: ${data.overall === 'pass' ? 'ALL SYSTEMS GO' : data.overall === 'fail' ? 'PIPELINE FAILURE' : 'PARTIAL - CHECK WARNINGS'}</div>`;
 
     for (const [key, stage] of Object.entries(data.stages || {})) {
       const icon = stageIcons[stage.status] || '\u2753';
@@ -5717,7 +5717,7 @@ async function scanForLlms() {
 
       return `<div class="llm-provider ${statusClass}">
         <div class="llm-provider-header">
-          <span>${escHtml(p.type)} — ${escHtml(p.url)}</span>
+          <span>${escHtml(p.type)} - ${escHtml(p.url)}</span>
           <span class="llm-status ${statusClass}">${escHtml(p.status)}</span>
         </div>
         ${models ? `<div class="llm-model-list">${models}</div>` : ''}
@@ -5789,7 +5789,7 @@ function initJttw() {
   btn.id = 'jttw-btn';
   btn.className = 'jttw-btn';
   btn.innerHTML = '&#9889; JTTW';
-  btn.title = 'Jesus Take The Wheel — AI Deep Investigation';
+  btn.title = 'Jesus Take The Wheel - AI Deep Investigation';
   btn.addEventListener('click', runJttw);
   statsGrid.parentElement.insertBefore(btn, statsGrid.nextSibling);
 
@@ -6161,7 +6161,7 @@ async function loadAiSquawks() {
     if (!squawks.length) { list.innerHTML = '<div class="empty-state" style="padding:0.5rem;font-size:0.85rem">No threats detected</div>'; return; }
     list.innerHTML = squawks.map(s => `<div class="ai-squawk-item${s.dismissed ? ' dismissed' : ''}" data-id="${escHtml(s.id)}">
       <div class="ai-squawk-title">${escHtml(s.title)}</div>
-      <div class="ai-squawk-detail">${escHtml(s.detail || '')} — ${fmtRelative(s.ts)}</div>
+      <div class="ai-squawk-detail">${escHtml(s.detail || '')} - ${fmtRelative(s.ts)}</div>
     </div>`).join('');
   } catch (e) { console.warn('AI squawks error:', e); }
 }
@@ -6175,7 +6175,7 @@ async function loadAiReports() {
     const reports = await res.json();
     if (!reports.length) { list.innerHTML = '<div class="empty-state" style="padding:0.5rem;font-size:0.85rem">No reports yet</div>'; return; }
     list.innerHTML = reports.map(r => `<div class="ai-report-item" data-id="${escHtml(r.id)}">
-      <div class="ai-report-period">${escHtml(r.period_start || '')} — ${escHtml(r.period_end || '')}</div>
+      <div class="ai-report-period">${escHtml(r.period_start || '')} - ${escHtml(r.period_end || '')}</div>
       <div class="ai-report-summary">${escHtml((r.summary || '').substring(0, 200))}</div>
     </div>`).join('');
   } catch (e) { console.warn('AI reports error:', e); }
@@ -6377,7 +6377,7 @@ async function loadIncidentIpReputation(ips) {
 
 async function expandLinkedAlert(alertId, rowEl) {
   if (!alertId) return;
-  // Toggle — if already expanded, collapse
+  // Toggle - if already expanded, collapse
   const existing = rowEl.nextElementSibling;
   if (existing && existing.classList.contains('linked-alert-detail')) {
     existing.remove();
@@ -6492,7 +6492,7 @@ function renderPivotView(container, data, ips) {
   const pending = alerts.filter(a => !a.verdict || a.verdict === 'pending');
   const suppressed = alerts.filter(a => a.verdict === 'suppress');
 
-  // Build incidents section — source incident first
+  // Build incidents section - source incident first
   const sourceInc = incidents.filter(i => i.is_source);
   const otherInc = incidents.filter(i => !i.is_source);
   const sortedIncidents = [...sourceInc, ...otherInc];
@@ -6594,7 +6594,7 @@ function renderPivotView(container, data, ips) {
     </div>
 
     <div class="pivot-resolve-bar">
-      <button class="btn btn-resolve" onclick="pivotResolveAll()">Resolve All — dismiss alerts &amp; close incidents</button>
+      <button class="btn btn-resolve" onclick="pivotResolveAll()">Resolve All - dismiss alerts &amp; close incidents</button>
       <button class="btn btn-fp" onclick="pivotFalsePositiveAll()">False Positive All</button>
     </div>
 
@@ -6647,7 +6647,7 @@ async function pivotBulkVerdict(verdict) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
-    // Update the UI — mark rows as actioned
+    // Update the UI - mark rows as actioned
     for (const id of ids) {
       const row = document.querySelector(`.pivot-alert-row[data-id="${id}"]`);
       if (row) {
@@ -6707,7 +6707,7 @@ async function pivotResolveAll() {
     fetchIncidents();
   } catch (err) {
     alert('Resolve failed: ' + err.message);
-    if (btn) { btn.disabled = false; btn.textContent = 'Resolve All — dismiss alerts & close incidents'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Resolve All - dismiss alerts & close incidents'; }
   }
 }
 
@@ -6785,7 +6785,7 @@ async function openThreatsOverlay() {
 
     const body = overlay.querySelector('.pivot-body');
     if (!threats.length) {
-      body.innerHTML = '<div class="empty-state" style="padding:2rem">No external threats — all clear!</div>';
+      body.innerHTML = '<div class="empty-state" style="padding:2rem">No external threats - all clear!</div>';
       return;
     }
 
@@ -6795,7 +6795,7 @@ async function openThreatsOverlay() {
         <div class="pivot-stat"><strong>${threats.reduce((s,c) => s + (c.alert_count||0), 0)}</strong> total alerts</div>
       </div>
       <div class="pivot-bulk-bar">
-        <button class="btn btn-resolve" onclick="suppressThreatClusters()">Suppress All — these are false positives</button>
+        <button class="btn btn-resolve" onclick="suppressThreatClusters()">Suppress All - these are false positives</button>
       </div>
       <div class="pivot-section">
         <h3>Threat Clusters</h3>
@@ -6843,7 +6843,7 @@ async function suppressThreatClusters() {
     fetchStats();
   } catch (err) {
     alert('Failed: ' + err.message);
-    if (btn) { btn.disabled = false; btn.textContent = 'Suppress All — these are false positives'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Suppress All - these are false positives'; }
   }
 }
 
@@ -6883,7 +6883,7 @@ async function openNeedsReviewOverlay() {
 
     const body = overlay.querySelector('.pivot-body');
     if (!items.length) {
-      body.innerHTML = '<div class="empty-state" style="padding:2rem">Nothing to review — all clear!</div>';
+      body.innerHTML = '<div class="empty-state" style="padding:2rem">Nothing to review - all clear!</div>';
       return;
     }
 
@@ -6893,7 +6893,7 @@ async function openNeedsReviewOverlay() {
         <div class="pivot-stat"><strong>${items.reduce((s,c) => s + (c.alert_count||0), 0)}</strong> total alerts</div>
       </div>
       <div class="pivot-bulk-bar">
-        <button class="btn btn-resolve" onclick="suppressReviewClusters()">Suppress All — bulk dismiss</button>
+        <button class="btn btn-resolve" onclick="suppressReviewClusters()">Suppress All - bulk dismiss</button>
       </div>
       <div class="pivot-section">
         <h3>Review Clusters</h3>
@@ -6942,7 +6942,7 @@ async function suppressReviewClusters() {
     toast('Review clusters suppressed', 'success');
   } catch (err) {
     alert('Failed: ' + err.message);
-    if (btn) { btn.disabled = false; btn.textContent = 'Suppress All — bulk dismiss'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Suppress All - bulk dismiss'; }
   }
 }
 
@@ -6972,7 +6972,7 @@ async function openStaleAlertsOverlay() {
 
     const body = document.getElementById('stale-alerts-body');
     if (alerts.length === 0) {
-      body.innerHTML = '<div class="empty-state">No stale alerts — all caught up!</div>';
+      body.innerHTML = '<div class="empty-state">No stale alerts - all caught up!</div>';
       return;
     }
 
@@ -7634,7 +7634,7 @@ async function loadDhcpChanges() {
       return;
     }
 
-    let html = `<div style="margin-bottom:0.5rem;font-size:0.8rem;color:var(--danger)">Warning: ${changes.length} IP(s) have had multiple MAC addresses — possible IP spoofing or DHCP conflicts.</div>`;
+    let html = `<div style="margin-bottom:0.5rem;font-size:0.8rem;color:var(--danger)">Warning: ${changes.length} IP(s) have had multiple MAC addresses - possible IP spoofing or DHCP conflicts.</div>`;
     html += `<table class="analytics-table"><thead><tr><th>IP</th><th>MAC Count</th><th>MAC Addresses</th><th>Hostnames</th></tr></thead><tbody>`;
     for (const c of changes) {
       html += `<tr>
@@ -7785,9 +7785,9 @@ async function checkIoc() {
     const data = await res.json();
     const matches = data.matches || [];
     if (!matches.length) {
-      resultDiv.innerHTML = `<span style="color:var(--success, #4caf50)">Clean — "${escHtml(value)}" not found in any threat feed.</span>`;
+      resultDiv.innerHTML = `<span style="color:var(--success, #4caf50)">Clean - "${escHtml(value)}" not found in any threat feed.</span>`;
     } else {
-      resultDiv.innerHTML = `<span style="color:var(--danger);font-weight:600">MATCH — "${escHtml(value)}" found in ${matches.length} feed(s): ${matches.map(m => escHtml(m.feed_name)).join(', ')}</span>`;
+      resultDiv.innerHTML = `<span style="color:var(--danger);font-weight:600">MATCH - "${escHtml(value)}" found in ${matches.length} feed(s): ${matches.map(m => escHtml(m.feed_name)).join(', ')}</span>`;
     }
   } catch (err) {
     resultDiv.innerHTML = `<span style="color:var(--danger)">Check failed: ${escHtml(err.message)}</span>`;
@@ -7858,7 +7858,7 @@ async function loadVulnCorrelation() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Fetch server capabilities before init — adapts UI to hardware tier
+  // Fetch server capabilities before init - adapts UI to hardware tier
   try {
     const resp = await fetch('/api/health');
     const health = await resp.json();
@@ -7886,9 +7886,9 @@ function adaptUiToCapabilities() {
   const cap = state.capabilities || {};
   const tier = cap.tier || 'mid';
 
-  // Threat engine panels — hide if module is off
+  // Threat engine panels - hide if module is off
   if (!cap.baselines && !cap.graph && !cap.ml_detector && !cap.killchain) {
-    // Entire threat engine is off — hide ML card, MITRE, topology link
+    // Entire threat engine is off - hide ML card, MITRE, topology link
     const mlCard = document.querySelector('[onclick*="/ml"]');
     if (mlCard) mlCard.style.display = 'none';
     const topoCard = document.querySelector('[onclick*="/topology"]');

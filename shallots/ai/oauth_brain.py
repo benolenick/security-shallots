@@ -14,7 +14,7 @@ ladder calls Claude on a fixed cadence (10 min / 1 h / 4 h), the refresh token
 keeps rolling and never idle-expires. Model *aliases* (haiku/sonnet/opus) also
 resolve to the latest model server-side, so there are no model IDs to rot.
 
-This module is deliberately dependency-free (stdlib only) and synchronous — the
+This module is deliberately dependency-free (stdlib only) and synchronous - the
 ladder tiers are short-lived timer processes, not part of the async daemon.
 """
 
@@ -32,7 +32,7 @@ from dataclasses import dataclass
 log = logging.getLogger(__name__)
 
 # Recognisable substrings in CLI output/stderr that mean "the OAuth token is
-# stale / auth failed" — triggers a refresh-poke and one retry.
+# stale / auth failed" - triggers a refresh-poke and one retry.
 _AUTH_FAIL_MARKERS = (
     "401",
     "unauthorized",
@@ -155,7 +155,7 @@ class OAuthBrain:
             return self._invoke(model, prompt, timeout)
         except BrainAuthError:
             # One shot at self-healing a stale token, then retry.
-            log.warning("oauth_brain: auth failure on %s — poking refresh + retry", model)
+            log.warning("oauth_brain: auth failure on %s - poking refresh + retry", model)
             self._poke_refresh()
             return self._invoke(model, prompt, timeout)
 

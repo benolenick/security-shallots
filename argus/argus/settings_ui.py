@@ -1,4 +1,4 @@
-"""Argus Settings UI — tkinter panel for configuring Argus at runtime.
+"""Argus Settings UI - tkinter panel for configuring Argus at runtime.
 
 Launched from the tray menu. Allows changing:
 - Lockdown mode (reactive / passive)

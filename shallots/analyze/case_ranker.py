@@ -1,4 +1,4 @@
-"""Evidence-graph case ranker — the honest v1 of "causal land / feature elevation".
+"""Evidence-graph case ranker - the honest v1 of "causal land / feature elevation".
 
 Composes the EXISTING pieces (NetworkGraph topology + kill-chain stage map) into the
 one thing that was missing: scan the whole evidence graph, put an ELEVATION (danger
@@ -9,7 +9,7 @@ each, and emit a ranked list of top-N CASES with the exact evidence cited.
 Design notes (per codex sanity-check 2026-07-16):
   * NOT a manifold. Plain weighted graph + component/path scoring. The curved-surface
     geodesic is deferred until there's dense enough provenance to justify it.
-  * Honest name: TEMPORAL EVIDENCE graph, not causal provenance — with network/dns/auth/
+  * Honest name: TEMPORAL EVIDENCE graph, not causal provenance - with network/dns/auth/
     cron sensors (no eBPF process lineage) many edges are temporal-correlation-on-shared-
     identifier, not true causality. Degrades gracefully to host-centered stars.
   * Scoring is threat_gain-per-compactness, NOT vanilla shortest-path: a SHORT component
@@ -45,7 +45,7 @@ _CATEGORY_ELEVATION = [
     ("agent_health", 0.02), ("state_management", 0.05),
 ]
 
-# HARD-THREAT keywords — a concrete threat signal in title/category. These FLOOR the
+# HARD-THREAT keywords - a concrete threat signal in title/category. These FLOOR the
 # node elevation high AND flag the case must-review. Same spirit as edge_triage's floor:
 # a deterministic dumb layer that a fuzzy score can never talk down.
 _HARD_THREAT = (
@@ -63,7 +63,7 @@ def _cat_elevation(category: str) -> float:
     for key, val in _CATEGORY_ELEVATION:
         if key in c:
             return val
-    return 0.10  # unknown category — mild
+    return 0.10  # unknown category - mild
 
 
 def _is_hard_threat(title: str, category: str, description: str) -> bool:
@@ -183,7 +183,7 @@ def rank_cases(alerts: list[dict], rep: dict[str, dict], top: int = 5) -> list[d
         peak_node = max(elevs, key=elevs.get)
         peak = elevs[peak_node]
         if peak < 0.15:
-            continue  # nothing interesting in this component — stays silent
+            continue  # nothing interesting in this component - stays silent
 
         # distinct kill-chain stages present in the component (breadth of the chain)
         stages = set()
@@ -257,7 +257,7 @@ def render(cases: list[dict], hours: int) -> str:
     win = f"last {hours}h" if hours > 0 else "all history"
     if not cases:
         return f"✓ Evidence graph ({win}): no cases above threshold. Quiet."
-    lines = [f"═══ TOP {len(cases)} CASES — evidence graph ({win}) ═══", ""]
+    lines = [f"═══ TOP {len(cases)} CASES - evidence graph ({win}) ═══", ""]
     for i, c in enumerate(cases, 1):
         flag = "🔴" if c["hard_threat"] else ("🟠" if c["score"] >= 0.6 else "🟡")
         lines.append(f"{flag} CASE {i}  score={c['score']:.2f}  focus={c['focus']}  "

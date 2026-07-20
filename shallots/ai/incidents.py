@@ -1,4 +1,4 @@
-"""Incident generator — promotes correlations and escalated clusters to actionable incidents."""
+"""Incident generator - promotes correlations and escalated clusters to actionable incidents."""
 
 from __future__ import annotations
 
@@ -85,7 +85,7 @@ class IncidentWorker:
         await self._scan_correlations(existing_keys)
 
         # Source 2: Escalated clusters (verdict promoted to 'escalate' at the
-        # cluster level — e.g. by the ladder when enabled)
+        # cluster level - e.g. by the ladder when enabled)
         await self._scan_escalated_clusters(existing_keys)
 
     async def _scan_deterministic_escalations(self, existing_keys: set[str]) -> None:
@@ -96,7 +96,7 @@ class IncidentWorker:
         alert-level escalations previously never propagated to an incident
         (clusters stay verdict='pending' with the ladder off), so the
         escalated-cluster path was starved. This bridges that gap using only
-        local/deterministic signals — high precision, so a low minimum is safe.
+        local/deterministic signals - high precision, so a low minimum is safe.
         """
         try:
             cursor = await self._db.execute_sql(
@@ -129,7 +129,7 @@ class IncidentWorker:
             if f"cluster:{cluster_id}" in existing_keys:
                 continue
             # Escalated alerts keep verdict='escalate' permanently, so dedup against
-            # ALL incidents (including resolved) here — otherwise resolving this
+            # ALL incidents (including resolved) here - otherwise resolving this
             # incident would let the next scan re-promote the same cluster forever.
             if await self._cluster_has_any_incident(cluster_id):
                 continue
@@ -160,7 +160,7 @@ class IncidentWorker:
             )
             if not incident:
                 log.warning("deterministic escalation: generation returned None for cluster %s "
-                            "— falling back to rule-based", cluster_id)
+                            "- falling back to rule-based", cluster_id)
                 incident = self._rule_based_incident(
                     "deterministic_escalation", pattern, int(row["c"]), alerts)
 
@@ -252,7 +252,7 @@ class IncidentWorker:
                     auto_keys = {c["pattern_key"] for c in candidates}
                     if pattern_key in auto_keys:
                         incident["urgency"] = "noise"
-                        incident["summary"] = f"[Auto-flagged as likely noise — you've dismissed similar incidents before] {incident.get('summary', '')}"
+                        incident["summary"] = f"[Auto-flagged as likely noise - you've dismissed similar incidents before] {incident.get('summary', '')}"
                 except Exception:
                     pass
 
@@ -322,7 +322,7 @@ class IncidentWorker:
                     auto_keys = {c["pattern_key"] for c in candidates}
                     if pattern_key in auto_keys:
                         incident["urgency"] = "noise"
-                        incident["summary"] = f"[Auto-flagged as likely noise — you've dismissed similar incidents before] {incident.get('summary', '')}"
+                        incident["summary"] = f"[Auto-flagged as likely noise - you've dismissed similar incidents before] {incident.get('summary', '')}"
                 except Exception:
                     pass
 
@@ -351,7 +351,7 @@ class IncidentWorker:
                                   ip_context: str) -> dict | None:
         """Use AI to generate an incident report, or fall back to rule-based."""
         # Prepare alert summaries. Keep only decision-relevant fields and cap the
-        # count — a large prompt overflows the model context and truncates the
+        # count - a large prompt overflows the model context and truncates the
         # JSON response mid-object (the #1 cause of parse failures on the local
         # Granite model), forcing a fallback that discards the AI narrative.
         _KEEP = ("id", "source", "severity", "title", "description",
@@ -389,7 +389,7 @@ class IncidentWorker:
                     learning_context=learning_context,
                 )
                 # format="json" grammar-constrains the local model to emit a single
-                # complete JSON object — far more reliable than free-form + regex,
+                # complete JSON object - far more reliable than free-form + regex,
                 # which truncated mid-object under the model's context window.
                 parsed = await self._client.generate_json(
                     prompt=prompt,
@@ -399,9 +399,9 @@ class IncidentWorker:
                 incident = self._incident_from_parsed(parsed, alerts)
                 if incident:
                     return incident
-                log.warning("Incident: AI JSON missing required fields — using fallback")
+                log.warning("Incident: AI JSON missing required fields - using fallback")
             except Exception as exc:
-                log.warning("Incident AI generation failed: %s — using fallback", exc)
+                log.warning("Incident AI generation failed: %s - using fallback", exc)
 
         # Fallback: rule-based incident
         return self._rule_based_incident(source, pattern, alert_count, alerts)
@@ -512,7 +512,7 @@ class IncidentWorker:
              "command": None,
              "expect": "Familiar services and ports",
              "bad_sign": "Connections to unusual ports or unknown services",
-             "decision": "Look for patterns — same port, same time of day, etc."},
+             "decision": "Look for patterns - same port, same time of day, etc."},
             {"description": "If the source is external and unexpected, block it",
              "command": f"sudo ufw deny from {src_ip}" if src_ip != "unknown" else None,
              "expect": "Rule added",

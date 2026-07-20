@@ -40,7 +40,7 @@ class Alerter:
         """Dispatch an alert dict to all enabled channels.
 
         Only sends if the alert verdict is 'escalate'. Safe to call for
-        any alert — non-escalated alerts are silently dropped.
+        any alert - non-escalated alerts are silently dropped.
         """
         if alert.get("verdict", "") != "escalate":
             return
@@ -83,7 +83,7 @@ class Alerter:
         try:
             import aiohttp
         except ImportError:
-            log.warning("aiohttp not installed — webhook alerts disabled")
+            log.warning("aiohttp not installed - webhook alerts disabled")
             return
 
         payload = self._build_webhook_payload(alert)
@@ -205,7 +205,7 @@ class Alerter:
     def _build_email_body(self, alert: dict[str, Any]) -> str:
         """Build plain-text email body from alert dict."""
         lines = [
-            "Security Shallots — Escalated Alert",
+            "Security Shallots - Escalated Alert",
             "=" * 40,
             f"Title:       {alert.get('title', '')}",
             f"Severity:    {alert.get('severity', '')}",
@@ -390,7 +390,7 @@ class Alerter:
         try:
             import aiohttp
         except ImportError:
-            log.warning("aiohttp not installed — ntfy notifications disabled")
+            log.warning("aiohttp not installed - ntfy notifications disabled")
             return
 
         if self._session is None or self._session.closed:

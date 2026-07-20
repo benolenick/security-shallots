@@ -18,7 +18,7 @@ log = logging.getLogger(__name__)
 # ── /api/alerts ───────────────────────────────────────────────────────────────
 
 async def handle_alerts(request: web.Request) -> web.Response:
-    """GET /api/alerts — paginated alert list with optional filters.
+    """GET /api/alerts - paginated alert list with optional filters.
 
     Query params:
         limit   int   default 50
@@ -61,7 +61,7 @@ async def handle_alerts(request: web.Request) -> web.Response:
 
 
 async def handle_alert_detail(request: web.Request) -> web.Response:
-    """GET /api/alerts/{id} — single alert detail."""
+    """GET /api/alerts/{id} - single alert detail."""
     alert_id = request.match_info["id"]
     alert = await _db(request).get_alert(alert_id)
     if alert is None:
@@ -70,7 +70,7 @@ async def handle_alert_detail(request: web.Request) -> web.Response:
 
 
 async def handle_alert_context(request: web.Request) -> web.Response:
-    """GET /api/alerts/{id}/context — investigation context for an alert."""
+    """GET /api/alerts/{id}/context - investigation context for an alert."""
     alert_id = request.match_info["id"]
     db = _db(request)
     alert = await db.get_alert(alert_id)
@@ -99,7 +99,7 @@ async def handle_alert_context(request: web.Request) -> web.Response:
 
 
 async def handle_set_verdict(request: web.Request) -> web.Response:
-    """PATCH /api/alerts/{id}/verdict — manually set alert verdict.
+    """PATCH /api/alerts/{id}/verdict - manually set alert verdict.
 
     Accepts JSON body: {"verdict": "suppress|investigate|escalate"}
     """
@@ -140,7 +140,7 @@ async def handle_set_verdict(request: web.Request) -> web.Response:
 # ── /api/alerts/bulk-verdict ──────────────────────────────────────────────────
 
 async def handle_bulk_verdict(request: web.Request) -> web.Response:
-    """POST /api/alerts/bulk-verdict — update verdict for multiple alerts.
+    """POST /api/alerts/bulk-verdict - update verdict for multiple alerts.
 
     Accepts JSON body: {"alert_ids": [...], "verdict": "suppress|investigate|escalate"}
     Max 500 IDs per call.
@@ -169,7 +169,7 @@ async def handle_bulk_verdict(request: web.Request) -> web.Response:
 # ── /api/alerts/suppress-filtered ─────────────────────────────────────────────
 
 async def handle_suppress_filtered(request: web.Request) -> web.Response:
-    """POST /api/alerts/suppress-filtered — suppress all alerts matching filters.
+    """POST /api/alerts/suppress-filtered - suppress all alerts matching filters.
 
     Accepts JSON body: {"source": "", "severity": "", "verdict": "", "since": ""}
     """
@@ -192,7 +192,7 @@ async def handle_suppress_filtered(request: web.Request) -> web.Response:
 # ── /api/alerts/search ────────────────────────────────────────────────────────
 
 async def handle_search(request: web.Request) -> web.Response:
-    """GET /api/alerts/search?q=... — FTS5 full-text search."""
+    """GET /api/alerts/search?q=... - FTS5 full-text search."""
     q = request.rel_url.query.get("q", "").strip()
     if not q:
         raise web.HTTPBadRequest(reason="Missing required query parameter: q")
@@ -208,7 +208,7 @@ async def handle_search(request: web.Request) -> web.Response:
 # ── /api/query ────────────────────────────────────────────────────────────────
 
 async def handle_nl_query(request: web.Request) -> web.Response:
-    """POST /api/query — natural language query over alerts.
+    """POST /api/query - natural language query over alerts.
 
     Accepts JSON body: {"question": "..."}
     Returns: {"question": "...", "sql": "...", "results": [...], "summary": "..."}
@@ -240,7 +240,7 @@ async def handle_nl_query(request: web.Request) -> web.Response:
         if sql:
             results = await db.execute_sql(sql)
     except (ImportError, AttributeError):
-        # AI query module not available — fall back to FTS search
+        # AI query module not available - fall back to FTS search
         log.debug("AI query module unavailable, falling back to FTS search")
     except Exception:
         log.exception("AI query failed for question: %r", question)
@@ -284,7 +284,7 @@ async def handle_nl_query(request: web.Request) -> web.Response:
 # ── /api/alerts/{id}/acknowledge ─────────────────────────────────────────────
 
 async def handle_acknowledge(request: web.Request) -> web.Response:
-    """PATCH /api/alerts/{id}/acknowledge — toggle alert acknowledgement."""
+    """PATCH /api/alerts/{id}/acknowledge - toggle alert acknowledgement."""
     alert_id = request.match_info["id"]
     db = _db(request)
     alert = await db.get_alert(alert_id)
@@ -302,14 +302,14 @@ async def handle_acknowledge(request: web.Request) -> web.Response:
 # ── /api/alerts/{id}/notes ──────────────────────────────────────────────────
 
 async def handle_get_notes(request: web.Request) -> web.Response:
-    """GET /api/alerts/{id}/notes — list investigation notes."""
+    """GET /api/alerts/{id}/notes - list investigation notes."""
     alert_id = request.match_info["id"]
     notes = await _db(request).get_notes(alert_id)
     return _json_response({"alert_id": alert_id, "notes": notes})
 
 
 async def handle_add_note(request: web.Request) -> web.Response:
-    """POST /api/alerts/{id}/notes — add an investigation note."""
+    """POST /api/alerts/{id}/notes - add an investigation note."""
     alert_id = request.match_info["id"]
     try:
         body = await request.json()
@@ -327,7 +327,7 @@ async def handle_add_note(request: web.Request) -> web.Response:
 # ── /api/alerts/export ──────────────────────────────────────────────────────
 
 async def handle_export(request: web.Request) -> web.Response:
-    """GET /api/alerts/export?format=csv|json — export filtered alerts."""
+    """GET /api/alerts/export?format=csv|json - export filtered alerts."""
     qs = request.rel_url.query
     fmt = qs.get("format", "json").lower()
     source = qs.get("source") or None
@@ -375,7 +375,7 @@ async def handle_export(request: web.Request) -> web.Response:
 # ── /api/alerts/grouped ─────────────────────────────────────────────────────
 
 async def handle_grouped_alerts(request: web.Request) -> web.Response:
-    """GET /api/alerts/grouped — alerts condensed by (src_ip, title)."""
+    """GET /api/alerts/grouped - alerts condensed by (src_ip, title)."""
     qs = request.rel_url.query
     try:
         limit = min(int(qs.get("limit", 50)), 500)
@@ -400,7 +400,7 @@ async def handle_grouped_alerts(request: web.Request) -> web.Response:
 
 
 async def handle_stale_alerts(request: web.Request) -> web.Response:
-    """GET /api/alerts/stale — alerts pending for more than 24 hours."""
+    """GET /api/alerts/stale - alerts pending for more than 24 hours."""
     db = _db(request)
     limit = min(int(request.rel_url.query.get("limit", 200)), 500)
     cursor = await db._db.execute(
@@ -422,7 +422,7 @@ async def handle_stale_alerts(request: web.Request) -> web.Response:
 
 
 async def handle_alert_chat(request: web.Request) -> web.Response:
-    """GET /api/alerts/{id}/chat — get chat history for an alert."""
+    """GET /api/alerts/{id}/chat - get chat history for an alert."""
     alert_id = request.match_info["id"]
     db = _db(request)
     history = await db.get_chat_history(alert_id, limit=50)
@@ -432,7 +432,7 @@ async def handle_alert_chat(request: web.Request) -> web.Response:
 # ── /api/pivot ────────────────────────────────────────────────────────────────
 
 async def handle_pivot(request: web.Request) -> web.Response:
-    """POST /api/pivot — unified view of all alerts + incidents for given IPs.
+    """POST /api/pivot - unified view of all alerts + incidents for given IPs.
 
     Body: {"ips": [...], "incident_id": "optional", "limit": 200}
     When incident_id is provided, scopes alerts to ±24h of the incident and

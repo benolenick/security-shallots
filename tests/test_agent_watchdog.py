@@ -69,7 +69,7 @@ def test_does_not_flag_recent_heartbeat(db):
 
 def test_argus_threshold_is_higher_than_clove(db):
     now = 1_700_000_000.0
-    # 45 minutes — over clove threshold (30m), under argus threshold (60m)
+    # 45 minutes - over clove threshold (30m), under argus threshold (60m)
     db.execute(
         "INSERT INTO agent_status VALUES (?, ?, ?)",
         ("host02-argus", "argus", _iso(45 * 60, now=now)),

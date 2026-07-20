@@ -91,7 +91,7 @@ class TierPolicy:
             return cls(yaml.safe_load(fh) or {})
 
     def classify(self, dev: Device) -> tuple[str, str | None]:
-        # 1) Exact MAC seed — the authoritative, DHCP-proof path.
+        # 1) Exact MAC seed - the authoritative, DHCP-proof path.
         if dev.mac:
             hit = self._by_mac.get(dev.mac.lower())
             if hit:

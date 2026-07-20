@@ -1,14 +1,14 @@
 """Expected-egress allowlist.
 
-Marks hosts whose heavy OUTBOUND internet activity is legitimate and expected —
+Marks hosts whose heavy OUTBOUND internet activity is legitimate and expected -
 scrapers, crawlers, backup jobs, or proxied automation you run on purpose.
 Their outbound-network alerts are auto-suppressed so they don't false-trigger the
 beacon detector, IoC destination-matches, or burn reputation-API quota on the
 thousands of sites they hit.
 
 IMPORTANT: this only touches OUTBOUND-NETWORK categories (default: network_egress).
-Host-level events on the same host — persistence changes, logins, file-integrity,
-anti-tamper — are NOT affected, so a genuine compromise of a scraper box still alerts.
+Host-level events on the same host - persistence changes, logins, file-integrity,
+anti-tamper - are NOT affected, so a genuine compromise of a scraper box still alerts.
 """
 from __future__ import annotations
 

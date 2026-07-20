@@ -1,4 +1,4 @@
-/* Security Shallots — Dark dashboard theme */
+/* Security Shallots - Dark dashboard theme */
 /* Palette inspired by GitHub dark + Security Onion */
 
 :root {
@@ -3268,7 +3268,7 @@ kbd {
   margin-top: 0.25rem;
 }
 
-/* Grouped card expand — nested alerts */
+/* Grouped card expand - nested alerts */
 .grouped-card .group-detail {
   display: none;
   padding: 0 1rem 0.75rem;

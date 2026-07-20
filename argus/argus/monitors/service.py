@@ -57,7 +57,7 @@ class ServiceMonitor:
             current[name] = path
 
             if name not in self._baseline:
-                # New service — check if it has a suspicious path
+                # New service - check if it has a suspicious path
                 if self._is_suspicious_path(path):
                     out.append(
                         ThreatSignal(
@@ -99,7 +99,7 @@ class ServiceMonitor:
                         )
                     )
             else:
-                # Existing service — check for path change
+                # Existing service - check for path change
                 baseline_path = self._baseline[name]
                 if path and path != baseline_path:
                     out.append(

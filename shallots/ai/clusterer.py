@@ -1,4 +1,4 @@
-"""Alert clusterer — assigns alerts to hard clusters by (src_ip, title)."""
+"""Alert clusterer - assigns alerts to hard clusters by (src_ip, title)."""
 
 from __future__ import annotations
 

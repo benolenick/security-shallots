@@ -229,7 +229,7 @@ class ScoutWorker:
             "suppressed_but_rare",
         }
         # Suppressed Suricata stream/protocol-decode noise stays unsurfaced even when
-        # it is first-seen — check this before the novelty early-return so the
+        # it is first-seen - check this before the novelty early-return so the
         # suppression holds on any network (not just traffic to a local sensor).
         if (
             source == "suricata"

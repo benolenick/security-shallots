@@ -15,7 +15,7 @@ _PING_INTERVAL = 20
 
 
 async def handle_ws_alerts(request: web.Request) -> web.WebSocketResponse:
-    """GET /ws/alerts — live alert stream via WebSocket.
+    """GET /ws/alerts - live alert stream via WebSocket.
 
     Protocol:
         server → client  {"type": "alert",   "data": <alert dict>}

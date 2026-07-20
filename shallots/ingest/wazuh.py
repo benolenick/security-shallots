@@ -169,7 +169,7 @@ class WazuhIngestor:
         # Build extended description with FIM hash data if present
         desc_parts = [f"Rule {rule_id} (level {level}): {description}"]
 
-        # FIM (syscheck) data — file integrity with hashes
+        # FIM (syscheck) data - file integrity with hashes
         if syscheck:
             fim_path = syscheck.get("path", "")
             if fim_path:

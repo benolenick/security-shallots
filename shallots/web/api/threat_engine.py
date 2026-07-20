@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 # ── /api/reputation ─────────────────────────────────────────────────────────
 
 async def handle_reputation(request: web.Request) -> web.Response:
-    """GET /api/reputation/{ip} — get IP reputation data."""
+    """GET /api/reputation/{ip} - get IP reputation data."""
     ip = request.match_info["ip"]
     db = _db(request)
     rep = await db.get_ip_reputation(ip)
@@ -33,7 +33,7 @@ async def handle_reputation(request: web.Request) -> web.Response:
 
 
 async def handle_threat_intel_status(request: web.Request) -> web.Response:
-    """GET /api/threat-intel — threat intelligence provider status."""
+    """GET /api/threat-intel - threat intelligence provider status."""
     daemon = request.app["daemon"]
     cfg = daemon.cfg
 
@@ -104,7 +104,7 @@ async def handle_threat_intel_status(request: web.Request) -> web.Response:
 # ── Threat Engine API ──────────────────────────────────────────────────────
 
 async def handle_baselines(request: web.Request) -> web.Response:
-    """GET /api/baselines — all device behavioral profiles."""
+    """GET /api/baselines - all device behavioral profiles."""
     daemon = request.app["daemon"]
     baselines = getattr(daemon, '_baselines', None)
     if not baselines:
@@ -137,7 +137,7 @@ async def handle_baselines(request: web.Request) -> web.Response:
 
 
 async def handle_baseline_detail(request: web.Request) -> web.Response:
-    """GET /api/baselines/{ip} — single device profile with full details."""
+    """GET /api/baselines/{ip} - single device profile with full details."""
     ip = request.match_info["ip"]
     daemon = request.app["daemon"]
     baselines = getattr(daemon, '_baselines', None)
@@ -151,7 +151,7 @@ async def handle_baseline_detail(request: web.Request) -> web.Response:
 
 
 async def handle_baseline_rebuild(request: web.Request) -> web.Response:
-    """POST /api/baselines/rebuild — force baseline rebuild."""
+    """POST /api/baselines/rebuild - force baseline rebuild."""
     daemon = request.app["daemon"]
     baselines = getattr(daemon, '_baselines', None)
     if not baselines:
@@ -161,7 +161,7 @@ async def handle_baseline_rebuild(request: web.Request) -> web.Response:
 
 
 async def handle_topology(request: web.Request) -> web.Response:
-    """GET /api/topology — full network topology for visualization."""
+    """GET /api/topology - full network topology for visualization."""
     daemon = request.app["daemon"]
     graph = getattr(daemon, '_graph', None)
     if not graph:
@@ -211,7 +211,7 @@ async def handle_topology(request: web.Request) -> web.Response:
 
 
 async def handle_graph_pivot(request: web.Request) -> web.Response:
-    """GET /api/graph/pivot?entity=X&depth=2 — entity neighborhood."""
+    """GET /api/graph/pivot?entity=X&depth=2 - entity neighborhood."""
     daemon = request.app["daemon"]
     graph = getattr(daemon, '_graph', None)
     if not graph:
@@ -225,7 +225,7 @@ async def handle_graph_pivot(request: web.Request) -> web.Response:
 
 
 async def handle_graph_paths(request: web.Request) -> web.Response:
-    """GET /api/graph/paths?src=X&dst=Y — attack paths between entities."""
+    """GET /api/graph/paths?src=X&dst=Y - attack paths between entities."""
     daemon = request.app["daemon"]
     graph = getattr(daemon, '_graph', None)
     if not graph:
@@ -239,7 +239,7 @@ async def handle_graph_paths(request: web.Request) -> web.Response:
 
 
 async def handle_graph_communities(request: web.Request) -> web.Response:
-    """GET /api/graph/communities — entity clusters."""
+    """GET /api/graph/communities - entity clusters."""
     daemon = request.app["daemon"]
     graph = getattr(daemon, '_graph', None)
     if not graph:
@@ -249,7 +249,7 @@ async def handle_graph_communities(request: web.Request) -> web.Response:
 
 
 async def handle_graph_entity_score(request: web.Request) -> web.Response:
-    """GET /api/graph/entity-score?entity=X — risk score for entity."""
+    """GET /api/graph/entity-score?entity=X - risk score for entity."""
     daemon = request.app["daemon"]
     graph = getattr(daemon, '_graph', None)
     if not graph:
@@ -261,7 +261,7 @@ async def handle_graph_entity_score(request: web.Request) -> web.Response:
 
 
 async def handle_graph_stats(request: web.Request) -> web.Response:
-    """GET /api/graph/stats — graph size and health."""
+    """GET /api/graph/stats - graph size and health."""
     daemon = request.app["daemon"]
     graph = getattr(daemon, '_graph', None)
     if not graph:
@@ -270,7 +270,7 @@ async def handle_graph_stats(request: web.Request) -> web.Response:
 
 
 async def handle_ml_anomalies(request: web.Request) -> web.Response:
-    """GET /api/ml/anomalies — recent ML-flagged anomalies."""
+    """GET /api/ml/anomalies - recent ML-flagged anomalies."""
     db = _db(request)
     limit = min(int(request.rel_url.query.get("limit", 50)), 200)
     try:
@@ -289,7 +289,7 @@ async def handle_ml_anomalies(request: web.Request) -> web.Response:
 
 
 async def handle_ml_health(request: web.Request) -> web.Response:
-    """GET /api/ml/health — model status and stats."""
+    """GET /api/ml/health - model status and stats."""
     daemon = request.app["daemon"]
     ml = getattr(daemon, '_ml_detector', None)
     if not ml:
@@ -304,11 +304,11 @@ async def handle_ml_health(request: web.Request) -> web.Response:
 
 
 async def handle_ml_retrain(request: web.Request) -> web.Response:
-    """POST /api/ml/retrain — force model retrain."""
+    """POST /api/ml/retrain - force model retrain."""
     daemon = request.app["daemon"]
     ml = getattr(daemon, '_ml_detector', None)
     if not ml:
-        return _json_response({"error": "ML detector not started — restart shallotd first"}, status=503)
+        return _json_response({"error": "ML detector not started - restart shallotd first"}, status=503)
     try:
         stats = await ml.retrain()
         return _json_response({"ok": True, **stats})
@@ -318,7 +318,7 @@ async def handle_ml_retrain(request: web.Request) -> web.Response:
 
 
 async def handle_killchain_active(request: web.Request) -> web.Response:
-    """GET /api/killchain/active — active multi-stage attack progressions."""
+    """GET /api/killchain/active - active multi-stage attack progressions."""
     daemon = request.app["daemon"]
     kc = getattr(daemon, '_killchain', None)
     if not kc:
@@ -330,7 +330,7 @@ async def handle_killchain_active(request: web.Request) -> web.Response:
 
 
 async def handle_killchain_history(request: web.Request) -> web.Response:
-    """GET /api/killchain/history — completed/dismissed chains."""
+    """GET /api/killchain/history - completed/dismissed chains."""
     daemon = request.app["daemon"]
     kc = getattr(daemon, '_killchain', None)
     if not kc:
@@ -339,7 +339,7 @@ async def handle_killchain_history(request: web.Request) -> web.Response:
 
 
 async def handle_killchain_dismiss(request: web.Request) -> web.Response:
-    """POST /api/killchain/{entity}/dismiss — dismiss a kill chain."""
+    """POST /api/killchain/{entity}/dismiss - dismiss a kill chain."""
     daemon = request.app["daemon"]
     kc = getattr(daemon, '_killchain', None)
     if not kc:
@@ -351,7 +351,7 @@ async def handle_killchain_dismiss(request: web.Request) -> web.Response:
 
 
 async def handle_threat_engine_status(request: web.Request) -> web.Response:
-    """GET /api/threat-engine/status — overall threat engine health."""
+    """GET /api/threat-engine/status - overall threat engine health."""
     daemon = request.app["daemon"]
     status = {}
 
@@ -393,7 +393,7 @@ async def handle_threat_engine_status(request: web.Request) -> web.Response:
 # ── /api/tls-certs ────────────────────────────────────────────────────────────
 
 async def handle_tls_certs(request: web.Request) -> web.Response:
-    """GET /api/tls-certs — list all monitored TLS certificates."""
+    """GET /api/tls-certs - list all monitored TLS certificates."""
     try:
         certs = await _db(request).get_tls_certs()
         return _json_response(certs)
@@ -405,13 +405,13 @@ async def handle_tls_certs(request: web.Request) -> web.Response:
 # ── Sigma Rules ──────────────────────────────────────────────────────────────
 
 async def handle_get_sigma_rules(request: web.Request) -> web.Response:
-    """GET /api/sigma-rules — list loaded Sigma rules."""
+    """GET /api/sigma-rules - list loaded Sigma rules."""
     rules = await _db(request).get_sigma_rules()
     return _json_response({"rules": rules, "count": len(rules)})
 
 
 async def handle_reload_sigma_rules(request: web.Request) -> web.Response:
-    """POST /api/sigma-rules/reload — reload Sigma rules from disk."""
+    """POST /api/sigma-rules/reload - reload Sigma rules from disk."""
     daemon = request.app["daemon"]
     try:
         from shallots.sigma_engine import SigmaEngine
@@ -439,10 +439,10 @@ async def handle_reload_sigma_rules(request: web.Request) -> web.Response:
         return _json_response({"error": str(exc)}, 500)
 
 
-# ── /api/ioc — IoC Feed Indicators ──────────────────────────────────────────
+# ── /api/ioc - IoC Feed Indicators ──────────────────────────────────────────
 
 async def handle_ioc_list(request: web.Request) -> web.Response:
-    """GET /api/ioc — list IoC indicators with optional type filter."""
+    """GET /api/ioc - list IoC indicators with optional type filter."""
     db = _db(request)
     indicator_type = request.query.get("type")
     limit = int(request.query.get("limit", "500"))
@@ -451,14 +451,14 @@ async def handle_ioc_list(request: web.Request) -> web.Response:
 
 
 async def handle_ioc_stats(request: web.Request) -> web.Response:
-    """GET /api/ioc/stats — feed statistics."""
+    """GET /api/ioc/stats - feed statistics."""
     db = _db(request)
     stats = await db.get_ioc_feed_stats()
     return _json_response({"feeds": stats})
 
 
 async def handle_ioc_check(request: web.Request) -> web.Response:
-    """GET /api/ioc/check/{value} — check a specific IP/domain against feeds."""
+    """GET /api/ioc/check/{value} - check a specific IP/domain against feeds."""
     db = _db(request)
     value = request.match_info["value"]
     matches = await db.check_ioc(value)
@@ -466,7 +466,7 @@ async def handle_ioc_check(request: web.Request) -> web.Response:
 
 
 async def handle_ioc_refresh(request: web.Request) -> web.Response:
-    """POST /api/ioc/refresh — trigger manual feed refresh."""
+    """POST /api/ioc/refresh - trigger manual feed refresh."""
     daemon = request.app["daemon"]
     worker = getattr(daemon, "_ioc_worker", None)
     if worker is None:

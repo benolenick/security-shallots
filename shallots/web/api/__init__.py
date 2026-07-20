@@ -1,7 +1,7 @@
 """REST API route handlers for Security Shallots dashboard.
 
 This package splits the monolithic api.py into domain modules.
-Import setup_api_routes from here — it registers all routes.
+Import setup_api_routes from here - it registers all routes.
 """
 
 from __future__ import annotations
@@ -79,7 +79,7 @@ def setup_api_routes(app: web.Application) -> None:
 
     Routes are organized by domain. On lite/micro profiles, optional
     feature endpoints still exist but return empty/inactive responses
-    from their handlers (no 404s — the frontend adapts via /api/health).
+    from their handlers (no 404s - the frontend adapts via /api/health).
     """
     from . import alerts, incidents, ai, agents, rules, scout, threat_engine, system
 

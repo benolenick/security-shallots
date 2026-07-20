@@ -85,7 +85,7 @@ def _query_agents(conn: sqlite3.Connection) -> list[tuple[str, str, str | None]]
             for r in conn.execute(sql):
                 rows.append((r[0], r[1] or "unknown", r[2]))
         except sqlite3.OperationalError:
-            # Table missing in this DB — fine, the other source may have it.
+            # Table missing in this DB - fine, the other source may have it.
             continue
     return rows
 
@@ -104,7 +104,7 @@ def detect_offline_agents(
     for name, kind, last_seen in _query_agents(conn):
         ts = _parse_iso(last_seen)
         if ts is None:
-            # Unknown last_seen — treat as offline at age 0 for surfacing once
+            # Unknown last_seen - treat as offline at age 0 for surfacing once
             seen[name] = OfflineAgent(name=name, kind=kind, last_seen="", age_seconds=0)
             continue
         age = int(now - ts)
@@ -130,10 +130,10 @@ def make_alert(agent: OfflineAgent, *, now_iso: str | None = None) -> Alert:
         source=AlertSource.ARGUS.value if agent.kind.lower() == "argus" else "agent",
         source_ref=f"watchdog:{agent.name}",
         # Agent-offline is an operational-health signal, not a threat. It belongs
-        # in the agent-health view, not screaming up the escalation ladder — a
+        # in the agent-health view, not screaming up the escalation ladder - a
         # HIGH/ESCALATE here buries real criticals (esp. with flaky/test agents).
         # LOW + SUPPRESS keeps it recorded without polluting the threat pipeline.
-        # (Future: elevate for a whitelist of critical security agents — an EDR
+        # (Future: elevate for a whitelist of critical security agents - an EDR
         #  going dark mid-attack IS worth escalating.)
         severity=Severity.LOW.value,
         title=f"Agent offline: {agent.name}",

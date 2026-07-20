@@ -40,7 +40,7 @@ def _capture_screenshot(output_dir: Path, timestamp: str) -> None:
         screenshot_path = output_dir / f"screenshot_{timestamp}.png"
         img.save(str(screenshot_path), "PNG")
     except Exception:
-        pass  # No Pillow, no display, or other issue — skip silently
+        pass  # No Pillow, no display, or other issue - skip silently
 
 
 def _capture_processes() -> list[dict[str, Any]]:

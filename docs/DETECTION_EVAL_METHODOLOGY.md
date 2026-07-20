@@ -1,19 +1,19 @@
-# Security Shallots — Detection Value Proof: Methodology v2
-(rebuilt after Codex adversarial review — 23 findings folded in)
+# Security Shallots - Detection Value Proof: Methodology v2
+(rebuilt after Codex adversarial review - 23 findings folded in)
 
 ## Narrowed claim (Codex #23)
 NOT "Shallots beats AV+Snort." The honest claim:
 > On a host it monitors, Shallots adds a **host-plane + DNS-lexical + drift + correlation**
 > detection layer that flags behaviors a **network signature IDS (Suricata/Snort) and a
 > signature AV (ClamAV-style) structurally do not**, AND it does so with a **measured
-> precision (negative controls) and a known coverage envelope (evasion controls)** —
+> precision (negative controls) and a known coverage envelope (evasion controls)** -
 > not a cherry-picked demo.
 
 ## The test is an ENVELOPE, not a highlight reel
 Every capability runs THREE cases:
-- **Positive** — malicious-*shaped* behavior (neutral-named, no metadata leakage).
-- **Negative control** — benign look-alike that must NOT fire (measures false positives).
-- **Evasion** — what a real attacker does to slip past (measures honest false negatives).
+- **Positive** - malicious-*shaped* behavior (neutral-named, no metadata leakage).
+- **Negative control** - benign look-alike that must NOT fire (measures false positives).
+- **Evasion** - what a real attacker does to slip past (measures honest false negatives).
 
 A capability only "counts" if: positive fires AND negative stays quiet. Evasion result is
 reported honestly as the coverage boundary, never hidden.
@@ -28,9 +28,9 @@ reported honestly as the coverage boundary, never hidden.
 
 ## Baselines done honestly (Codex #15, #16)
 - **Suricata**: pull ALL eve.json events (alert + dns + flow + tls) for host01 in the
-  scenario window — not an indicator grep — and report what it did/didn't produce.
+  scenario window - not an indicator grep - and report what it did/didn't produce.
 - **AV**: concrete baseline = ClamAV signature scan of any dropped file. Explicitly note
-  that a behavior-based EDR (Defender/CrowdStrike) MIGHT catch some host cases — we do not
+  that a behavior-based EDR (Defender/CrowdStrike) MIGHT catch some host cases - we do not
   claim to beat EDR, only signature AV.
 
 ## Capabilities under test (dropped the circular/weak ones)
@@ -60,9 +60,9 @@ reported honestly as the coverage boundary, never hidden.
 positive=TP? | negative=clean? (precision) | evasion=caught/missed (envelope) | Suricata did? 
 → verdict: genuine complementary signal, or not.
 
-## Predeclared expectations (Codex #22 — written BEFORE running)
+## Predeclared expectations (Codex #22 - written BEFORE running)
 C1: pos FIRES, neg CLEAN, evasion-A MISS (polling), evasion-B no-fire (allowlist).
 C2: pos FIRES, neg CLEAN (or 1 FP acceptable+reported), evasion MISS (lexical limit),
-    Suricata SILENT on all (ET Open default has no NXDOMAIN-rate rule here — verify).
+    Suricata SILENT on all (ET Open default has no NXDOMAIN-rate rule here - verify).
 C4: pos FIRES, neg CLEAN.
 Any deviation from these is reported as-is, including losses.

@@ -50,7 +50,7 @@ class WebhookSink:
             self.last_error = "refused: http:// url with verify_tls=true (use https or set verify_tls=false)"
             if not self._warned_insecure:
                 import sys
-                print("argus: refusing to POST over plaintext http:// while verify_tls=true — "
+                print("argus: refusing to POST over plaintext http:// while verify_tls=true - "
                       "use an https manager URL or explicitly set verify_tls=false", file=sys.stderr)
                 self._warned_insecure = True
             return
@@ -69,7 +69,7 @@ class WebhookSink:
             if not self._warned_insecure:
                 import sys
                 print("argus: WARNING webhook TLS verification is DISABLED "
-                      "(verify_tls=false) — the manager channel is unauthenticated",
+                      "(verify_tls=false) - the manager channel is unauthenticated",
                       file=sys.stderr)
                 self._warned_insecure = True
         try:

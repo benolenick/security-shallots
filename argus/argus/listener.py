@@ -1,13 +1,13 @@
 """
-Argus disarm HTTP listener — LAN-only, zero external dependencies.
+Argus disarm HTTP listener - LAN-only, zero external dependencies.
 
 Run standalone:
   python -m argus --config ~/.argus/config.toml listener
 
 Endpoints:
-  GET  /state         — current argus state (read from state file)
-  POST /disarm        — HMAC-signed: transition to DISARMED + stop monitor daemon
-  POST /arm           — HMAC-signed: start argus daemon via systemctl --user
+  GET  /state         - current argus state (read from state file)
+  POST /disarm        - HMAC-signed: transition to DISARMED + stop monitor daemon
+  POST /arm           - HMAC-signed: start argus daemon via systemctl --user
 
 HMAC scheme (symmetric, time-bucketed):
   bucket = unix_timestamp // 30        (30-second window)

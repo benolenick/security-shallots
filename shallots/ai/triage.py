@@ -33,7 +33,7 @@ _RULE_SUPPRESS_CATEGORIES = frozenset([
     "ET INFO", "Not Suspicious", "Misc activity", "Potential Corporate Privacy Violation",
 ])
 
-# Mirrors config suppression.title_patterns — applied even when AI is down
+# Mirrors config suppression.title_patterns - applied even when AI is down
 _RULE_SUPPRESS_TITLE_FRAGMENTS = (
     "root session opened",
     "cron/timer configuration changed",
@@ -77,7 +77,7 @@ def _rule_based_verdict(alert: dict[str, Any]) -> tuple[str, float, str]:
                 f"Rule-based: known-benign pattern '{fragment}'.",
             )
 
-    # Suppress low/medium severity from internal LAN — internal noise
+    # Suppress low/medium severity from internal LAN - internal noise
     if src_ip.startswith(("192.168.0.", "192.168.2.")) and severity in ("low", "medium"):
         return (
             TriageVerdict.SUPPRESS,
@@ -232,7 +232,7 @@ def _build_triage_result(
     latency_ms: int,
 ) -> TriageResult:
     """Build a TriageResult from a parsed AI response item."""
-    # Local models emit "Escalate"/"SUPPRESS"/etc. — normalize before validating,
+    # Local models emit "Escalate"/"SUPPRESS"/etc. - normalize before validating,
     # else a real escalate silently becomes investigate and never notifies.
     verdict_raw = str(item.get("verdict", "investigate")).strip().lower()
     valid_verdicts = {v.value for v in TriageVerdict}
@@ -263,11 +263,11 @@ class TriageWorker:
     """Async background task that pulls pending alerts and triages them via AI.
 
     Supports all AI tiers from AIConfig:
-    - none            — rule-based fallback only (AI disabled)
-    - remote_micro    — Ollama at ollama_url with a small/fast model
-    - remote_standard — Ollama at ollama_url with a full model
-    - remote_api      — OpenAI (openai_api_key set) or Anthropic (anthropic_api_key set)
-    - local           — Ollama at localhost:11434
+    - none            - rule-based fallback only (AI disabled)
+    - remote_micro    - Ollama at ollama_url with a small/fast model
+    - remote_standard - Ollama at ollama_url with a full model
+    - remote_api      - OpenAI (openai_api_key set) or Anthropic (anthropic_api_key set)
+    - local           - Ollama at localhost:11434
 
     On AI failure, alerts are marked pending and retried on the next cycle.
     """
@@ -401,13 +401,13 @@ class TriageWorker:
             elapsed = _time.monotonic() - self._cb_tripped_at
             if elapsed < self._CB_COOLDOWN_SEC:
                 log.warning(
-                    "TriageWorker: circuit breaker open (%.0fs remaining) — using rules",
+                    "TriageWorker: circuit breaker open (%.0fs remaining) - using rules",
                     self._CB_COOLDOWN_SEC - elapsed,
                 )
                 await self._triage_rule_based(alerts)
                 return
             else:
-                log.info("TriageWorker: circuit breaker reset — retrying AI")
+                log.info("TriageWorker: circuit breaker reset - retrying AI")
                 self._cb_tripped = False
                 self._cb_failures = 0
 
@@ -439,7 +439,7 @@ class TriageWorker:
             if obf is not None:
                 raw_response = obf.deobfuscate(raw_response)
         except Exception as exc:
-            log.error("TriageWorker: AI call failed: %s — falling back to rules", exc)
+            log.error("TriageWorker: AI call failed: %s - falling back to rules", exc)
             self.total_errors += 1
             self._cb_failures += 1
             if self._cb_failures >= self._CB_THRESHOLD:
@@ -453,7 +453,7 @@ class TriageWorker:
             await self._triage_rule_based(alerts)
             return
 
-        # Successful AI call — reset circuit breaker failure counter
+        # Successful AI call - reset circuit breaker failure counter
         self._cb_failures = 0
 
         elapsed_ms = int((time.monotonic() - t0) * 1000)
@@ -465,7 +465,7 @@ class TriageWorker:
             item = parsed_items[i]
             if item is None:
                 log.warning(
-                    "TriageWorker: no result for alert %s at index %d — using rules",
+                    "TriageWorker: no result for alert %s at index %d - using rules",
                     alert["id"], i,
                 )
                 self.total_errors += 1
@@ -512,7 +512,7 @@ class TriageWorker:
         ips: set[str] = set()
         users: set[str] = set()
 
-        # Seed from the persistent asset inventory (best-effort — never block triage).
+        # Seed from the persistent asset inventory (best-effort - never block triage).
         try:
             for row in await self._db.get_assets(limit=500):
                 if row.get("hostname"):

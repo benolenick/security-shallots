@@ -1,6 +1,6 @@
 """Persistent PIN management for Argus disarm.
 
-PIN is stored as a PBKDF2-HMAC-SHA256 hash — never in plaintext.
+PIN is stored as a PBKDF2-HMAC-SHA256 hash - never in plaintext.
 Supports set, verify, and change operations.
 """
 from __future__ import annotations

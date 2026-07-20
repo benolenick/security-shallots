@@ -24,7 +24,7 @@ COPY rules/ ./rules/
 COPY pyproject.toml .
 RUN pip install --no-cache-dir -e .
 
-# Don't copy shallots.db, GeoLite2, TLS certs, or config — they're bind-mounted
+# Don't copy shallots.db, GeoLite2, TLS certs, or config - they're bind-mounted
 
 EXPOSE 8844 8855
 

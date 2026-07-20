@@ -1,4 +1,4 @@
-"""Deep AI investigation module — 'Jesus Take The Wheel' mode."""
+"""Deep AI investigation module - 'Jesus Take The Wheel' mode."""
 
 from __future__ import annotations
 

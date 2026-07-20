@@ -141,7 +141,7 @@ class ArgusTray:
         self._icon = pystray.Icon(
             name="argus",
             icon=_make_icon(current),
-            title=f"Argus — {_STATE_LABELS.get(current, current)}",
+            title=f"Argus - {_STATE_LABELS.get(current, current)}",
             menu=menu,
         )
 
@@ -168,7 +168,7 @@ class ArgusTray:
                         if st.get("timelock_active"):
                             exp = st.get("timelock_expires_utc", "?")
                             label = f"TIMELOCKED (expires {exp})"
-                        self._icon.title = f"Argus — {label}"
+                        self._icon.title = f"Argus - {label}"
                     _toast_notification(
                         "Argus",
                         f"State changed: {_STATE_LABELS.get(old, old)} → {_STATE_LABELS.get(current, current)}",

@@ -1,4 +1,4 @@
-<!-- Security Shallots — Custom OSSEC Rules -->
+<!-- Security Shallots - Custom OSSEC Rules -->
 <!-- Place in /var/ossec/etc/rules/local_rules.xml -->
 
 <group name="shallots,">

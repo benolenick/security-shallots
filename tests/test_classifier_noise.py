@@ -69,7 +69,7 @@ def test_suppresses_argus_persistence_without_diff_details() -> None:
 
 def test_operator_configured_maintenance_persistence_diff() -> None:
     """An operator's OWN app services are treated as maintenance only after they
-    are declared in config.suppression.maintenance_persistence_patterns — no
+    are declared in config.suppression.maintenance_persistence_patterns - no
     fleet-specific paths are baked into the shipped defaults."""
     from shallots.config import Config
 
@@ -306,7 +306,7 @@ def test_medium_suricata_still_respects_lan_cidr_suppression() -> None:
 def test_critical_suricata_bypasses_exact_source_ip_suppression() -> None:
     # A critical exploit sig from an ALLOWLISTED internal IP (e.g. a compromised
     # host doing lateral movement) must not be hard-dropped by the source_ips
-    # allowlist — it should reach AI triage (verdict stays pending).
+    # allowlist - it should reach AI triage (verdict stays pending).
     cfg = ClassifierConfig(suppress_source_ips={"192.168.0.172"})
     alert = Alert(
         source="suricata",

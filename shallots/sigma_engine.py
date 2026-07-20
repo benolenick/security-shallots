@@ -170,8 +170,8 @@ class SigmaEngine:
         """Match a single detection block (selection or filter) against alert.
 
         Block can be:
-        - dict of field conditions (all must match — AND logic)
-        - list of keyword strings (any must appear somewhere in alert — OR logic)
+        - dict of field conditions (all must match - AND logic)
+        - list of keyword strings (any must appear somewhere in alert - OR logic)
         """
         if block is None:
             return False
@@ -184,7 +184,7 @@ class SigmaEngine:
         if not isinstance(block, dict):
             return False
 
-        # Dict of field conditions — all must match (AND)
+        # Dict of field conditions - all must match (AND)
         for sigma_field, expected in block.items():
             if not self._match_field_condition(sigma_field, expected, alert):
                 return False

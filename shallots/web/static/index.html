@@ -9,7 +9,7 @@
 </head>
 <body>
 
-<!-- Squawk banner — critical threat alerts -->
+<!-- Squawk banner - critical threat alerts -->
 <div class="squawk-banner" id="squawk-banner" style="display:none">
   <div class="squawk-inner">
     <span class="squawk-pulse"></span>
@@ -39,12 +39,12 @@
       </button>
       <button class="btn btn-silence-rules" id="btn-silence-rules" title="Manage silence / tuning rules">Tuning</button>
       <button class="btn btn-help" id="btn-help" title="Help &amp; Setup Guide">? Help</button>
-      <button class="btn btn-setup" id="btn-setup" title="Setup Guide — deploy your first agent">Setup</button>
-      <button class="ai-status-pill" id="ai-status-pill" title="AI Autopilot — click for AI triage">
+      <button class="btn btn-setup" id="btn-setup" title="Setup Guide - deploy your first agent">Setup</button>
+      <button class="ai-status-pill" id="ai-status-pill" title="AI Autopilot - click for AI triage">
         <span class="ai-pill-dot" id="ai-pill-dot"></span>
         <span id="ai-pill-label">AI Off</span>
       </button>
-      <button class="agent-status-pill" id="agent-status-pill" title="Agent health — click to scroll">
+      <button class="agent-status-pill" id="agent-status-pill" title="Agent health - click to scroll">
         <span class="agent-pill-dot" id="agent-pill-dot"></span>
         <span id="agent-pill-label">No agents</span>
       </button>
@@ -66,37 +66,37 @@
     <div class="stats-grid">
       <div class="stat-card medium stat-clickable" id="card-review">
         <div class="stat-label">Needs Review</div>
-        <div class="stat-value" id="stat-review">—</div>
+        <div class="stat-value" id="stat-review">-</div>
         <div class="stat-sub" id="stat-review-sub">patterns to check</div>
       </div>
       <div class="stat-card critical stat-clickable" id="card-threats">
         <div class="stat-label">Threats Detected</div>
-        <div class="stat-value" id="stat-threats">—</div>
+        <div class="stat-value" id="stat-threats">-</div>
         <div class="stat-sub" id="stat-threats-sub">from outside your network</div>
       </div>
       <div class="stat-card muted stat-clickable" id="card-autohandled">
         <div class="stat-label">Auto-Handled</div>
-        <div class="stat-value" id="stat-autohandled">—</div>
+        <div class="stat-value" id="stat-autohandled">-</div>
         <div class="stat-sub">suppressed as noise</div>
       </div>
       <div class="stat-card accent stat-clickable" id="card-youractivity">
         <div class="stat-label">Your Activity</div>
-        <div class="stat-value" id="stat-youractivity">—</div>
+        <div class="stat-value" id="stat-youractivity">-</div>
         <div class="stat-sub">from your own network</div>
       </div>
       <div class="stat-card stat-clickable" onclick="window.open('/topology','_blank')" title="Open Network Topology Map">
         <div class="stat-label">Connections</div>
-        <div class="stat-value" id="stat-connections">—</div>
-        <div class="stat-sub">unique pairs (24h) — click for topology</div>
+        <div class="stat-value" id="stat-connections">-</div>
+        <div class="stat-sub">unique pairs (24h) - click for topology</div>
       </div>
       <div class="stat-card stat-clickable" id="stat-agents-card">
         <div class="stat-label">Agents</div>
-        <div class="stat-value" id="stat-agents">—</div>
+        <div class="stat-value" id="stat-agents">-</div>
         <div class="stat-sub" id="stat-agents-sub">endpoint monitors</div>
       </div>
       <div class="stat-card stat-clickable" id="card-sla">
         <div class="stat-label">Alert SLA</div>
-        <div class="stat-value" id="stat-sla">—</div>
+        <div class="stat-value" id="stat-sla">-</div>
         <div class="stat-sub" id="stat-sla-sub">stale alerts</div>
       </div>
       <div class="stat-card stat-clickable" onclick="window.open('/ml','_blank')" title="Open ML Insights Dashboard">
@@ -211,7 +211,7 @@
       <div id="mitre-body" style="display:none"></div>
     </div>
 
-    <!-- Incidents — actionable items -->
+    <!-- Incidents - actionable items -->
     <div class="panel incidents-panel" id="incidents-section">
       <div class="section-title" style="margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between">
         <span>Incidents</span>
@@ -233,7 +233,7 @@
       </div>
     </div>
 
-    <!-- Edge Scout — candidate missed signals, no verdicts -->
+    <!-- Edge Scout - candidate missed signals, no verdicts -->
     <div class="panel scout-panel" id="scout-section">
       <div class="section-title" style="margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between">
         <span>Edge Scout</span>

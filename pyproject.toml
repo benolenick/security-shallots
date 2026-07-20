@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "security-shallots"
 version = "0.2.0"
-description = "Lightweight self-hosted SIEM — runs on a Raspberry Pi, scales to a server"
+description = "Lightweight self-hosted SIEM - runs on a Raspberry Pi, scales to a server"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"

@@ -131,7 +131,7 @@ def parse_syslog(data: bytes) -> dict[str, Any] | None:
             "raw": text,
         }
 
-    # Fallback: no priority header — treat entire text as message
+    # Fallback: no priority header - treat entire text as message
     return {
         "format": "raw",
         "priority": 14,  # user.info
@@ -285,7 +285,7 @@ async def _handle_tcp_client(
             except asyncio.TimeoutError:
                 break
             except (ValueError, asyncio.LimitOverrunError):
-                # Oversized line (no newline within the buffer limit) — log
+                # Oversized line (no newline within the buffer limit) - log
                 # and drop this connection rather than dying silently.
                 log.warning("Oversized TCP syslog line from %s; closing conn", src_ip)
                 break

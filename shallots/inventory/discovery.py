@@ -57,7 +57,7 @@ class Device:
     alt_ips: list[str] = field(default_factory=list)  # same MAC, other addrs
 
     def key(self) -> str:
-        """Stable identity — MAC if we have it, else fall back to IP."""
+        """Stable identity - MAC if we have it, else fall back to IP."""
         return (self.mac or f"ip:{self.ip}").lower()
 
 
@@ -150,8 +150,8 @@ def _guess_os(ports: set[int], vendor: str | None, name: str | None) -> str:
         return "apple"
     if 548 in ports and {5900, 445} & ports:
         return "apple"
-    # Windows: RDP/WinRM, or a NetBIOS session service (139) — Linux laptops
-    # almost never expose 139 — or SMB with no *nix remote-access ports.
+    # Windows: RDP/WinRM, or a NetBIOS session service (139) - Linux laptops
+    # almost never expose 139 - or SMB with no *nix remote-access ports.
     if {3389, 5985} & ports:
         return "windows"
     if 139 in ports:
@@ -253,7 +253,7 @@ def scan_network(
         vendor = oui_lookup(mac) if oui_lookup else None
         devices.append(Device(ip=ip, mac=mac, vendor=vendor, neigh_state=state))
 
-    # Always include ourselves — we won't be in our own neighbour table.
+    # Always include ourselves - we won't be in our own neighbour table.
     if self_ip and self_ip not in {d.ip for d in devices}:
         vendor = oui_lookup(self_mac) if (oui_lookup and self_mac) else None
         devices.append(

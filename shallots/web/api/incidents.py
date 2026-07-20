@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 # ── /api/correlations ──────────────────────────────────────────────────────
 
 async def handle_correlations(request: web.Request) -> web.Response:
-    """GET /api/correlations — list recent correlation groups."""
+    """GET /api/correlations - list recent correlation groups."""
     try:
         limit = min(int(request.rel_url.query.get("limit", 20)), 100)
     except ValueError:
@@ -35,7 +35,7 @@ async def handle_correlations(request: web.Request) -> web.Response:
 
 
 async def handle_correlation_alerts(request: web.Request) -> web.Response:
-    """GET /api/correlations/{id}/alerts — fetch alerts belonging to a correlation."""
+    """GET /api/correlations/{id}/alerts - fetch alerts belonging to a correlation."""
     corr_id = request.match_info["id"]
     db = _db(request)
     cursor = await db._db.execute(
@@ -53,7 +53,7 @@ async def handle_correlation_alerts(request: web.Request) -> web.Response:
 
 
 async def handle_delete_correlation(request: web.Request) -> web.Response:
-    """DELETE /api/correlations/{id} — dismiss a single correlation."""
+    """DELETE /api/correlations/{id} - dismiss a single correlation."""
     corr_id = request.match_info["id"]
     db = _db(request)
     await db._db.execute("DELETE FROM correlations WHERE id = ?", (corr_id,))
@@ -62,7 +62,7 @@ async def handle_delete_correlation(request: web.Request) -> web.Response:
 
 
 async def handle_clear_correlations(request: web.Request) -> web.Response:
-    """POST /api/correlations/clear — dismiss all correlations."""
+    """POST /api/correlations/clear - dismiss all correlations."""
     db = _db(request)
     cursor = await db._db.execute("SELECT COUNT(*) FROM correlations")
     row = await cursor.fetchone()
@@ -73,7 +73,7 @@ async def handle_clear_correlations(request: web.Request) -> web.Response:
 
 
 async def handle_correlation_ai(request: web.Request) -> web.Response:
-    """POST /api/correlations/{id}/ai — AI analysis of a correlation pattern."""
+    """POST /api/correlations/{id}/ai - AI analysis of a correlation pattern."""
     corr_id = request.match_info["id"]
     db = _db(request)
     daemon = request.app["daemon"]
@@ -178,7 +178,7 @@ async def handle_correlation_ai(request: web.Request) -> web.Response:
 # ── Clusters ──────────────────────────────────────────────────────────────────
 
 async def handle_clusters(request: web.Request) -> web.Response:
-    """GET /api/clusters — paginated cluster list."""
+    """GET /api/clusters - paginated cluster list."""
     qs = request.rel_url.query
     try:
         limit = min(int(qs.get("limit", 50)), 500)
@@ -196,7 +196,7 @@ async def handle_clusters(request: web.Request) -> web.Response:
 
 
 async def handle_cluster_detail(request: web.Request) -> web.Response:
-    """GET /api/clusters/{id} — cluster detail with member alerts."""
+    """GET /api/clusters/{id} - cluster detail with member alerts."""
     cluster_id = request.match_info["id"]
     db = _db(request)
     cluster = await db.get_cluster(cluster_id)
@@ -208,7 +208,7 @@ async def handle_cluster_detail(request: web.Request) -> web.Response:
 
 
 async def handle_cluster_verdict(request: web.Request) -> web.Response:
-    """PATCH /api/clusters/{id}/verdict — set verdict on a cluster + all member alerts."""
+    """PATCH /api/clusters/{id}/verdict - set verdict on a cluster + all member alerts."""
     cluster_id = request.match_info["id"]
     try:
         body = await request.json()
@@ -246,7 +246,7 @@ async def handle_cluster_verdict(request: web.Request) -> web.Response:
 
 
 async def handle_cluster_stats(request: web.Request) -> web.Response:
-    """GET /api/clusters/stats — cluster summary counts."""
+    """GET /api/clusters/stats - cluster summary counts."""
     db = _db(request)
     total = await db.get_cluster_count()
     pending = await db.get_cluster_count("pending")
@@ -263,7 +263,7 @@ async def handle_cluster_stats(request: web.Request) -> web.Response:
 # ── /api/incidents ────────────────────────────────────────────────────────────
 
 async def handle_incidents(request: web.Request) -> web.Response:
-    """GET /api/incidents — list incidents with optional status filter."""
+    """GET /api/incidents - list incidents with optional status filter."""
     qs = request.rel_url.query
     status = qs.get("status")
     limit = min(int(qs.get("limit", 50)), 200)
@@ -273,7 +273,7 @@ async def handle_incidents(request: web.Request) -> web.Response:
 
 
 async def handle_incident_detail(request: web.Request) -> web.Response:
-    """GET /api/incidents/{id} — single incident with full details."""
+    """GET /api/incidents/{id} - single incident with full details."""
     iid = request.match_info["id"]
     incident = await _db(request).get_incident(iid)
     if not incident:
@@ -296,7 +296,7 @@ async def handle_incident_detail(request: web.Request) -> web.Response:
 
 
 async def handle_incident_status(request: web.Request) -> web.Response:
-    """PATCH /api/incidents/{id}/status — update incident status."""
+    """PATCH /api/incidents/{id}/status - update incident status."""
     iid = request.match_info["id"]
     body = await request.json()
     status = body.get("status", "")
@@ -309,13 +309,13 @@ async def handle_incident_status(request: web.Request) -> web.Response:
 
 
 async def handle_incident_counts(request: web.Request) -> web.Response:
-    """GET /api/incidents/counts — count by status."""
+    """GET /api/incidents/counts - count by status."""
     counts = await _db(request).get_incident_counts()
     return _json_response(counts)
 
 
 async def handle_runbook_execute(request: web.Request) -> web.Response:
-    """POST /api/incidents/{id}/runbook/execute — execute a runbook command on the server."""
+    """POST /api/incidents/{id}/runbook/execute - execute a runbook command on the server."""
     body = await request.json()
     command = body.get("command", "").strip()
     if not command:
@@ -377,7 +377,7 @@ async def handle_runbook_execute(request: web.Request) -> web.Response:
 
 
 async def handle_runbook_interpret(request: web.Request) -> web.Response:
-    """POST /api/incidents/{id}/runbook/interpret — AI interprets command output."""
+    """POST /api/incidents/{id}/runbook/interpret - AI interprets command output."""
     body = await request.json()
     command = body.get("command", "")
     stdout = body.get("stdout", "")
@@ -411,7 +411,7 @@ In 2-4 sentences, tell the operator:
 2. Whether it looks normal or suspicious
 3. What they should do next
 
-Be specific — reference actual values from the output. This is a home network."""
+Be specific - reference actual values from the output. This is a home network."""
 
     try:
         raw = await client.generate(
@@ -427,7 +427,7 @@ Be specific — reference actual values from the output. This is a home network.
 
 
 async def handle_incident_decision(request: web.Request) -> web.Response:
-    """POST /api/incidents/{id}/decide — record decision and update status."""
+    """POST /api/incidents/{id}/decide - record decision and update status."""
     iid = request.match_info["id"]
     body = await request.json()
     decision = body.get("decision", "")
@@ -474,7 +474,7 @@ async def handle_incident_decision(request: web.Request) -> web.Response:
 
 
 async def handle_auto_dismiss_candidates(request: web.Request) -> web.Response:
-    """GET /api/incidents/auto-dismiss — get patterns that could be auto-dismissed."""
+    """GET /api/incidents/auto-dismiss - get patterns that could be auto-dismissed."""
     candidates = await _db(request).get_auto_dismiss_candidates()
     return _json_response(candidates)
 
@@ -482,14 +482,14 @@ async def handle_auto_dismiss_candidates(request: web.Request) -> web.Response:
 # ── Incident Notes & Timeline ─────────────────────────────────────────────
 
 async def handle_incident_notes(request: web.Request) -> web.Response:
-    """GET /api/incidents/{id}/notes — get all notes for an incident."""
+    """GET /api/incidents/{id}/notes - get all notes for an incident."""
     iid = request.match_info["id"]
     notes = await _db(request).get_incident_notes(iid)
     return _json_response(notes)
 
 
 async def handle_add_incident_note(request: web.Request) -> web.Response:
-    """POST /api/incidents/{id}/notes — add a note to an incident."""
+    """POST /api/incidents/{id}/notes - add a note to an incident."""
     iid = request.match_info["id"]
     body = await request.json()
     note = (body.get("note") or "").strip()
@@ -504,7 +504,7 @@ async def handle_add_incident_note(request: web.Request) -> web.Response:
 
 
 async def handle_incident_timeline(request: web.Request) -> web.Response:
-    """GET /api/incidents/{id}/timeline — full chronological timeline."""
+    """GET /api/incidents/{id}/timeline - full chronological timeline."""
     iid = request.match_info["id"]
     timeline = await _db(request).get_incident_timeline(iid)
     return _json_response(timeline)

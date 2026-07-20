@@ -26,7 +26,7 @@ WERKZEUG_RE = re.compile(
     r'(?P<ip>[\d.]+)\s+-\s+-\s+\[(?P<ts>[^\]]+)\]\s+"(?P<method>\w+)\s+(?P<path>\S+)\s+HTTP/[\d.]+"\s+(?P<status>\d+)'
 )
 
-# Known vulnerability scan paths — instant alert
+# Known vulnerability scan paths - instant alert
 SCAN_PATHS = re.compile(
     r'(?i)('
     r'\.env|\.git|wp-login|wp-admin|wp-config|wp-content|wp-includes'
@@ -44,7 +44,7 @@ SCAN_PATHS = re.compile(
     r')'
 )
 
-# Paths that are always benign — never alert
+# Paths that are always benign - never alert
 BENIGN_PATHS = re.compile(
     r'^/(login|static/|favicon\.ico|api/(chat|write-lesson|read-lessons|governance-roles))$'
 )
@@ -57,7 +57,7 @@ SCAN_BURST_THRESHOLD = 5
 class WebAppIngestor:
     """Async file tailer for werkzeug/Flask access logs.
 
-    Only generates alerts for suspicious activity — normal traffic is silent.
+    Only generates alerts for suspicious activity - normal traffic is silent.
     """
 
     def __init__(self, config: WebAppIngestConfig, queue: asyncio.Queue):
@@ -268,5 +268,5 @@ class WebAppIngestor:
                 raw=line,
             )
 
-        # Normal 200/302/404 on non-scan paths — no alert
+        # Normal 200/302/404 on non-scan paths - no alert
         return None

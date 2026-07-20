@@ -1,4 +1,4 @@
-# Security Shallots -- Getting Started Guide
+# Security Shallots - Getting Started Guide
 
 ## 1. What Is Security Shallots
 
@@ -8,19 +8,19 @@ enterprise platforms like Security Onion that demand 32 GB of RAM.
 
 A central daemon called **shallotd** collects alerts from three sources:
 
-- **Network IDS** (Suricata) -- watches traffic on the wire for known attack signatures.
-- **Clove agents** (Wazuh-based) -- lightweight endpoint agents deployed on any machine,
+- **Network IDS** (Suricata) - watches traffic on the wire for known attack signatures.
+- **Clove agents** (Wazuh-based) - lightweight endpoint agents deployed on any machine,
   reporting file changes, authentication events, and system integrity checks.
-- **Argus sentinels** -- heavyweight monitors for your most critical machines,
+- **Argus sentinels** - heavyweight monitors for your most critical machines,
   tracking running processes, credential files, persistence mechanisms, and login sessions.
 
 Every alert passes through an optional **AI triage** layer that classifies it as one of:
 
 | Verdict | Meaning |
 |---------|---------|
-| **suppress** | Background noise -- safe to ignore |
+| **suppress** | Background noise - safe to ignore |
 | **investigate** | Warrants a human review when convenient |
-| **escalate** | Act immediately -- potential active threat |
+| **escalate** | Act immediately - potential active threat |
 
 Results are visible in a **web dashboard** on port 8844. For critical threats, shallotd
 can fire **email or SMS alerts** so you never miss an escalation.
@@ -91,7 +91,7 @@ running on your shallotd server.
 
 **Characteristics:**
 
-- Passive -- collects data and reports to the central manager; does not take action.
+- Passive - collects data and reports to the central manager; does not take action.
 - Low resource usage (typically under 100 MB RAM).
 - Communicates over port 1514 (events) and 1515 (enrollment).
 
@@ -103,27 +103,27 @@ any Linux or Windows machine that should be monitored.
 intelligence (see Section 7).
 
 Think of Clove as the rank-and-file soldier: deploy it everywhere, it is
-lightweight and reliable. Each Clove is a single piece of the larger shallot -- small,
+lightweight and reliable. Each Clove is a single piece of the larger shallot - small,
 potent, and part of the whole.
 
 ---
 
 ### Argus (the big brother, heavyweight)
 
-A hyper-vigilant guardian designed for your **most critical machines** -- the ones that
+A hyper-vigilant guardian designed for your **most critical machines** - the ones that
 hold password vaults, SSH keys, browser sessions, and admin credentials.
 
 **What it monitors:**
 
-- **Running processes** -- detects known hacking tools (mimikatz, netcat, etc.)
-- **Credential files** -- watches KeePassXC databases, SSH keys, browser credential stores
-- **Persistence mechanisms** -- startup folders, scheduled tasks, registry run keys
-- **Login sessions** -- RDP connections, new interactive logins (lateral movement detection)
-- **Anti-tamper** -- detects attempts to stop or disable Argus itself
+- **Running processes** - detects known hacking tools (mimikatz, netcat, etc.)
+- **Credential files** - watches KeePassXC databases, SSH keys, browser credential stores
+- **Persistence mechanisms** - startup folders, scheduled tasks, registry run keys
+- **Login sessions** - RDP connections, new interactive logins (lateral movement detection)
+- **Anti-tamper** - detects attempts to stop or disable Argus itself
 
 **Characteristics:**
 
-- Active -- operates a state machine with four modes:
+- Active - operates a state machine with four modes:
 
   | State | Behavior |
   |-------|----------|
@@ -136,7 +136,7 @@ hold password vaults, SSH keys, browser sessions, and admin credentials.
 - Higher resource usage than the endpoint agent.
 
 **Best for:** your daily-driver PC, admin workstations, machines with password vaults
-or SSH keys -- your crown jewels.
+or SSH keys - your crown jewels.
 
 Think of Argus as the elite bodyguard: deploy it only where it matters most.
 
@@ -194,7 +194,7 @@ sudo bash setup/shallot-setup
 5. Installs all packages, generates `/etc/shallots/config.yaml`, creates systemd services.
 6. Runs a health check and prints a summary with all service URLs.
 
-After the wizard finishes, note the server IP -- you will need it for agent enrollment.
+After the wizard finishes, note the server IP - you will need it for agent enrollment.
 
 ---
 
@@ -272,13 +272,33 @@ configured triggers.
 
 ### Step 4: Open the Dashboard
 
-1. Navigate to `http://YOUR_SERVER_IP:8844` in your browser.
-2. If basic auth is configured in `config.yaml`, enter your credentials.
-3. You will see:
-   - **Stats cards** -- total alerts, alerts by severity, AI triage breakdown.
-   - **Alert feed** -- real-time stream via WebSocket, newest alerts at the top.
-   - **AI query bar** -- type questions in plain English (e.g., "show SSH attacks today").
-   - **Filters** -- narrow by source (suricata, wazuh, argus), severity, or AI verdict.
+By default the dashboard binds to **localhost only** (`127.0.0.1:8844`) and is not
+reachable from the LAN. This is deliberate: the API can change config and run
+firewall commands, so it must never be open without authentication.
+
+- **From the server itself:** open `http://127.0.0.1:8844`.
+- **From another machine (quick):** SSH-tunnel it, e.g.
+  `ssh -L 8844:127.0.0.1:8844 you@your-server`, then browse `http://127.0.0.1:8844`.
+- **To expose it on your LAN:** set all three in `config.yaml`, then restart:
+
+  ```yaml
+  web:
+    host: "0.0.0.0"
+    username: "admin"
+    password: "a-strong-password"   # REQUIRED, or the daemon refuses to start
+    # allowed_hosts: ["shallots.mylan"]   # only if you browse by hostname
+  ```
+
+  Now browse `http://YOUR_SERVER_IP:8844` and enter your credentials. Access by IP
+  works without `allowed_hosts`; add hostnames there only if you serve it by name
+  (this blocks DNS-rebinding attacks).
+
+Once open, you will see:
+
+- **Stats cards** - total alerts, alerts by severity, AI triage breakdown.
+- **Alert feed** - real-time stream via WebSocket, newest alerts at the top.
+- **AI query bar** - type questions in plain English (e.g., "show SSH attacks today").
+- **Filters** - narrow by source (suricata, wazuh, argus), severity, or AI verdict.
 
 If the standard or full profile is installed, Grafana is also available at
 `http://YOUR_SERVER_IP:3000` (default login: admin / password shown during setup).
@@ -316,11 +336,11 @@ If the standard or full profile is installed, Grafana is also available at
 
 ### Common Alert Examples
 
-- **ET SCAN Nmap** (suricata) -- someone is port-scanning your network.
-- **sshd: authentication failure** (wazuh) -- failed SSH login attempt.
-- **File integrity changed: /etc/passwd** (wazuh) -- a system file was modified.
-- **Suspicious process: mimikatz.exe** (argus) -- credential dumping tool detected.
-- **New RDP session from unknown IP** (argus) -- possible lateral movement.
+- **ET SCAN Nmap** (suricata) - someone is port-scanning your network.
+- **sshd: authentication failure** (wazuh) - failed SSH login attempt.
+- **File integrity changed: /etc/passwd** (wazuh) - a system file was modified.
+- **Suspicious process: mimikatz.exe** (argus) - credential dumping tool detected.
+- **New RDP session from unknown IP** (argus) - possible lateral movement.
 
 ---
 
@@ -338,24 +358,24 @@ sudo systemctl restart shallot
 
 ### Key Sections
 
-**profile** -- Deployment size: `auto`, `micro`, `standard`, or `full`. When set to
+**profile** - Deployment size: `auto`, `micro`, `standard`, or `full`. When set to
 `auto`, shallotd detects available RAM and selects a profile.
 
-**network** -- Your home CIDR (e.g., `192.168.0.0/16`) and the network interface to
+**network** - Your home CIDR (e.g., `192.168.0.0/16`) and the network interface to
 monitor.
 
-**components** -- Toggle individual components on or off: `suricata`, `crowdsec`,
+**components** - Toggle individual components on or off: `suricata`, `crowdsec`,
 `wazuh`, `victorialogs`, `grafana`, `syslog_receiver`, `argus`.
 
-**ai** -- AI triage configuration (see below).
+**ai** - AI triage configuration (see below).
 
-**web** -- Dashboard host, port, and optional basic auth credentials.
+**web** - Dashboard host, port, and optional basic auth credentials.
 
-**alerting** -- Email, webhook, and syslog notification settings.
+**alerting** - Email, webhook, and syslog notification settings.
 
-**storage** -- Database path and retention period (default: 30 days).
+**storage** - Database path and retention period (default: 30 days).
 
-**argus** -- Argus webhook receiver settings (port 8855, shared secret).
+**argus** - Argus webhook receiver settings (port 8855, shared secret).
 
 ### Enabling Email Alerts
 
@@ -374,7 +394,7 @@ alerting:
 
 For Gmail, use an [App Password](https://myaccount.google.com/apppasswords) rather
 than your account password. The `min_severity` field controls which alerts trigger
-emails -- set to `high` to receive only high and critical alerts.
+emails - set to `high` to receive only high and critical alerts.
 
 ### Enabling Webhook Alerts (SMS via Twilio, Slack, etc.)
 
@@ -416,15 +436,15 @@ ai:
 
 ## 7. Pairing Clove with CrowdSec
 
-By default, Clove is passive -- it detects and reports but does not block anything.
+By default, Clove is passive - it detects and reports but does not block anything.
 Adding CrowdSec gives it teeth.
 
 ### What CrowdSec Adds
 
-- **Pattern detection** -- identifies brute-force attacks, port scans, and web exploits.
-- **Community blocklists** -- shares threat data with the CrowdSec network and receives
+- **Pattern detection** - identifies brute-force attacks, port scans, and web exploits.
+- **Community blocklists** - shares threat data with the CrowdSec network and receives
   blocklists from thousands of other participants.
-- **Firewall bouncer** -- automatically blocks malicious IPs at the firewall level
+- **Firewall bouncer** - automatically blocks malicious IPs at the firewall level
   (iptables/nftables).
 
 ### How to Enable
@@ -467,7 +487,7 @@ This transforms Clove from detection-only into detection **and** response.
 **Check:**
 - Verify shallotd is running: `sudo systemctl status shallot`.
 - Check ingestor logs: `journalctl -u shallot -f`.
-- Confirm log file permissions -- shallotd must be able to read Suricata's EVE log
+- Confirm log file permissions - shallotd must be able to read Suricata's EVE log
   (`/var/log/suricata/eve.json`) and Wazuh alerts (`/var/ossec/logs/alerts/alerts.json`).
 - If using Argus webhook mode, verify port 8855 is open and the shared secret matches.
 

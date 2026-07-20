@@ -97,7 +97,7 @@ def test_details_round_trip(audit):
 
 
 def test_append_only_no_update_path():
-    """The class exposes record + query only — no update or delete methods."""
+    """The class exposes record + query only - no update or delete methods."""
     public = {m for m in dir(AuditLog) if not m.startswith("_")}
     assert "record" in public and "query" in public
     assert "update" not in public and "delete" not in public

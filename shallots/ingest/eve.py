@@ -106,7 +106,7 @@ class EveIngestor:
 
         Suricata may be mid-write on the last line; consuming it would parse a
         truncated JSON blob and silently drop a real alert. Only advance the
-        position past the final newline — the partial tail is re-read next poll.
+        position past the final newline - the partial tail is re-read next poll.
         """
         try:
             with open(self.eve_path, "r") as f:
@@ -139,10 +139,10 @@ class EveIngestor:
         elif event_type == "stats":
             return self._parse_stats(evt, raw_line)
         elif event_type == "flow" and self.flow_detector is not None:
-            # Fan-out scan/sweep detection over connection records — the east-west
+            # Fan-out scan/sweep detection over connection records - the east-west
             # signal no IDS signature fires on.
             return self.flow_detector.observe(evt)
-        # Skip dns, http, tls, etc. — useful for correlation but not alerts
+        # Skip dns, http, tls, etc. - useful for correlation but not alerts
         return None
 
     def _parse_alert(self, evt: dict, raw_line: str) -> Alert:
@@ -187,7 +187,7 @@ class EveIngestor:
         )
 
     def _parse_stats(self, evt: dict, raw_line: str) -> Alert | None:
-        """Parse Suricata stats event — detect rule load failures."""
+        """Parse Suricata stats event - detect rule load failures."""
         stats = evt.get("stats", {})
         detect = stats.get("detect", {})
 
@@ -201,7 +201,7 @@ class EveIngestor:
         # Also check top-level rules_failed
         total_failed += detect.get("rules_failed", 0)
 
-        # Stats events fire every few seconds — only alert when the failure
+        # Stats events fire every few seconds - only alert when the failure
         # count CHANGES, otherwise one bad rule floods an alert per interval.
         if total_failed == self._last_rules_failed:
             return None

@@ -70,10 +70,10 @@ storage:
   victorialogs_url: ""
 
 web:
-  # Loopback by default — dashboard reachable only from this machine.
+  # Loopback by default - dashboard reachable only from this machine.
   # To expose it on your LAN, set host to 0.0.0.0 AND set username + password
   # (and ideally tls_cert/tls_key). Shallots REFUSES to start if you bind a
-  # non-loopback address without credentials — the API can change config and
+  # non-loopback address without credentials - the API can change config and
   # run firewall/diagnostic commands, so it must never be open unauthenticated.
   host: "127.0.0.1"
   port: 8844
@@ -92,11 +92,11 @@ web:
 #   none        - No LLM at all. Runs on a Raspberry Pi / any GPU-less box.
 #                 Alerts are triaged by rules (Sigma/IoC/flow-scan/severity);
 #                 the ambiguous residue defaults to "investigate" so you still
-#                 see it. This is the default — opt IN to AI below.
+#                 see it. This is the default - opt IN to AI below.
 #   local       - Ollama on THIS box. Needs ~6 GB VRAM (GTX 1080 / RTX 3060+).
 #                 Set ollama_url + ollama_model (e.g. granite3.3:8b).
 #   remote_api  - Cloud LLM (OpenAI/Anthropic/DeepSeek). Cheap (~$0.20/mo at
-#                 typical volume) but your alerts leave the network — REDACT
+#                 typical volume) but your alerts leave the network - REDACT
 #                 sensitive fields first. Set the matching *_api_key below.
 ai:
   tier: none          # none (no GPU) | local (own GPU) | remote_api (cloud)
@@ -131,7 +131,7 @@ scout:
   min_score: 2
   corpus_path: "data/fleet_context.db"
   # Optional scoring hints (all inert if unset):
-  router_ip: ""            # your gateway IP — flags syslog claiming to be the router from a wrong source
+  router_ip: ""            # your gateway IP - flags syslog claiming to be the router from a wrong source
   router_syslog_hint: ""   # substring identifying router-origin syslog (e.g. your router's vendor name)
   sensor_ips: []           # IPs of hosts running a local Suricata sensor (scopes local-sensor traffic)
 

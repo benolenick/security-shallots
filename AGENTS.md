@@ -1,8 +1,8 @@
-# AGENTS.md — security-shallots
+# AGENTS.md - security-shallots
 
 If you are an AI agent working on a deployed instance of security-shallots, look for:
-- `SIGIL.md` in the repo root — compact operator card with commands, architecture, known gotchas
-- `AI_CONTEXT.md` in the repo root — full operator guide
+- `SIGIL.md` in the repo root - compact operator card with commands, architecture, known gotchas
+- `AI_CONTEXT.md` in the repo root - full operator guide
 
 These files are not committed (they contain deployment-specific details). Generate them with your deployment details using `SIGIL.md.example` as a template, or read the project guide at `docs/GUIDE.md`.
 

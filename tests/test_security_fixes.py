@@ -25,7 +25,7 @@ def test_create_app_refuses_exposed_without_auth():
 
 def test_create_app_allows_loopback_without_auth():
     # Should not raise on the exposure guard for loopback (may fail later on
-    # route setup with a bare fake daemon — we only assert the guard passes).
+    # route setup with a bare fake daemon - we only assert the guard passes).
     from shallots.web.app import create_app
     try:
         create_app(_fake_daemon("127.0.0.1", "", ""))

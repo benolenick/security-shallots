@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Security Shallots — detection-value evaluation harness.
+"""Security Shallots - detection-value evaluation harness.
 
 Runs REAL behavior against the REAL detectors and scores an honest envelope:
 positive (must fire) + negative control (must stay quiet = precision) +
 evasion (reported as coverage boundary). Scans run against an isolated COPY of
 posture.db so the live system is not polluted (DNS digs are real and cleaned up
-from live state at the end). Neutral artifact names — findings must cite behavior.
+from live state at the end). Neutral artifact names - findings must cite behavior.
 
 Run on host01:  ./.venv/bin/python detection_eval.py
 """
@@ -59,7 +59,7 @@ def record(cap, case, kind, expected, fired, detail, cites_behavior=None):
         "cites_behavior_not_harness": cites_behavior, "detail": detail,
     })
     tag = "OK " if ok else "!! "
-    print(f"  {tag}[{cap}/{kind}] expected_fire={expected} got={fired} — {detail}")
+    print(f"  {tag}[{cap}/{kind}] expected_fire={expected} got={fired} - {detail}")
 
 # ── preflight integrity ───────────────────────────────────────────────
 print("=== PREFLIGHT ===")

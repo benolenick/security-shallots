@@ -59,7 +59,7 @@ ALERTS = [
      "Reconnaissance sweep. Not yet an exploit, but worth watching this source.",
      "", "workstation"),
     (47, "pihole", "medium", "DNS lookup to newly-registered domain",
-     "workstation resolved 'update-service-cdn[.]info', registered 2 days ago — common in malware staging.",
+     "workstation resolved 'update-service-cdn[.]info', registered 2 days ago - common in malware staging.",
      "192.168.1.30", "", 53, "UDP", "dns", 0,
      "investigate", 0.5,
      "Young domains are a weak signal on their own; correlate with any outbound connections that follow.",
@@ -90,7 +90,7 @@ ALERTS = [
 INCIDENTS = [
     {
         "title": "Possible C2 beacon from web-server",
-        "summary": "web-server is beaconing to 203.0.113.66 on a regular 60-second interval — the pattern of malware phoning home. This needs attention now: treat web-server as possibly compromised until you've confirmed otherwise.",
+        "summary": "web-server is beaconing to 203.0.113.66 on a regular 60-second interval - the pattern of malware phoning home. This needs attention now: treat web-server as possibly compromised until you've confirmed otherwise.",
         "severity": "critical", "status": "new", "urgency": "act_now", "category": "c2",
         "affected_ips": ["192.168.1.10", "203.0.113.66"], "affected_hosts": ["web-server"],
         "alert_count": 1,

@@ -1,4 +1,4 @@
-"""Audit policy monitor — detects weak or disabled Windows audit categories.
+"""Audit policy monitor - detects weak or disabled Windows audit categories.
 
 Checks `auditpol /get /category:*` output for critical categories that should
 be set to "Success and Failure".  On first poll, establishes a baseline; on
@@ -70,7 +70,7 @@ class AuditPolicyMonitor:
                     self._alerted.add(category)
                     out.append(signal)
                 elif already_alerted and changed:
-                    # Setting improved — remove from alerted set
+                    # Setting improved - remove from alerted set
                     self._alerted.discard(category)
 
         self._last_state = current
@@ -87,7 +87,7 @@ class AuditPolicyMonitor:
                 event_type="audit_policy",
                 title=f"Audit policy: '{category}' is NOT audited",
                 description=(
-                    f"Critical audit category '{category}' has 'No Auditing' — "
+                    f"Critical audit category '{category}' has 'No Auditing' - "
                     "successful and failed events will not be logged"
                 ),
                 severity="critical",
@@ -110,7 +110,7 @@ class AuditPolicyMonitor:
                 title=f"Audit policy: '{category}' missing {missing} logging",
                 description=(
                     f"Critical audit category '{category}' only logs "
-                    f"'{setting}' — {missing} events are not captured"
+                    f"'{setting}' - {missing} events are not captured"
                 ),
                 severity="high",
                 confidence=0.9,
@@ -122,7 +122,7 @@ class AuditPolicyMonitor:
                 },
             )
 
-        return None  # "Success and Failure" — healthy
+        return None  # "Success and Failure" - healthy
 
     @staticmethod
     def _read_audit_policy() -> dict[str, str]:
@@ -164,7 +164,7 @@ class AuditPolicyMonitor:
                 text=True,
             )
         except FileNotFoundError:
-            # auditctl not installed — report everything as No Auditing
+            # auditctl not installed - report everything as No Auditing
             return {cat: "No Auditing" for cat in _CRITICAL_CATEGORIES}
 
         output = (proc.stdout or "").strip()

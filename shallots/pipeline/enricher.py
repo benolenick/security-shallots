@@ -61,7 +61,7 @@ def _get_geoip_reader(db_path: str) -> Any:
         _geoip_reader = maxminddb.open_database(db_path)
         log.info("GeoIP database loaded: %s", db_path)
     except ImportError:
-        log.warning("maxminddb not installed — GeoIP enrichment disabled")
+        log.warning("maxminddb not installed - GeoIP enrichment disabled")
     except FileNotFoundError:
         log.warning("GeoIP database not found: %s", db_path)
     except Exception as e:
@@ -215,7 +215,7 @@ async def enrich(alert: Alert, cfg: Config) -> Alert:
     src_dns_task = asyncio.create_task(rdns_lookup(alert.src_ip))
     dst_dns_task = asyncio.create_task(rdns_lookup(alert.dst_ip))
 
-    # GeoIP (synchronous but fast — mmdb is memory-mapped)
+    # GeoIP (synchronous but fast - mmdb is memory-mapped)
     if alert.src_ip and not is_private(alert.src_ip):
         alert.src_geo = geoip_lookup(alert.src_ip, geoip_db)
 

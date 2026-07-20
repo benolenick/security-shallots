@@ -25,7 +25,7 @@ class DefenderHealthMonitor:
         self._baseline_set = False
 
     async def start(self, queue: asyncio.Queue[ThreatSignal]) -> None:
-        # Initial delay — let other monitors start first
+        # Initial delay - let other monitors start first
         await asyncio.sleep(15)
         while True:
             for signal in self._check():
@@ -168,7 +168,7 @@ class DefenderHealthMonitor:
             signals.append(ThreatSignal(
                 event_type="defender_health",
                 title="Defender: tamper protection is OFF",
-                description="Tamper protection is disabled — Defender settings can be changed by malware",
+                description="Tamper protection is disabled - Defender settings can be changed by malware",
                 severity="high",
                 confidence=0.95,
                 category="defense_evasion",

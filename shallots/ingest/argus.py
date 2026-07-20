@@ -1,8 +1,8 @@
 """Argus endpoint security event ingestor.
 
 Ingests events from Argus (Windows endpoint monitor) via two paths:
-1. JSONL file tailer — tails daily-rotated argus_events_YYYY-MM-DD.jsonl files
-2. HTTP webhook receiver — accepts POSTed ArgusEvent JSON from Argus webhook sink
+1. JSONL file tailer - tails daily-rotated argus_events_YYYY-MM-DD.jsonl files
+2. HTTP webhook receiver - accepts POSTed ArgusEvent JSON from Argus webhook sink
 
 Argus event_types: state_change, heartbeat, process_tripwire, file_sentinel,
 persistence_detected, session_alert, evidence_capture, anti_tamper
@@ -87,7 +87,7 @@ class ArgusIngestor:
         return os.path.join(self.config.jsonl_dir, f"argus_events_{today}.jsonl")
 
     async def _tail_loop(self) -> None:
-        """Main tail loop — handles daily file rotation."""
+        """Main tail loop - handles daily file rotation."""
         # Wait for directory to exist
         while not os.path.isdir(self.config.jsonl_dir):
             log.debug("Waiting for Argus events dir: %s", self.config.jsonl_dir)
@@ -118,7 +118,7 @@ class ArgusIngestor:
         today = date.today().isoformat()
         path = self._today_file()
 
-        # Date rolled over — reset to new file
+        # Date rolled over - reset to new file
         if today != self._current_date:
             log.info("Argus date rotation: %s -> %s", self._current_date, today)
             self._current_date = today
@@ -362,7 +362,7 @@ def _parse_argus_event(evt: dict, raw_line: str) -> Alert | None:
     """
     event_type = evt.get("event_type", "")
 
-    # Skip heartbeats by default — they're high volume, low value for the SIEM
+    # Skip heartbeats by default - they're high volume, low value for the SIEM
     if event_type == "heartbeat":
         return None
 
@@ -380,7 +380,7 @@ def _parse_argus_event(evt: dict, raw_line: str) -> Alert | None:
         description = f"{description} | MITRE: {mitre}"
 
     # Extract network details from the details dict (a malicious/buggy agent may
-    # send a non-dict here — coerce so one bad event can't crash the tail loop).
+    # send a non-dict here - coerce so one bad event can't crash the tail loop).
     details = evt.get("details")
     if not isinstance(details, dict):
         details = {}

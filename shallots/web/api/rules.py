@@ -15,13 +15,13 @@ log = logging.getLogger(__name__)
 # ── /api/silence-rules ──────────────────────────────────────────────────────
 
 async def handle_get_silence_rules(request: web.Request) -> web.Response:
-    """GET /api/silence-rules — list user-created silence rules."""
+    """GET /api/silence-rules - list user-created silence rules."""
     rules = await _db(request).get_silence_rules()
     return _json_response({"rules": rules})
 
 
 async def handle_add_silence_rule(request: web.Request) -> web.Response:
-    """POST /api/silence-rules — create a silence rule.
+    """POST /api/silence-rules - create a silence rule.
 
     Body: {"match_type": "title|sig_id|src_ip|category|src_ip+title|src_cidr",
            "pattern": "...", "pattern2": "...", "reason": "..."}
@@ -54,7 +54,7 @@ async def handle_add_silence_rule(request: web.Request) -> web.Response:
 
     await db.insert_audit("create_silence_rule", "silence_rule", rule_id,
                           f"{match_type}: {pattern} (suppressed {suppressed})")
-    log.info("Silence rule added: %s '%s' (pattern2='%s') — suppressed %d existing alerts",
+    log.info("Silence rule added: %s '%s' (pattern2='%s') - suppressed %d existing alerts",
              match_type, pattern, pattern2, suppressed)
     return _json_response({
         "ok": True, "id": rule_id, "suppressed": suppressed,
@@ -114,7 +114,7 @@ async def _suppress_existing_for_rule(db, match_type: str, pattern: str, pattern
         )
         suppressed = cursor.rowcount
     elif match_type == "src_cidr":
-        # CIDR matching requires Python-side logic — fetch and update
+        # CIDR matching requires Python-side logic - fetch and update
         import ipaddress as _ipaddress
         try:
             net = _ipaddress.ip_network(pattern, strict=False)
@@ -172,7 +172,7 @@ async def _suppress_existing_for_rule(db, match_type: str, pattern: str, pattern
 
 
 async def handle_delete_silence_rule(request: web.Request) -> web.Response:
-    """DELETE /api/silence-rules/{id} — remove a silence rule."""
+    """DELETE /api/silence-rules/{id} - remove a silence rule."""
     rule_id = request.match_info["id"]
     deleted = await _db(request).delete_silence_rule(rule_id)
     if not deleted:
@@ -232,7 +232,7 @@ async def _reload_silence_rules(daemon) -> None:
             elif mt == "category":
                 # Suppress alerts whose category matches. (Previously this wrote
                 # "suppress" into category_severity_map, which the classifier reads
-                # as a SEVERITY override — corrupting alert.severity to the invalid
+                # as a SEVERITY override - corrupting alert.severity to the invalid
                 # string "suppress" instead of actually silencing anything.)
                 if pattern not in daemon.classifier._cfg.suppress_categories:
                     daemon.classifier._cfg.suppress_categories.append(pattern)
@@ -254,14 +254,14 @@ The user will describe noisy alerts they want silenced. You must pick the
 best silence rule to create.
 
 Available match types:
-- title        — suppress alerts whose title contains a substring
-- sig_id       — suppress by Suricata signature ID (integer)
-- src_ip       — suppress all alerts from a source IP
-- dst_ip       — suppress all alerts to a destination IP
-- src_cidr     — suppress all alerts from a source subnet (CIDR notation)
-- dst_cidr     — suppress all alerts to a destination subnet (CIDR notation)
-- category     — suppress alerts whose category contains a substring
-- src_ip+title — suppress alerts matching BOTH a source IP AND a title substring
+- title        - suppress alerts whose title contains a substring
+- sig_id       - suppress by Suricata signature ID (integer)
+- src_ip       - suppress all alerts from a source IP
+- dst_ip       - suppress all alerts to a destination IP
+- src_cidr     - suppress all alerts from a source subnet (CIDR notation)
+- dst_cidr     - suppress all alerts to a destination subnet (CIDR notation)
+- category     - suppress alerts whose category contains a substring
+- src_ip+title - suppress alerts matching BOTH a source IP AND a title substring
 
 Respond with ONLY a JSON object (no markdown, no explanation):
 {
@@ -278,7 +278,7 @@ Pick the most surgical rule that covers the user's request without over-suppress
 
 async def _rule_hits_high_severity(db, match_type: str, pattern: str, pattern2: str) -> bool:
     """True if a proposed silence rule matches any existing non-suppressed
-    high/critical alert — i.e. applying it would hide a real threat."""
+    high/critical alert - i.e. applying it would hide a real threat."""
     sev = "severity IN ('high','critical') AND verdict != 'suppress'"
     if match_type == "title":
         q, args = f"SELECT 1 FROM alerts WHERE title LIKE ? AND {sev} LIMIT 1", (f"%{pattern}%",)
@@ -296,7 +296,7 @@ async def _rule_hits_high_severity(db, match_type: str, pattern: str, pattern2: 
             return False
         q = f"SELECT 1 FROM alerts WHERE signature_id = ? AND {sev} LIMIT 1"
     else:
-        return True  # unknown / broad — treat as risky
+        return True  # unknown / broad - treat as risky
     try:
         cur = await db._db.execute(q, args)
         return (await cur.fetchone()) is not None
@@ -305,7 +305,7 @@ async def _rule_hits_high_severity(db, match_type: str, pattern: str, pattern2: 
 
 
 async def handle_ai_silence_rule(request: web.Request) -> web.Response:
-    """POST /api/silence-rules/ai — AI-assisted silence rule creation.
+    """POST /api/silence-rules/ai - AI-assisted silence rule creation.
 
     Body: {"request": "natural language description of what to silence"}
     Gathers dashboard context, asks AI to propose a rule, applies it.
@@ -426,7 +426,7 @@ async def handle_ai_silence_rule(request: web.Request) -> web.Response:
     suppressed = await _suppress_existing_for_rule(db, match_type, pattern, pattern2)
     await _reload_silence_rules(daemon)
 
-    log.info("AI silence rule: %s '%s' (p2='%s') reason='%s' — suppressed %d existing",
+    log.info("AI silence rule: %s '%s' (p2='%s') reason='%s' - suppressed %d existing",
              match_type, pattern, pattern2, reason, suppressed)
 
     return _json_response({
@@ -443,13 +443,13 @@ async def handle_ai_silence_rule(request: web.Request) -> web.Response:
 # ── Custom Detection Rules ────────────────────────────────────────────────────
 
 async def handle_get_custom_rules(request: web.Request) -> web.Response:
-    """GET /api/rules — list custom detection rules."""
+    """GET /api/rules - list custom detection rules."""
     rules = await _db(request).get_custom_rules()
     return _json_response({"rules": rules})
 
 
 async def handle_add_custom_rule(request: web.Request) -> web.Response:
-    """POST /api/rules — create a custom detection rule."""
+    """POST /api/rules - create a custom detection rule."""
     body = await request.json()
     name = body.get("name", "").strip()
     match_field = body.get("match_field", "").strip()
@@ -475,7 +475,7 @@ async def handle_add_custom_rule(request: web.Request) -> web.Response:
 
 
 async def handle_update_custom_rule(request: web.Request) -> web.Response:
-    """PATCH /api/rules/{id} — update a custom detection rule."""
+    """PATCH /api/rules/{id} - update a custom detection rule."""
     rule_id = request.match_info["id"]
     body = await request.json()
     ok = await _db(request).update_custom_rule(rule_id, **body)
@@ -485,7 +485,7 @@ async def handle_update_custom_rule(request: web.Request) -> web.Response:
 
 
 async def handle_delete_custom_rule(request: web.Request) -> web.Response:
-    """DELETE /api/rules/{id} — delete a custom detection rule."""
+    """DELETE /api/rules/{id} - delete a custom detection rule."""
     rule_id = request.match_info["id"]
     ok = await _db(request).delete_custom_rule(rule_id)
     if not ok:
@@ -495,7 +495,7 @@ async def handle_delete_custom_rule(request: web.Request) -> web.Response:
 
 
 async def handle_test_custom_rule(request: web.Request) -> web.Response:
-    """POST /api/rules/test — test a rule against recent alerts."""
+    """POST /api/rules/test - test a rule against recent alerts."""
     body = await request.json()
     db = _db(request)
     rule = {

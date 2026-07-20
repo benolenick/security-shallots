@@ -1,10 +1,10 @@
-"""Investigate view — assembles a single, plain-language investigation payload
+"""Investigate view - assembles a single, plain-language investigation payload
 for one cluster: verdict + evidence diff + entities + the 'what else happened
 around this' timeline + the AI tier-ladder reasoning. Built to be extended over
 a long test/tweak cycle; every section degrades gracefully when its data is absent.
 
 Design notes (from EDR + SIEM research): verdict-first, no jargon, only render
-sections backed by real data, and make the related-events timeline the star — it
+sections backed by real data, and make the related-events timeline the star - it
 answers the question that resolves most homelab alerts: is this alone, or part of
 a story?
 """
@@ -26,17 +26,17 @@ log = logging.getLogger(__name__)
 # The certainty lead-in (see _BANDS) composes on top; keep these neutral.
 _CATEGORY_EXPLAIN = {
     "persistence": (
-        "Something set itself up to run automatically on {host} — a new scheduled task, "
+        "Something set itself up to run automatically on {host} - a new scheduled task, "
         "service, or startup item. That's normal for an install or update, but it's also exactly "
         "how malware makes itself survive a reboot, so it's worth a glance if you didn't just change something."
     ),
     "lateral_movement": (
-        "{host} reached toward another machine on your network the way an admin tool — or an attacker — "
+        "{host} reached toward another machine on your network the way an admin tool - or an attacker - "
         "would: a remote login, file share, or remote command. At home this is sometimes you or a backup job, "
         "but it's the classic sign of something spreading from one device to the next."
     ),
     "session": (
-        "Someone or something logged in to {host}. Most logins are just you or a service you run — "
+        "Someone or something logged in to {host}. Most logins are just you or a service you run - "
         "this matters most when it's at an odd hour, from a new place, or right after another alert."
     ),
     "network_egress": (
@@ -45,7 +45,7 @@ _CATEGORY_EXPLAIN = {
     ),
     "anti_tamper": (
         "Something changed or tried to disable the security agent that watches {host}. Updates and restarts "
-        "can do this innocently, but attackers switch off monitoring first — so if you didn't just update, "
+        "can do this innocently, but attackers switch off monitoring first - so if you didn't just update, "
         "treat this as a real red flag."
     ),
     "file_sentinel": (
@@ -53,7 +53,7 @@ _CATEGORY_EXPLAIN = {
         "updating something; on a config, key, or system file you didn't touch, it deserves a second look."
     ),
     "a network trojan was detected": (
-        "Traffic on {host} matched a known malware pattern — the kind trojans use to talk to a control server. "
+        "Traffic on {host} matched a known malware pattern - the kind trojans use to talk to a control server. "
         "These rules do occasionally false-alarm on ordinary software, but a real hit is one of the more serious "
         "things here and shouldn't be waved off."
     ),
@@ -64,7 +64,7 @@ _CATEGORY_EXPLAIN = {
     ),
     "potentially bad traffic": (
         "{host} sent or received traffic that looks unusual but isn't clearly an attack. This is a low-confidence "
-        "heads-up — normally nothing, worth noting only if there's a lot of it or it lines up with something else."
+        "heads-up - normally nothing, worth noting only if there's a lot of it or it lines up with something else."
     ),
 }
 _DEFAULT_EXPLAIN = "Shallots flagged unusual activity involving {host}. See the evidence and timeline below."
@@ -237,7 +237,7 @@ async def build_investigation(db, cluster_id: str) -> dict | None:
 
 
 async def handle_cluster_investigate(request: web.Request) -> web.Response:
-    """GET /api/clusters/{id}/investigate — full investigation payload."""
+    """GET /api/clusters/{id}/investigate - full investigation payload."""
     cluster_id = request.match_info["id"]
     db = _db(request)
     payload = await build_investigation(db, cluster_id)
@@ -247,7 +247,7 @@ async def handle_cluster_investigate(request: web.Request) -> web.Response:
 
 
 async def handle_cluster_analyze(request: web.Request) -> web.Response:
-    """POST /api/clusters/{id}/analyze — 'Dig deeper': plain-language AI analysis
+    """POST /api/clusters/{id}/analyze - 'Dig deeper': plain-language AI analysis
     of this specific cluster, on demand. Uses the local model (cheap)."""
     cluster_id = request.match_info["id"]
     daemon = request.app["daemon"]

@@ -1,8 +1,8 @@
-"""Firewall monitor — detects disabled profiles and suspicious inbound rules.
+"""Firewall monitor - detects disabled profiles and suspicious inbound rules.
 
 Two independent checks per poll:
-  1. Profile status  — any disabled profile triggers a critical alert.
-  2. Port rules      — inbound Allow rules with ports in the suspicious list
+  1. Profile status  - any disabled profile triggers a critical alert.
+  2. Port rules      - inbound Allow rules with ports in the suspicious list
                        trigger a high alert.
 
 Uses `_primed` for first-poll baseline and per-item `_alerted_*` sets to avoid
@@ -82,7 +82,7 @@ class FirewallMonitor:
                     event_type="firewall_disabled",
                     title=f"Firewall profile disabled: {name}",
                     description=(
-                        f"Windows Firewall profile '{name}' is disabled — "
+                        f"Windows Firewall profile '{name}' is disabled - "
                         "the system has no firewall protection on this network type"
                     ),
                     severity="critical",
@@ -115,7 +115,7 @@ class FirewallMonitor:
         if not ufw_active:
             ipt_output = self._run_cmd(["iptables", "-L", "-n"])
             if ipt_output:
-                # Count non-header, non-empty lines — if only default chains with
+                # Count non-header, non-empty lines - if only default chains with
                 # no rules, the firewall is effectively off
                 rule_lines = [
                     l for l in ipt_output.splitlines()
@@ -134,7 +134,7 @@ class FirewallMonitor:
                     event_type="firewall_disabled",
                     title=f"Firewall not active: {name}",
                     description=(
-                        f"Linux firewall ({name}) is not active — "
+                        f"Linux firewall ({name}) is not active - "
                         "the system has no firewall protection"
                     ),
                     severity="critical",
@@ -197,7 +197,7 @@ class FirewallMonitor:
                             title=f"Suspicious inbound firewall rule: port {port_str}",
                             description=(
                                 f"Inbound Allow rule '{rule_name}' opens port {port_str} "
-                                f"— this port is commonly used by malware/C2 tools"
+                                f"- this port is commonly used by malware/C2 tools"
                             ),
                             severity="high",
                             confidence=0.85,
@@ -247,7 +247,7 @@ class FirewallMonitor:
                                 title=f"Suspicious inbound iptables rule: port {port_str}",
                                 description=(
                                     f"iptables INPUT ACCEPT rule #{rule_num} opens port {port_str} "
-                                    f"— this port is commonly used by malware/C2 tools"
+                                    f"- this port is commonly used by malware/C2 tools"
                                 ),
                                 severity="high",
                                 confidence=0.85,

@@ -80,7 +80,7 @@ class DnsMonitor:
                     out.append(
                         ThreatSignal(
                             event_type="suspicious_dns",
-                            title="High-entropy domain — possible DGA",
+                            title="High-entropy domain - possible DGA",
                             description=(
                                 f"Domain '{domain}' has high label entropy "
                                 f"({entropy:.2f}), possible DGA activity"

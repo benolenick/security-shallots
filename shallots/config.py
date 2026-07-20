@@ -173,7 +173,7 @@ class StorageConfig:
 
 @dataclass
 class WebConfig:
-    # Loopback by default — the dashboard is not exposed to the LAN until the
+    # Loopback by default - the dashboard is not exposed to the LAN until the
     # operator sets host to 0.0.0.0 AND configures credentials (see app.py guard).
     host: str = "127.0.0.1"
     port: int = 8844
@@ -218,7 +218,7 @@ class SmsAlertConfig:
 @dataclass
 class NtfyConfig:
     enabled: bool = False
-    topic: str = ""  # e.g. "my-shallots-alerts" — published to ntfy.sh/<topic>
+    topic: str = ""  # e.g. "my-shallots-alerts" - published to ntfy.sh/<topic>
     server: str = "https://ntfy.sh"  # override for self-hosted ntfy
     token: str = ""  # optional auth token for private topics
 
@@ -338,10 +338,10 @@ class SuppressionConfig:
 @dataclass
 class ThreatEngineConfig:
     """Auto-tuned threat engine settings based on hardware capabilities."""
-    tier: str = "auto"  # auto, pi, mid, server — auto-detected from hardware
+    tier: str = "auto"  # auto, pi, mid, server - auto-detected from hardware
     baselines: bool = True        # always on (pure Python, minimal resources)
     graph: bool = True            # always on (in-memory, lightweight)
-    ml_detector: bool = True      # requires sklearn — auto-disabled if unavailable
+    ml_detector: bool = True      # requires sklearn - auto-disabled if unavailable
     killchain: bool = True        # always on (pure Python, no deps)
     # Tuning knobs (auto-set by tier)
     correlator_interval_sec: int = 300   # pi=600, mid=300, server=120

@@ -1,5 +1,5 @@
 /* ============================================================================
-   Investigate View — Security Shallots  (loads after app.js)
+   Investigate View - Security Shallots  (loads after app.js)
    Click a review item -> a plain-language investigation panel.
    Design decisions live in docs/INVESTIGATE_VIEW_SIGIL.md. Verdict-first,
    plain language, color+shape+word, progressive disclosure, graceful degrade.
@@ -65,7 +65,7 @@
       d = await res.json();
     } catch (err) {
       ov.querySelector(".inv-scroll").innerHTML =
-        `<div class="state-degraded" style="margin:24px">Couldn't load this investigation — ${esc(err.message)}</div>`;
+        `<div class="state-degraded" style="margin:24px">Couldn't load this investigation - ${esc(err.message)}</div>`;
       return;
     }
     renderPanel(ov, clusterId, d);
@@ -149,7 +149,7 @@
         ${extra > 0 ? `<button class="tl-more">View all ${items.length} related events</button>` : ""}</div>`;
     } else {
       timeline = `<div class="inv-sec"><h4>What else happened around this</h4>
-        <div class="state-empty">Nothing else happened on ${esc(host)} around this time — this looks like a one-off.</div></div>`;
+        <div class="state-empty">Nothing else happened on ${esc(host)} around this time - this looks like a one-off.</div></div>`;
     }
 
     // ── AI chain (expandable) ──
@@ -173,13 +173,13 @@
     const dispo = `<div class="inv-dispo">
       <button class="dispo-btn dispo-btn--primary" data-act="looks_fine">
         <span class="b-lab">✅ Looks fine</span>
-        <span class="b-help">Not a threat this time — clear it, keep watching.</span></button>
+        <span class="b-help">Not a threat this time - clear it, keep watching.</span></button>
       <button class="dispo-btn" data-act="its_me">
         <span class="b-lab">🏠 It's me</span>
-        <span class="b-help">My own activity — stop flagging me doing exactly this.</span></button>
+        <span class="b-help">My own activity - stop flagging me doing exactly this.</span></button>
       <button class="dispo-btn" data-act="suppress_kind">
         <span class="b-lab">🔇 Suppress this kind</span>
-        <span class="b-help">Too noisy — mute this category (reversible).</span></button>
+        <span class="b-help">Too noisy - mute this category (reversible).</span></button>
       <button class="dispo-btn dispo-btn--deeper" data-act="dig">
         <span class="b-lab">🔬 Dig deeper</span>
         <span class="b-help">Ask the AI to explain it in more detail.</span></button>

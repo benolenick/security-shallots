@@ -1,13 +1,13 @@
 """Pi-hole DNS ingest + detection.
 
 Tails Pi-hole v6's query log (pihole-FTL.db `queries` view) and turns SUSPICIOUS
-DNS lookups into Shallots alerts — without flooding on ordinary browsing. Two
+DNS lookups into Shallots alerts - without flooding on ordinary browsing. Two
 detections in v1:
 
-  1. Malware-domain lookup — the queried domain (or a parent) matches a loaded
+  1. Malware-domain lookup - the queried domain (or a parent) matches a loaded
      threat-intel DOMAIN indicator (e.g. URLHaus). A host resolving a known
      malware/C2 domain is a strong callback signal. -> high.
-  2. DGA-looking domain — long, high-entropy, consonant-heavy label with no
+  2. DGA-looking domain - long, high-entropy, consonant-heavy label with no
      dictionary shape (classic domain-generation-algorithm C2). -> medium.
 
 Only these are emitted as alerts; the ~thousands of normal daily queries are not.
@@ -48,7 +48,7 @@ def _looks_dga(label: str) -> bool:
     return vowel_ratio < 0.26 or (digits >= 3 and vowel_ratio < 0.40)
 
 
-# Legit high-entropy parents (CDN/cloud) — their random-looking SUBDOMAINS are
+# Legit high-entropy parents (CDN/cloud) - their random-looking SUBDOMAINS are
 # not DGA. Malware-domain MATCHING is exact/IoC-based and unaffected by this list.
 _CDN_PARENTS = {
     "googlevideo.com", "ggpht.com", "gvt1.com", "gvt2.com", "1e100.net",
@@ -182,7 +182,7 @@ class PiholeDnsIngestor:
                         severity="medium", category="dns",
                         title=f"Suspicious algorithm-generated domain lookup ({domain})",
                         description=(f"{client} looked up {domain}, whose name looks machine-generated "
-                                     f"(high-entropy, dictionary-less) — a pattern used by malware that "
+                                     f"(high-entropy, dictionary-less) - a pattern used by malware that "
                                      f"rotates C2 domains."),
                         src_ip=client, verdict="investigate", confidence=0.55,
                         ai_reasoning="Pi-hole DNS: DGA-style high-entropy domain.",

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ML Insights — Security Shallots</title>
+  <title>ML Insights - Security Shallots</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x1F9C5;</text></svg>" />
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <style>
@@ -212,7 +212,7 @@
     <!-- Anomaly Scatter Plot -->
     <div class="panel">
       <div class="panel-title">
-        <span>Anomaly Detection — Isolation Forest</span>
+        <span>Anomaly Detection - Isolation Forest</span>
         <span class="pt-badge" id="anomaly-badge" style="background:var(--sev-low);color:#000">Normal</span>
       </div>
       <div class="scatter-container" id="scatter-plot">
@@ -223,7 +223,7 @@
     <!-- Device Clusters -->
     <div class="panel">
       <div class="panel-title">
-        <span>Device Clustering — DBSCAN</span>
+        <span>Device Clustering - DBSCAN</span>
         <span class="pt-badge" id="cluster-badge" style="background:var(--purple);color:#fff">-</span>
       </div>
       <div class="cluster-container" id="cluster-plot">
@@ -571,7 +571,7 @@ function renderKillChains(chains) {
     return `<div class="kc-chain">
       <div class="kc-chain-header">
         <span class="kc-chain-entity" style="color:${sevColor}">${esc(c.entity)}</span>
-        <span class="kc-chain-score" style="background:${sevColor}22;color:${sevColor}">${c.stage_count} stages — ${severity.toUpperCase()}</span>
+        <span class="kc-chain-score" style="background:${sevColor}22;color:${sevColor}">${c.stage_count} stages - ${severity.toUpperCase()}</span>
       </div>
       <div class="kc-chain-stages">Stages: ${stages.map(s => `<strong>${s}</strong>`).join(' &#8594; ')}</div>
       <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.3rem">First seen: ${timeAgo(c.first_seen)} | Last activity: ${timeAgo(c.last_seen)}</div>
@@ -632,13 +632,13 @@ async function loadModelHealth() {
 
     // Volume detector
     html += renderModelBar('Volume Anomaly', 'Active', 100, 'var(--cyan)',
-      'Heuristic — no training required');
+      'Heuristic - no training required');
 
     // Overall
     const modelsUp = (ifo.trained ? 1 : 0) + (dbscan.trained ? 1 : 0) + 1;
     html += `<div style="margin-top:0.75rem;font-size:0.75rem;color:var(--text-muted)">
       ${modelsUp}/3 models active | Last trained: ${timeAgo(data.last_trained || ifo.trained_at)}
-      ${data.sklearn_available === false ? '<br><span style="color:var(--sev-medium)">scikit-learn not installed — using heuristics only</span>' : ''}
+      ${data.sklearn_available === false ? '<br><span style="color:var(--sev-medium)">scikit-learn not installed - using heuristics only</span>' : ''}
     </div>`;
 
     container.innerHTML = html;

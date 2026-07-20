@@ -147,7 +147,7 @@ class ArgusDaemon:
                 await self._emit(boot.event)
 
         # Re-enforce timelock if system was rebooted while timelocked
-        # (attacker tried restarting to escape — won't work)
+        # (attacker tried restarting to escape - won't work)
         enforce_timelock(self.runtime_state)
         if is_timelocked(self.runtime_state):
             self.state.state = ArgusMode.LOCKDOWN
@@ -406,7 +406,7 @@ class ArgusDaemon:
         if self.config.timelock.enabled:
             self._tasks.append(asyncio.create_task(self._timelock_expiry_loop(), name="timelock_expiry"))
 
-        # Supervise monitors — restart crashed ones instead of dying
+        # Supervise monitors - restart crashed ones instead of dying
         import logging
         log = logging.getLogger("argus.daemon")
         while True:
@@ -418,7 +418,7 @@ class ArgusDaemon:
                     # Critical tasks that should crash the daemon
                     if name in ("consume_signals", "heartbeat"):
                         raise exc
-                    # Monitor crashed — log and remove, don't restart to avoid loops
+                    # Monitor crashed - log and remove, don't restart to avoid loops
                     log.error("Monitor %s crashed: %s", name, exc)
                     self._tasks.remove(task)
                 else:
@@ -489,7 +489,7 @@ class ArgusDaemon:
                     severity="critical",
                     confidence=1.0,
                     state=self.state.state.value,
-                    title="Reactive lockdown — system isolated",
+                    title="Reactive lockdown - system isolated",
                     description=(
                         f"All network disabled and firewall blocked for "
                         f"{self.config.timelock.duration_minutes} minutes. "
@@ -522,7 +522,7 @@ class ArgusDaemon:
                     severity="high",
                     confidence=1.0,
                     state=self.state.state.value,
-                    title="Passive lockdown — alert mode",
+                    title="Passive lockdown - alert mode",
                     description=(
                         f"Threat detected: {signal.title}. "
                         f"Workstation locked and evidence captured. Network remains active."
@@ -576,7 +576,7 @@ class ArgusDaemon:
             self._persist_state()
 
     def _should_trigger_lockdown(self, signal: ThreatSignal) -> bool:
-        # Master kill-switch — when disabled, no auto-LOCKDOWN ever, regardless
+        # Master kill-switch - when disabled, no auto-LOCKDOWN ever, regardless
         # of severity. Manual `argus on/off` and screen-lock hooks still work.
         if not getattr(self.config.threat_response, "lockdown_enabled", True):
             return False
@@ -633,7 +633,7 @@ class ArgusDaemon:
             self._persist_state()
 
             # Check if manager requested an update. Ignored unless the operator
-            # explicitly opted in — otherwise anyone who can inject the webhook
+            # explicitly opted in - otherwise anyone who can inject the webhook
             # response (plaintext http, or a MITM on an unverified channel) could
             # make the agent git-pull and restart.
             commands = self._webhook.last_response.get("commands", {})
@@ -666,7 +666,7 @@ class ArgusDaemon:
             # Give the event time to send
             await asyncio.sleep(2)
             restart_daemon(self.config_path)
-            # Exit current process — the restart will spawn new one
+            # Exit current process - the restart will spawn new one
             raise SystemExit(0)
         else:
             log.error("Self-update failed, continuing with current version")
@@ -689,14 +689,14 @@ class ArgusDaemon:
                         severity="medium",
                         confidence=1.0,
                         state=self.state.state.value,
-                        title="TimeLock expired — network restored",
+                        title="TimeLock expired - network restored",
                         description="TimeLock duration elapsed. Network adapters re-enabled.",
                         category="response",
                         details={},
                         actions_taken=["timelock_released", "network_restored"],
                     ))
                 continue
-            # Still locked — re-enforce isolation every check
+            # Still locked - re-enforce isolation every check
             # (in case attacker tries to re-enable adapters)
             from .actions.network_isolation import isolate_network
             isolate_network()

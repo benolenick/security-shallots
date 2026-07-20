@@ -17,7 +17,7 @@ Architecture:
     This agent uses the Anthropic SDK with tool_use to give Claude
     direct access to shallotd's REST API.  Claude sees alerts, makes
     triage decisions, creates silence rules, raises squawks, and writes
-    shift reports — all through structured tool calls.
+    shift reports - all through structured tool calls.
 """
 from __future__ import annotations
 
@@ -275,7 +275,7 @@ class ShallotdClient:
 TOOLS = [
     {
         "name": "get_dashboard_stats",
-        "description": "Get overall dashboard statistics — alert totals, breakdowns by source/severity, pending counts. Use this first to understand the current state.",
+        "description": "Get overall dashboard statistics - alert totals, breakdowns by source/severity, pending counts. Use this first to understand the current state.",
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
@@ -294,7 +294,7 @@ TOOLS = [
     },
     {
         "name": "get_alert_context",
-        "description": "Get full enriched context for a specific alert — includes the alert details, IP reputation, related alerts, triage history, and chat history. Use this to deeply investigate an alert before making a verdict.",
+        "description": "Get full enriched context for a specific alert - includes the alert details, IP reputation, related alerts, triage history, and chat history. Use this to deeply investigate an alert before making a verdict.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -343,7 +343,7 @@ TOOLS = [
     },
     {
         "name": "get_alert_clusters",
-        "description": "Get alert clusters — groups of similar alerts. Clusters with many alerts are likely noise. Use to identify patterns for bulk suppression.",
+        "description": "Get alert clusters - groups of similar alerts. Clusters with many alerts are likely noise. Use to identify patterns for bulk suppression.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -381,7 +381,7 @@ TOOLS = [
     },
     {
         "name": "raise_squawk",
-        "description": "Raise a SQUAWK — a high-priority threat notice that triggers the red banner on the dashboard and alerts the operator. Only use for confirmed or highly suspicious threats.",
+        "description": "Raise a SQUAWK - a high-priority threat notice that triggers the red banner on the dashboard and alerts the operator. Only use for confirmed or highly suspicious threats.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -395,7 +395,7 @@ TOOLS = [
     },
     {
         "name": "check_ip_reputation",
-        "description": "Check IP reputation — returns VirusTotal, AbuseIPDB, and internal history for an IP address.",
+        "description": "Check IP reputation - returns VirusTotal, AbuseIPDB, and internal history for an IP address.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -406,17 +406,17 @@ TOOLS = [
     },
     {
         "name": "get_correlations",
-        "description": "Get AI-detected cross-alert correlation patterns — shows multi-stage attack chains and related alert groups.",
+        "description": "Get AI-detected cross-alert correlation patterns - shows multi-stage attack chains and related alert groups.",
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
         "name": "get_agent_status",
-        "description": "Get status of all registered endpoint agents (Argus, Clove) — heartbeats, active monitors, versions.",
+        "description": "Get status of all registered endpoint agents (Argus, Clove) - heartbeats, active monitors, versions.",
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
         "name": "write_shift_report",
-        "description": "Write a shift report summarizing your triage session — what you found, what you did, what needs follow-up. Do this at the end of each triage pass or every few hours.",
+        "description": "Write a shift report summarizing your triage session - what you found, what you did, what needs follow-up. Do this at the end of each triage pass or every few hours.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -428,7 +428,7 @@ TOOLS = [
     },
     {
         "name": "submit_investigation",
-        "description": "Submit detailed investigation findings for an alert — your analysis, conclusion, and any IOCs found.",
+        "description": "Submit detailed investigation findings for an alert - your analysis, conclusion, and any IOCs found.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -457,7 +457,7 @@ TOOLS = [
 # ── System Prompt ─────────────────────────────────────────────────────────
 
 SYSTEM_PROMPT = """\
-You are the Security Shallots AI Analyst — an autonomous security operations \
+You are the Security Shallots AI Analyst - an autonomous security operations \
 agent protecting a home/small-office network.
 
 ## Your Role
@@ -470,14 +470,14 @@ endpoint watchdog), CrowdSec, pfSense, and syslog.
 ## How to Work
 
 ### Triage Loop
-1. **Get stats** — understand current alert volume and pending count
-2. **Check pending alerts** — start with high/critical severity
-3. **Investigate** — use get_alert_context for suspicious alerts, check IP reputation
-4. **Decide** — suppress noise, investigate unknowns, escalate threats
-5. **Batch suppress** — group obvious noise and suppress together with reasoning
-6. **Create silence rules** — for recurring false positives
-7. **Raise squawks** — ONLY for confirmed/high-confidence threats
-8. **Write shift report** — summarize what you did
+1. **Get stats** - understand current alert volume and pending count
+2. **Check pending alerts** - start with high/critical severity
+3. **Investigate** - use get_alert_context for suspicious alerts, check IP reputation
+4. **Decide** - suppress noise, investigate unknowns, escalate threats
+5. **Batch suppress** - group obvious noise and suppress together with reasoning
+6. **Create silence rules** - for recurring false positives
+7. **Raise squawks** - ONLY for confirmed/high-confidence threats
+8. **Write shift report** - summarize what you did
 
 ### Decision Framework
 - **SUPPRESS**: Known benign, false positive, expected traffic, internal noise, \
@@ -491,7 +491,7 @@ endpoint watchdog), CrowdSec, pfSense, and syslog.
 - Never suppress critical/high severity alerts without investigating first
 - Always check IP reputation before suppressing external IP alerts
 - Create silence rules for patterns, not individual alerts
-- Squawks are serious — only raise them for real threats
+- Squawks are serious - only raise them for real threats
 - Write clear reasoning for every verdict (your human operator reads these)
 - When in doubt, investigate rather than suppress
 - Batch similar noise together for efficiency
@@ -592,7 +592,7 @@ class ToolExecutor:
                 return {"error": f"Unknown tool: {name}"}
 
 
-# ── Agent Loop (Claude CLI — no API key needed) ──────────────────────────
+# ── Agent Loop (Claude CLI - no API key needed) ──────────────────────────
 
 def _build_cli_prompt(system: str, user_message: str) -> str:
     """Build a full prompt for claude -p (single-turn pipe mode)."""
@@ -602,7 +602,7 @@ def _build_cli_prompt(system: str, user_message: str) -> str:
 class ClaudeSecurityAgent:
     """Autonomous security analyst powered by Claude CLI.
 
-    Uses `claude -p` (pipe mode) — same approach as the OpenKeel Command
+    Uses `claude -p` (pipe mode) - same approach as the OpenKeel Command
     Center chat.  No API key needed; authenticates via the user's existing
     Claude Code OAuth session.
 
@@ -629,10 +629,10 @@ class ClaudeSecurityAgent:
             except ImportError:
                 log.info("anthropic package not installed, falling back to CLI")
         else:
-            log.info("No ANTHROPIC_API_KEY — using Claude CLI (OAuth)")
+            log.info("No ANTHROPIC_API_KEY - using Claude CLI (OAuth)")
 
     def run_triage_pass(self) -> dict:
-        """Run a single triage pass — returns summary stats."""
+        """Run a single triage pass - returns summary stats."""
         log.info("Starting triage pass...")
         _write_status({
             "state": "triaging",
@@ -669,7 +669,7 @@ class ClaudeSecurityAgent:
         prompt = self._build_triage_prompt()
         full_prompt = _build_cli_prompt(SYSTEM_PROMPT, prompt)
 
-        # Append tool instructions for CLI mode — Claude can't use tool_use
+        # Append tool instructions for CLI mode - Claude can't use tool_use
         # in pipe mode, so we use ACTION: blocks (same pattern as command center)
         full_prompt += "\n\n" + self._tool_instructions()
 
@@ -708,7 +708,7 @@ class ClaudeSecurityAgent:
         MAX_PROMPT_BYTES = 40_000
         if len(full_prompt) > MAX_PROMPT_BYTES:
             log.error(
-                "Triage prompt %d bytes exceeds %d cap — skipping pass. "
+                "Triage prompt %d bytes exceeds %d cap - skipping pass. "
                 "Likely cause: alerts with bloated enrichment / chat / triage history.",
                 len(full_prompt), MAX_PROMPT_BYTES,
             )
@@ -745,7 +745,7 @@ class ClaudeSecurityAgent:
         return stats
 
     def _tool_instructions(self) -> str:
-        """Instructions for CLI mode — Claude emits ACTION: blocks."""
+        """Instructions for CLI mode - Claude emits ACTION: blocks."""
         return """\
 ## How to Take Actions
 
@@ -966,13 +966,13 @@ ACTION:BLOCK_IP{"ip": "1.2.3.4", "reason": "why"}
             "Run a triage pass on the Security Shallots alert queue. "
             "Start by getting the dashboard stats to understand the current state, "
             "then work through pending alerts starting with the highest severity. "
-            "Be efficient — batch-suppress obvious noise, investigate anything "
+            "Be efficient - batch-suppress obvious noise, investigate anything "
             "suspicious, and escalate real threats. "
         )
 
         if shift_report_due:
             prompt += (
-                "A shift report is due — after triaging, write a shift report "
+                "A shift report is due - after triaging, write a shift report "
                 "summarizing what you found and did. "
             )
             self._last_shift_report = time.time()
@@ -996,7 +996,7 @@ ACTION:BLOCK_IP{"ip": "1.2.3.4", "reason": "why"}
         })
         _append_activity({"type": "startup", "model": self.config.model, "backend": backend})
 
-        # Verify connectivity (non-fatal — will retry each pass)
+        # Verify connectivity (non-fatal - will retry each pass)
         health = self.client.health()
         if "error" in health:
             log.warning("Cannot reach shallotd yet: %s (will retry)", health["error"])
@@ -1007,7 +1007,7 @@ ACTION:BLOCK_IP{"ip": "1.2.3.4", "reason": "why"}
                 "error": str(health.get("error", "")),
             })
         else:
-            log.info("Connected to shallotd — %s total alerts", health.get("total_alerts"))
+            log.info("Connected to shallotd - %s total alerts", health.get("total_alerts"))
 
         # Circuit breaker: if shallotd is unreachable or passes keep
         # failing, back off exponentially instead of hammering shallotd every
@@ -1041,7 +1041,7 @@ ACTION:BLOCK_IP{"ip": "1.2.3.4", "reason": "why"}
 
             if consecutive_failures >= FAILURE_DISABLE_THRESHOLD:
                 log.error(
-                    "Disabling agent after %d consecutive failures — manual restart required.",
+                    "Disabling agent after %d consecutive failures - manual restart required.",
                     consecutive_failures,
                 )
                 _write_status({
@@ -1074,7 +1074,7 @@ ACTION:BLOCK_IP{"ip": "1.2.3.4", "reason": "why"}
 def generate_claude_md(config: AgentConfig) -> str:
     """Generate a CLAUDE.md block for interactive Claude Code sessions."""
     return f"""\
-## Security Shallots — AI Analyst Mode
+## Security Shallots - AI Analyst Mode
 
 You are operating as the Security Shallots AI Analyst. Your job is to protect
 this network by triaging security alerts from the shallotd platform.
@@ -1089,18 +1089,18 @@ curl -sk -u {config.username}:PASSWORD {config.shallotd_url}/api/ENDPOINT
 ```
 
 ### Key Endpoints
-- `GET /api/stats` — Dashboard stats
-- `GET /api/alerts?verdict=pending&limit=50` — Pending alerts
-- `GET /api/agent/context/{{id}}` — Full alert context with enrichment
-- `PATCH /api/alerts/{{id}}/verdict` — Set verdict (suppress/investigate/escalate)
-- `POST /api/alerts/bulk-verdict` — Bulk verdict
-- `GET /api/alerts/search?q=QUERY` — Full-text search
-- `GET /api/clusters?verdict=pending` — Alert clusters
-- `POST /api/silence-rules` — Create silence rule
-- `POST /api/ai/squawks` — Raise threat alert
-- `GET /api/reputation/{{ip}}` — IP reputation lookup
-- `POST /api/ai/reports` — Write shift report
-- `GET /api/agents` — Endpoint agent status
+- `GET /api/stats` - Dashboard stats
+- `GET /api/alerts?verdict=pending&limit=50` - Pending alerts
+- `GET /api/agent/context/{{id}}` - Full alert context with enrichment
+- `PATCH /api/alerts/{{id}}/verdict` - Set verdict (suppress/investigate/escalate)
+- `POST /api/alerts/bulk-verdict` - Bulk verdict
+- `GET /api/alerts/search?q=QUERY` - Full-text search
+- `GET /api/clusters?verdict=pending` - Alert clusters
+- `POST /api/silence-rules` - Create silence rule
+- `POST /api/ai/squawks` - Raise threat alert
+- `GET /api/reputation/{{ip}}` - IP reputation lookup
+- `POST /api/ai/reports` - Write shift report
+- `GET /api/agents` - Endpoint agent status
 
 ### Your Protocol
 1. Check stats first

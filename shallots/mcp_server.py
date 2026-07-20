@@ -1,4 +1,4 @@
-"""MCP server for Security Shallots — lets Claude Code query the dashboard.
+"""MCP server for Security Shallots - lets Claude Code query the dashboard.
 
 Usage:
     python -m shallots.mcp_server [--config config.yaml]
@@ -325,7 +325,7 @@ class ShallotsMCPServer:
         return json.dumps(inv, indent=2, default=str)
 
     async def run(self) -> None:
-        """Main loop — read JSON-RPC from stdin, write to stdout."""
+        """Main loop - read JSON-RPC from stdin, write to stdout."""
         loop = asyncio.get_event_loop()
 
         # Set up async stdin reader
@@ -333,7 +333,7 @@ class ShallotsMCPServer:
         protocol = asyncio.StreamReaderProtocol(reader)
         await loop.connect_read_pipe(lambda: protocol, sys.stdin.buffer)
 
-        # stdout — write synchronously (safe for pipe, avoids private API)
+        # stdout - write synchronously (safe for pipe, avoids private API)
         def _write_stdout(data: bytes) -> None:
             sys.stdout.buffer.write(data)
             sys.stdout.buffer.flush()

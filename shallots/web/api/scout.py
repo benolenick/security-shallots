@@ -10,7 +10,7 @@ from . import _db, _json_response
 
 
 async def handle_scout_cards(request: web.Request) -> web.Response:
-    """GET /api/scout/cards — recent non-judgmental scout cards."""
+    """GET /api/scout/cards - recent non-judgmental scout cards."""
     qs = request.rel_url.query
     try:
         limit = min(int(qs.get("limit", 50)), 200)

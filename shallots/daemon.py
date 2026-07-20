@@ -1,4 +1,4 @@
-"""Main asyncio daemon — orchestrates all components."""
+"""Main asyncio daemon - orchestrates all components."""
 
 from __future__ import annotations
 
@@ -128,12 +128,12 @@ class Daemon:
             await self._start_ai_workers()
         else:
             # No-AI / Pi mode (ai.tier: none): the triage worker still runs, but in
-            # rule-based-only mode — TriageWorker.run() creates NO Ollama client when
+            # rule-based-only mode - TriageWorker.run() creates NO Ollama client when
             # tier=none and routes every batch through _triage_rule_based(). Without
             # this, pending alerts got no verdict and rotted forever. Nothing here
             # calls an LLM, so this works on a Pi with no GPU.
             await self._start_ai_workers()
-            # Autopilot cluster sweep also runs (no AI triage) — deterministic only.
+            # Autopilot cluster sweep also runs (no AI triage) - deterministic only.
             from shallots.ai.autopilot import AutopilotWorker
             self._autopilot = AutopilotWorker(
                 self.cfg.ai,
@@ -528,7 +528,7 @@ class Daemon:
         self._tasks.append(asyncio.create_task(worker.run(self._shutdown)))
         log.info("AI triage worker started (tier=%s)", self.cfg.ai.tier)
 
-        # Start autopilot worker (runs in any mode including 'off' — just idles)
+        # Start autopilot worker (runs in any mode including 'off' - just idles)
         from shallots.ai.autopilot import AutopilotWorker
         self._autopilot = AutopilotWorker(
             self.cfg.ai,
@@ -912,7 +912,7 @@ class Daemon:
                 for alert in alerts:
                     await self.db.insert_alert(alert)
                     log.warning(
-                        "Argus watchdog: agent %s offline %dm — alert emitted",
+                        "Argus watchdog: agent %s offline %dm - alert emitted",
                         alert.source_ref, int(alert.raw and 0 or 0),  # noqa
                     )
             except Exception:

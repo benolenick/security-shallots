@@ -1,4 +1,4 @@
-"""Tests for tools/shallot_backup.py — online backup + retention + idempotency."""
+"""Tests for tools/shallot_backup.py - online backup + retention + idempotency."""
 from __future__ import annotations
 
 import importlib.util
@@ -129,7 +129,7 @@ def test_prune_keeps_only_n(tmp_path, monkeypatch):
 
     hourly_dir = dest / "hourly"
     hourly_dir.mkdir(parents=True)
-    # Fake older snapshots — pruning is by mtime, keep newest 2
+    # Fake older snapshots - pruning is by mtime, keep newest 2
     for i, label in enumerate(["2026-05-04T10", "2026-05-04T11", "2026-05-04T12"]):
         f = hourly_dir / f"shallots-{label}.tar.zst"
         f.write_bytes(b"old")

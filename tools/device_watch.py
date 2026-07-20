@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Security Shallots — new-device watcher.
+"""Security Shallots - new-device watcher.
 
 Discovery already runs (shallot-inventory-scan -> data/inventory.db, rich
 per-device records keyed by MAC). What was missing: turning a NEWLY-seen MAC

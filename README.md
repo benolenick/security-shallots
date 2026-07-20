@@ -21,7 +21,7 @@ that might otherwise be missed.
 ## See It
 
 Your whole small network's security, triaged on one small box. (Shots below are the
-built-in demo profile with synthetic data — `python -m tools.demo_seed`.)
+built-in demo profile with synthetic data - `python -m tools.demo_seed`.)
 
 ![Dashboard overview](docs/img/dashboard.png)
 
@@ -31,8 +31,8 @@ severity with one-click Suppress / Investigate / Escalate.
 
 ![Alert feed](docs/img/alert-feed.png)
 
-**A local LLM turns raw alerts into plain-English incidents** — what happened, why it
-matters, and a runbook — running on your own GPU. Nothing leaves your network.
+**A local LLM turns raw alerts into plain-English incidents** - what happened, why it
+matters, and a runbook - running on your own GPU. Nothing leaves your network.
 
 ![AI-generated incidents](docs/img/incidents.png)
 
@@ -155,9 +155,9 @@ dashboard to your LAN.
 
 The box above is your **central server**. To watch other machines on the network,
 deploy a lightweight agent on each one that reports back to the server. There are
-two agent types — see [`docs/GUIDE.md`](docs/GUIDE.md) §3 for the full walkthrough.
+two agent types - see [`docs/GUIDE.md`](docs/GUIDE.md) §3 for the full walkthrough.
 
-**Clove** — the everyday agent (a preconfigured Wazuh agent, optionally CrowdSec).
+**Clove** - the everyday agent (a preconfigured Wazuh agent, optionally CrowdSec).
 One command on each Linux endpoint, pointed at your server's IP:
 
 ```bash
@@ -170,7 +170,7 @@ to the Wazuh manager on the server (ports **1514/1515**); the server tails the
 manager's `alerts.json` and folds those events into the same pipeline. Nothing else
 to wire.
 
-**Argus** — the heavier host sentinel for machines you care most about (egress
+**Argus** - the heavier host sentinel for machines you care most about (egress
 watch, file/persistence/session monitors, anti-tamper). It posts directly to the
 server's Argus webhook over HTTPS with a per-agent secret:
 
@@ -180,7 +180,7 @@ sudo setup/endpoint/install-argus-linux \
   --secret <per-agent-secret> --enable --start
 ```
 
-Wiring summary — everything points back to the one server:
+Wiring summary - everything points back to the one server:
 
 ```text
 endpoint (clove)  ──1514/1515──▶  Wazuh manager ─┐
@@ -189,7 +189,7 @@ router / firewall ──514 syslog──▶  syslog receiver┘
 ```
 
 Agents outside the LAN (a VPS, a relative's house) reach the server the same way
-over a VPN/WireGuard link or a reverse tunnel to the manager/webhook ports — the
+over a VPN/WireGuard link or a reverse tunnel to the manager/webhook ports - the
 agent config is identical, only the address changes.
 
 ## Management Commands
@@ -273,12 +273,12 @@ Shallots intentionally uses:
 
 ## Documentation
 
-- **[docs/GUIDE.md](docs/GUIDE.md)** — full getting-started: architecture, the two
+- **[docs/GUIDE.md](docs/GUIDE.md)** - full getting-started: architecture, the two
   agent types, step-by-step install, understanding alerts, config reference, and
   **troubleshooting** (§8).
-- **[docs/TUNING.md](docs/TUNING.md)** — how to teach it your network: quiet noise,
+- **[docs/TUNING.md](docs/TUNING.md)** - how to teach it your network: quiet noise,
   set posture, tune what pages you, and know when it's trustworthy.
-- **[SECURITY.md](SECURITY.md)** — reporting security issues.
+- **[SECURITY.md](SECURITY.md)** - reporting security issues.
 
 ## Current Maturity
 

@@ -2,7 +2,7 @@
 
 Flags an internal host doing DNS straight to a PUBLIC resolver (port 53/853)
 instead of the network Pi-hole. That's either a misconfigured device or malware
-deliberately evading the DNS sinkhole/logging — both worth a squawk.
+deliberately evading the DNS sinkhole/logging - both worth a squawk.
 
 Excludes the Pi-hole host itself (its upstream forwards to Cloudflare/Google are
 normal) and DNS to any private/internal address (that's the Pi-hole or a local
