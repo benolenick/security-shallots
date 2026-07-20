@@ -1070,7 +1070,7 @@ class Daemon:
     async def _apply_sigma_rules(self, alert) -> object:
         """Check alert against loaded Sigma rules."""
         engine = getattr(self, '_sigma_engine', None)
-        if not engine or not engine._rules:
+        if not engine or not engine.rules:
             return alert
         alert_dict = {
             "src_ip": alert.src_ip, "dst_ip": alert.dst_ip,

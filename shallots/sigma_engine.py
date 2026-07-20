@@ -85,7 +85,10 @@ class SigmaEngine:
             return 0
 
         count = 0
-        for yml_file in sorted(rules_path.glob("*.yml")):
+        # Recurse both extensions so nested rulesets work (our process_creation/
+        # dir and the deeply-nested SigmaHQ community layout both need this).
+        rule_files = sorted(rules_path.rglob("*.yml")) + sorted(rules_path.rglob("*.yaml"))
+        for yml_file in rule_files:
             try:
                 raw = yaml.safe_load(yml_file.read_text(encoding="utf-8"))
                 if not isinstance(raw, dict):
