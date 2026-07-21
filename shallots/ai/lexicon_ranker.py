@@ -88,6 +88,11 @@ _DEFAULT: list[dict[str, Any]] = [
     {"pattern": r"(>>\s*~?/\.(bashrc|profile|zshrc)|/etc/rc\.local|LD_PRELOAD=)", "weight": 22, "tag": "persistence", "desc": "shell/loader persistence"},
     {"pattern": r"(useradd|adduser)\b[^\n]*(-u\s*0|-o|--uid\s*0)|usermod\b[^\n]*sudo", "weight": 35, "tag": "persistence", "desc": "creating a uid-0 / sudo user"},
     {"pattern": r"authorized_keys", "weight": 18, "tag": "persistence", "desc": "writing an SSH authorized_keys entry"},
+    # Found live 2026-07-21: "chmod +x" (symbolic exec bit) was already covered
+    # above, but "chmod u+s" / "chmod +s" (symbolic setuid/setgid bit) and the
+    # 4-digit octal equivalent (4755, 2755, 6755...) were not - a classic,
+    # simple privesc/persistence technique that produced zero alert.
+    {"pattern": r"chmod\s+(?:[ugoa]*\+s\b|[4267][0-7]{3}\b)", "weight": 32, "tag": "priv_esc", "desc": "setting the SUID/SGID bit"},
     # --- discovery (soft signals; need to stack) ---
     {"pattern": r"\b(whoami|id|hostname|uname\s+-a)\b", "weight": 4, "tag": "discovery", "desc": "basic host recon"},
     {"pattern": r"\b(nmap|masscan)\b", "weight": 18, "tag": "discovery", "desc": "network scanning tool"},

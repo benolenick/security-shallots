@@ -111,3 +111,20 @@ def test_crontab_edit_is_still_flagged_as_persistence():
 def test_crontab_replace_from_file_is_still_flagged_as_persistence():
     res = R.score("crontab /tmp/evil_cron")
     assert "persistence" in res.tags
+
+
+def test_symbolic_suid_bit_is_flagged():
+    for cmd in ("chmod u+s /tmp/.evil", "chmod +s /usr/local/bin/decoy", "chmod g+s /tmp/.evil"):
+        res = R.score(cmd)
+        assert "priv_esc" in res.tags, f"{cmd!r} not flagged, tags={res.tags}"
+
+
+def test_octal_suid_bit_is_flagged():
+    for cmd in ("chmod 4755 /tmp/.evil", "chmod 2755 /tmp/.evil", "chmod 6777 /tmp/.evil"):
+        res = R.score(cmd)
+        assert "priv_esc" in res.tags, f"{cmd!r} not flagged, tags={res.tags}"
+
+
+def test_plain_octal_mode_without_special_bits_not_flagged_as_suid():
+    res = R.score("chmod 755 /tmp/somefile")
+    assert "priv_esc" not in res.tags
