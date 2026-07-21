@@ -79,7 +79,12 @@ _DEFAULT: list[dict[str, Any]] = [
     {"pattern": r"(setenforce\s+0|selinux=disabled|apparmor.*teardown)", "weight": 22, "tag": "defense_evasion", "desc": "disabling MAC (SELinux/AppArmor)"},
     {"pattern": r"\btouch\b[^\n]*-[a-z]*t\b|timestomp", "weight": 15, "tag": "defense_evasion", "desc": "timestamp manipulation"},
     # --- persistence ---
-    {"pattern": r"(crontab\s+-|>>\s*/etc/cron|/etc/cron\.[a-z]+/)", "weight": 22, "tag": "persistence", "desc": "adding a cron entry"},
+    # crontab -l (list) and -r (remove) don't add anything; only -e (edit),
+    # -u user -e, or replacing from a file add an entry. The old bare
+    # "crontab\s+-" matched -l too, flagging every routine "crontab -l"
+    # check (e.g. an unrelated tool inspecting its own schedule) as a
+    # persistence attempt.
+    {"pattern": r"(crontab\s+(?!-l\b|-r\b)\S|>>\s*/etc/cron|/etc/cron\.[a-z]+/)", "weight": 22, "tag": "persistence", "desc": "adding a cron entry"},
     {"pattern": r"(>>\s*~?/\.(bashrc|profile|zshrc)|/etc/rc\.local|LD_PRELOAD=)", "weight": 22, "tag": "persistence", "desc": "shell/loader persistence"},
     {"pattern": r"(useradd|adduser)\b[^\n]*(-u\s*0|-o|--uid\s*0)|usermod\b[^\n]*sudo", "weight": 35, "tag": "persistence", "desc": "creating a uid-0 / sudo user"},
     {"pattern": r"authorized_keys", "weight": 18, "tag": "persistence", "desc": "writing an SSH authorized_keys entry"},
