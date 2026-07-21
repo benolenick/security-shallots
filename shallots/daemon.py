@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import signal
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -14,6 +15,18 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 _NON_PROD_AGENT_PREFIXES = ("shallot-load-", "shallot-experiment", "shallot-auth-boundary", "tls-smoke")
+
+# alert_pipeline health check thresholds: a queue backing up past this depth
+# with no successful insert in this long is unambiguous (real backlog); an
+# empty/low queue with no recent insert just means a quiet network, not a
+# stall, so both conditions must hold before this fails.
+_PIPELINE_STALL_QUEUE_DEPTH = 50
+_PIPELINE_STALL_SECONDS = 120
+
+
+def _pipeline_stall_check(qdepth: int, stalled_sec: float) -> tuple[bool, str]:
+    ok = not (qdepth > _PIPELINE_STALL_QUEUE_DEPTH and stalled_sec > _PIPELINE_STALL_SECONDS)
+    return ok, f"queue_depth={qdepth}, last_insert={int(stalled_sec)}s ago"
 
 
 class Daemon:
@@ -28,6 +41,9 @@ class Daemon:
         queue_size = 2000 if cfg.threat_engine.tier == "pi" else 10000
         self.alert_queue: asyncio.Queue = asyncio.Queue(maxsize=queue_size)
         self._dropped_alerts: int = 0
+        # Set at startup (not left at 0) so source_health_worker doesn't see a
+        # false "stalled" reading before the first alert has ever arrived.
+        self._last_alert_insert_at: float = time.time()
         # Custom rules cache
         self._custom_rules_cache: list = []
         self._custom_rules_cache_ts: float = 0.0
@@ -495,6 +511,7 @@ class Daemon:
 
                 # Store
                 await self.db.insert_alert(alert)
+                self._last_alert_insert_at = time.time()
 
                 # Auto-discover assets from alert IPs
                 try:
@@ -961,6 +978,23 @@ class Daemon:
         while not self._shutdown.is_set():
             try:
                 results = await health.check_all(self.cfg)
+
+                # Detect a stalled pipeline: every ingestor shares one queue
+                # feeding one serial DB-writer (_pipeline_worker). If that
+                # writer stalls (e.g. SQLite lock contention), every source
+                # backs up behind it in lockstep with zero visible symptom -
+                # the dashboard and /api/health stay fully responsive the
+                # whole time. Caught live on 2026-07-21: 22+ minutes with
+                # zero new alerts from any source. A high queue depth with
+                # no recent successful insert is unambiguous; an empty
+                # queue with no recent insert just means a quiet network.
+                qdepth = self.alert_queue.qsize()
+                stalled_sec = time.time() - self._last_alert_insert_at
+                results.append((
+                    "alert_pipeline",
+                    *_pipeline_stall_check(qdepth, stalled_sec),
+                ))
+
                 alerts = source_watchdog.results_to_alerts(conn, results)
                 for alert in alerts:
                     await self.db.insert_alert(alert)
