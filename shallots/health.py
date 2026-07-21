@@ -26,12 +26,20 @@ def _is_linux() -> bool:
 
 
 def _process_running(name: str) -> bool:
-    """Return True if a process with the given name is running (Linux only)."""
+    """Return True if a process with the given name is running (Linux only).
+
+    Matches against the full command line (-f), not just the kernel `comm`
+    name (-x): comm is truncated to 15 chars and some daemons rename their
+    main thread (Suricata's is literally "Suricata-Main"), so an exact
+    `-x suricata` match never fires even while Suricata is healthy and
+    actively processing traffic - caught live on 2026-07-21 (eve.json was
+    streaming real events the whole time this check said "not running").
+    """
     if not _is_linux():
         return True  # On non-Linux (dev machine) we skip process checks
     try:
         result = subprocess.run(
-            ["pgrep", "-x", name],
+            ["pgrep", "-f", name],
             capture_output=True,
             timeout=5,
         )
