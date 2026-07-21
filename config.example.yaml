@@ -58,9 +58,16 @@ crowdsec:
   api_key: ""
 
 pihole:
+  # API-based ingestor (PiHoleIngestor): pulls summary stats over Pi-hole's API.
   enabled: false
+  api_url: ""
+  api_key: ""
+  # DNS-log detector (PiholeDnsIngestor): reads pihole-FTL.db directly for
+  # malware-domain and DGA-style lookups. Only useful when shallotd runs on
+  # the same host as Pi-hole (the service user needs read access to the DB).
+  dns_enabled: false
   db_path: "/etc/pihole/pihole-FTL.db"
-  poll_interval_sec: 60
+  poll_interval_sec: 15
 
 storage:
   db_path: "/var/lib/shallots/shallots.db"

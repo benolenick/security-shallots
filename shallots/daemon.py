@@ -224,6 +224,7 @@ class Daemon:
         from shallots.ai.incidents import IncidentWorker
         from shallots.alerter import Alerter as _Alerter
         _incident_alerter = _Alerter(self.cfg.alerting)
+        self._alerter = _incident_alerter
         self._incident_worker = IncidentWorker(
             self.cfg.ai, self.db, ws_broadcast=self._ws_broadcast,
             alerter=_incident_alerter,
@@ -241,7 +242,9 @@ class Daemon:
             self._tasks.append(asyncio.create_task(shipper.run(self._shutdown)))
             log.info("Remote shipper started")
 
-        if self.cfg.alerting.webhook_url or self.cfg.alerting.email.enabled or self.cfg.alerting.sms.enabled:
+        if (self.cfg.alerting.webhook_url or self.cfg.alerting.email.enabled
+                or self.cfg.alerting.sms.enabled or self.cfg.alerting.ntfy.enabled
+                or self.cfg.alerting.syslog.enabled):
             self._tasks.append(asyncio.create_task(self._alerter_worker()))
 
         # IP reputation background worker
@@ -394,6 +397,12 @@ class Daemon:
             ingestor = PiHoleIngestor(self.cfg.pihole, self.alert_queue)
             self._tasks.append(asyncio.create_task(ingestor.run()))
             log.info("Pi-hole ingestor started")
+
+        if self.cfg.pihole.dns_enabled:
+            from shallots.ingest.pihole_dns import PiholeDnsIngestor
+            self._pihole_dns = PiholeDnsIngestor(self.cfg.pihole, self.db, self.alert_queue)
+            self._tasks.append(asyncio.create_task(self._pihole_dns.run(self._shutdown)))
+            log.info("Pi-hole DNS detector started: %s", self.cfg.pihole.db_path)
 
         if self.cfg.components.argus:
             from shallots.ingest.argus import ArgusIngestor

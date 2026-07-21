@@ -1186,11 +1186,33 @@ class AlertDB:
     # ── Retention ─────────────────────────────────────────────
 
     async def retention_cleanup(self, max_age_days: int = 30) -> int:
-        """Delete alerts older than max_age_days. Returns count deleted."""
-        cursor = await self._db.execute(
-            "DELETE FROM alerts WHERE ingested_at < datetime('now', ?)",
-            (f"-{max_age_days} days",),
+        """Delete alerts older than max_age_days. Returns count deleted.
+
+        Alerts referenced by a still-open incident (status not resolved/
+        false_positive) are kept regardless of age, so an incident never ends
+        up pointing at deleted evidence."""
+        open_cursor = await self._db.execute(
+            "SELECT alert_ids FROM incidents WHERE status NOT IN ('resolved', 'false_positive')"
         )
+        protected_ids: set[str] = set()
+        for row in await open_cursor.fetchall():
+            try:
+                protected_ids.update(json.loads(row[0] or "[]"))
+            except (TypeError, ValueError):
+                pass
+
+        if protected_ids:
+            placeholders = ",".join("?" for _ in protected_ids)
+            cursor = await self._db.execute(
+                f"DELETE FROM alerts WHERE ingested_at < datetime('now', ?) "
+                f"AND id NOT IN ({placeholders})",
+                (f"-{max_age_days} days", *protected_ids),
+            )
+        else:
+            cursor = await self._db.execute(
+                "DELETE FROM alerts WHERE ingested_at < datetime('now', ?)",
+                (f"-{max_age_days} days",),
+            )
         deleted = cursor.rowcount
         if deleted:
             # Clean orphaned triage rows

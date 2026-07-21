@@ -105,6 +105,11 @@ class PiHoleConfig:
     enabled: bool = False
     api_url: str = ""
     api_key: str = ""
+    # DNS-log detector (PiholeDnsIngestor): reads pihole-FTL.db directly,
+    # co-located on the same host as shallotd.
+    dns_enabled: bool = False
+    db_path: str = "/etc/pihole/pihole-FTL.db"
+    poll_interval_sec: int = 15
 
 
 @dataclass
