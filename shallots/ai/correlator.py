@@ -37,11 +37,20 @@ _INFRA_IPS: frozenset = frozenset()
 
 
 def _entity_signature(alert_ids: list[str], alerts_by_id: dict[str, dict]) -> str:
-    """Deterministic signature of the concrete src/dst IP+port pairs involved.
+    """Deterministic signature of the concrete entities involved, used as the
+    dedup key INSTEAD OF pattern/summary - both are AI-generated free text that
+    gets reworded every cycle even for an unchanged ongoing event, so text-based
+    dedup barely ever matches itself twice.
 
-    Used as the dedup key alongside pattern instead of AI-generated summary
-    text, which the local model rewords every cycle even for an unchanged
-    ongoing event.
+    Prefers src/dst IP+port pairs when the underlying alerts carry structured
+    network data. Host-local alerts (auditd/execmon command captures, which
+    never populate src_ip/dst_ip) fall back to the sorted alert IDs themselves:
+    the same recurring alert row(s) are unambiguously the same event no matter
+    what label the AI puts on the correlation. Caught live 2026-07-21: two
+    fresh "duplicate" incidents were still created post-fix from the exact
+    same two auditd alerts because their empty IP columns made every
+    IP-signature match trivially equal, so only the (still-varying) AI pattern
+    label was left to distinguish them.
     """
     triples = set()
     for aid in alert_ids:
@@ -49,7 +58,10 @@ def _entity_signature(alert_ids: list[str], alerts_by_id: dict[str, dict]) -> st
         if not a:
             continue
         triples.add((a.get("src_ip") or "", a.get("dst_ip") or "", a.get("dst_port") or ""))
-    return "|".join(sorted(f"{s}>{d}:{p}" for s, d, p in triples))
+    sig = "|".join(sorted(f"{s}>{d}:{p}" for s, d, p in triples if s or d or p))
+    if sig:
+        return sig
+    return "ids:" + "|".join(sorted(alert_ids))
 
 
 class Correlator:
@@ -197,18 +209,22 @@ class Correlator:
         else:
             correlations = _rule_based_correlations(groups)
 
-        # Step 3: persist (with deduplication - skip if same pattern+key exists recently)
+        # Step 3: persist (with deduplication - skip if same entities were
+        # already correlated recently, regardless of pattern/summary wording)
         alerts_by_id = {a["id"]: a for a in alerts}
         existing = await self._get_recent_correlation_keys()
         for corr in correlations:
-            # Dedup key: pattern + deterministic src/dst IP+port signature of the
-            # underlying alerts. Previously keyed on AI summary text[:80], but the
-            # local model rewords the summary every cycle even for the exact same
-            # ongoing event - that let one recurring bash->IP:4444 test generate a
-            # fresh "duplicate" correlation (and downstream incident) every ~5min
-            # for 50 straight minutes (10 incidents, 2026-07-20) because the text
-            # never matched itself twice.
-            dedup_key = f"{corr.pattern}:{_entity_signature(corr.alert_ids, alerts_by_id)}"
+            # Dedup key: deterministic entity signature of the underlying
+            # alerts (see _entity_signature). Deliberately does NOT include
+            # corr.pattern - both pattern and summary are AI-generated free
+            # text that gets reworded every cycle even for an unchanged
+            # ongoing event, so keying on either (alone or combined with the
+            # signature) let one recurring event generate a fresh "duplicate"
+            # correlation every ~5min for 50 straight minutes (10 incidents,
+            # 2026-07-20), and a second wave even after signature-only dedup
+            # for host-local alerts with no IP columns to key on before the
+            # alert-ID fallback was added.
+            dedup_key = _entity_signature(corr.alert_ids, alerts_by_id)
             if dedup_key in existing:
                 log.debug("Correlator: skipping duplicate correlation %s", dedup_key)
                 continue
@@ -245,14 +261,14 @@ class Correlator:
     async def _get_recent_correlation_keys(self) -> set[str]:
         """Get dedup keys for correlations from the last 2 hours to prevent duplicates.
 
-        Keys use the same pattern + entity-signature format as the fresh
-        correlations computed this cycle (see _entity_signature) so an
-        ongoing event actually matches itself across cycles instead of
-        drifting on reworded AI summary text.
+        Keys use the same entity-signature format as the fresh correlations
+        computed this cycle (see _entity_signature) so an ongoing event
+        actually matches itself across cycles instead of drifting on
+        reworded AI pattern/summary text.
         """
         try:
             rows = await self._db.execute_sql(
-                """SELECT pattern, alert_ids FROM correlations
+                """SELECT alert_ids FROM correlations
                    WHERE datetime(created_at) >= datetime('now', '-2 hours')""",
                 (),
             )
@@ -261,13 +277,13 @@ class Correlator:
             return set()
 
         all_ids: set[str] = set()
-        parsed_rows: list[tuple[str, list[str]]] = []
+        parsed_rows: list[list[str]] = []
         for r in rows:
             try:
                 ids = json.loads(r["alert_ids"]) if r["alert_ids"] else []
             except (json.JSONDecodeError, TypeError):
                 ids = []
-            parsed_rows.append((r["pattern"], ids))
+            parsed_rows.append(ids)
             all_ids.update(ids)
 
         alerts_by_id: dict[str, dict] = {}
@@ -283,8 +299,7 @@ class Correlator:
             except Exception:
                 log.exception("Correlator: failed to fetch alerts for dedup keys")
 
-        return {f"{pattern}:{_entity_signature(ids, alerts_by_id)}"
-                for pattern, ids in parsed_rows}
+        return {_entity_signature(ids, alerts_by_id) for ids in parsed_rows}
 
     async def _fetch_recent_alerts(self) -> list[dict[str, Any]]:
         """Pull alerts from the last _WINDOW_MINUTES."""
