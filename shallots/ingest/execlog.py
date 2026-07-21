@@ -18,6 +18,7 @@ import binascii
 import logging
 import os
 import re
+import time
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -52,14 +53,9 @@ def _decode_arg(v: str) -> str:
     return v
 
 
-def parse_exec_events(lines: list[str]) -> list[dict]:
-    """Correlate SYSCALL + EXECVE records (same audit id) into exec events.
-
-    Pure function over log lines so it is unit-testable without auditd. Returns
-    dicts: {ts, serial, pid, ppid, uid, auid, comm, exe, key, cmdline}.
-    """
+def _extract_syscalls(lines: list[str]) -> dict[str, dict]:
+    """Pull SYSCALL records (keyed by audit serial) out of a batch of log lines."""
     syscalls: dict[str, dict] = {}
-    execves: dict[str, list[str]] = {}
     for ln in lines:
         m = _AUDIT_ID.search(ln)
         if not m:
@@ -75,7 +71,19 @@ def parse_exec_events(lines: list[str]) -> list[dict]:
                     "comm": fields.get("comm", ""), "exe": fields.get("exe", ""),
                     "success": fields.get("success", "yes"), "key": fields.get("key", ""),
                 }
-        elif "type=EXECVE" in ln or fields.get("type") == "EXECVE":
+    return syscalls
+
+
+def _extract_execves(lines: list[str]) -> dict[str, list[str]]:
+    """Pull EXECVE argv records (keyed by audit serial) out of a batch of log lines."""
+    execves: dict[str, list[str]] = {}
+    for ln in lines:
+        m = _AUDIT_ID.search(ln)
+        if not m:
+            continue
+        serial = m.group(2)
+        fields = {k: _unq(val) for k, val in _FIELD.findall(ln)}
+        if "type=EXECVE" in ln or fields.get("type") == "EXECVE":
             args = []
             i = 0
             raw = dict(_FIELD.findall(ln))
@@ -83,7 +91,22 @@ def parse_exec_events(lines: list[str]) -> list[dict]:
                 args.append(_decode_arg(raw[f"a{i}"]))
                 i += 1
             execves[serial] = args
+    return execves
 
+
+def parse_exec_events(lines: list[str]) -> list[dict]:
+    """Correlate SYSCALL + EXECVE records (same audit id) into exec events.
+
+    Pure function over log lines so it is unit-testable without auditd. Returns
+    dicts: {ts, serial, pid, ppid, uid, auid, comm, exe, key, cmdline}.
+
+    Only pairs records present in THIS batch of lines - see
+    ExecLogIngestor._tail_once for the cross-poll-cycle buffering that pairs
+    a SYSCALL and its EXECVE when auditd's near-simultaneous writes for the
+    same event land in different poll reads.
+    """
+    syscalls = _extract_syscalls(lines)
+    execves = _extract_execves(lines)
     events = []
     for serial, sc in syscalls.items():
         args = execves.get(serial, [])
@@ -108,6 +131,20 @@ class ExecLogIngestor:
         self._inode = None
         self.scanned = 0     # total execs seen (for stats/"we watched N commands")
         self.emitted = 0     # alerts raised
+        # auditd writes a SYSCALL record and its EXECVE record as two separate
+        # near-simultaneous writes. If a poll lands between them, one half
+        # shows up in this read and the other in the next - without buffering,
+        # the orphaned SYSCALL gets paired with an empty argv (cmdline falls
+        # back to bare "exe", losing every argument) and a genuinely
+        # suspicious command can silently score as benign and never alert.
+        # Caught live 2026-07-21: "getent shadow" (score 38, well above the
+        # emit threshold) was captured at the auditd layer but never became a
+        # Shallots alert. These buffers hold the unpaired half across polls
+        # until its match arrives.
+        self._pending_syscalls: dict[str, dict] = {}
+        self._pending_execves: dict[str, list[str]] = {}
+        self._pending_since: dict[str, float] = {}
+        self._pending_max_age_sec = 30.0  # drop truly-orphaned halves eventually
 
     async def run(self) -> None:
         path = self.cfg.audit_log_path
@@ -123,6 +160,38 @@ class ExecLogIngestor:
                 await asyncio.sleep(self.cfg.poll_seconds)
             except asyncio.CancelledError:
                 return
+
+    def _pair_with_pending(self, lines: list[str]) -> list[dict]:
+        """Merge this batch's SYSCALL/EXECVE halves with any left over from the
+        previous poll, emit events whose pair is now complete, and keep the
+        rest buffered for next time (bounded by _pending_max_age_sec)."""
+        now = time.monotonic()
+        self._pending_syscalls.update(_extract_syscalls(lines))
+        self._pending_execves.update(_extract_execves(lines))
+        for serial in self._pending_syscalls:
+            self._pending_since.setdefault(serial, now)
+        for serial in self._pending_execves:
+            self._pending_since.setdefault(serial, now)
+
+        ready = [s for s in self._pending_syscalls if s in self._pending_execves]
+        events = []
+        for serial in ready:
+            sc = self._pending_syscalls.pop(serial)
+            args = self._pending_execves.pop(serial)
+            self._pending_since.pop(serial, None)
+            sc["cmdline"] = " ".join(args) if args else sc.get("exe", "")
+            events.append(sc)
+
+        stale = [s for s, since in self._pending_since.items()
+                 if now - since > self._pending_max_age_sec]
+        for serial in stale:
+            self._pending_syscalls.pop(serial, None)
+            self._pending_execves.pop(serial, None)
+            self._pending_since.pop(serial, None)
+        if stale:
+            log.debug("ExecLog: dropped %d exec record(s) never paired within %.0fs",
+                      len(stale), self._pending_max_age_sec)
+        return events
 
     async def _tail_once(self, path: str) -> None:
         if not os.path.exists(path):
@@ -140,7 +209,7 @@ class ExecLogIngestor:
             chunk = f.read()
             self._offset = f.tell()
         lines = chunk.splitlines()
-        for ev in parse_exec_events(lines):
+        for ev in self._pair_with_pending(lines):
             if ev.get("success") == "no":
                 continue
             comm = ev.get("comm", "")
