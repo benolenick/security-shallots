@@ -65,6 +65,28 @@ def _is_cdn(domain: str) -> bool:
     return any(domain == p or domain.endswith("." + p) for p in _CDN_PARENTS)
 
 
+# The malware-domain feed (urlhaus_recent_hosts) extracts the HOSTNAME of
+# malicious URLs, not domain-level indicators - so a phishing page hosted at
+# sites.google.com/view/x or a bad file on drive.google.com puts
+# "google.com" itself into the feed. DNS alone can't see the URL path, so
+# alerting on the bare apex of a mega-platform is a guaranteed false
+# positive (every device resolves google.com constantly). Skip these; a
+# match against a genuinely malicious domain a mega-platform doesn't own is
+# unaffected.
+_MEGA_PLATFORM_APEX = {
+    "google.com", "googleapis.com", "gmail.com", "youtube.com", "goo.gl",
+    "github.com", "githubusercontent.com", "raw.githubusercontent.com",
+    "microsoft.com", "live.com", "office.com", "outlook.com", "msn.com",
+    "apple.com", "icloud.com", "amazon.com", "cloudflare.com",
+    "facebook.com", "instagram.com", "whatsapp.com", "fbcdn.net",
+    "twitter.com", "x.com", "linkedin.com", "dropbox.com",
+}
+
+
+def _is_mega_platform(domain: str) -> bool:
+    return any(domain == p or domain.endswith("." + p) for p in _MEGA_PLATFORM_APEX)
+
+
 def _parent_domains(domain: str):
     """Yield the domain and each parent suffix: a.b.evil.com -> a.b.evil.com, b.evil.com, evil.com."""
     parts = domain.split(".")
@@ -125,7 +147,7 @@ class PiholeDnsIngestor:
 
     def _match_malware(self, domain: str) -> str | None:
         for d in _parent_domains(domain):
-            if d in self._malware_domains:
+            if d in self._malware_domains and not _is_mega_platform(d):
                 return d
         return None
 
