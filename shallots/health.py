@@ -60,6 +60,35 @@ def _file_exists_and_growing(path: str, staleness_sec: int = _FILE_STALENESS_SEC
         return False, str(e)
 
 
+def _sqlite_db_growing(path: str, staleness_sec: int = _FILE_STALENESS_SEC) -> tuple[bool, str]:
+    """Like _file_exists_and_growing, but WAL-aware.
+
+    A SQLite DB in WAL mode (Pi-hole's pihole-FTL.db, notably) writes go to
+    the -wal sidecar file; the base file's mtime only advances on a periodic
+    checkpoint, which can be many minutes stale even while the DB is being
+    written to constantly. Use the newest mtime among the base file, -wal,
+    and -journal (older rollback-journal mode).
+    """
+    if not os.path.exists(path):
+        return False, f"file not found: {path}"
+    try:
+        newest_mtime = os.stat(path).st_mtime
+        size = os.stat(path).st_size
+        for suffix in ("-wal", "-journal"):
+            sidecar = path + suffix
+            if os.path.exists(sidecar):
+                newest_mtime = max(newest_mtime, os.stat(sidecar).st_mtime)
+        age = time.time() - newest_mtime
+        if size == 0:
+            return False, f"file is empty: {path}"
+        if age > staleness_sec:
+            mins = int(age // 60)
+            return False, f"db not updated in {mins}m (incl. -wal): {path}"
+        return True, f"ok (size={size}, age={int(age)}s)"
+    except OSError as e:
+        return False, str(e)
+
+
 def _disk_space(path: str = "/") -> tuple[bool, str]:
     """Check that disk usage is below 90%.
 
@@ -232,6 +261,21 @@ async def check_all(cfg: Config) -> list[tuple[str, bool, str]]:
     # --- Database --------------------------------------------------------
     db_ok, db_detail = await _db_accessible(cfg.storage.db_path)
     results.append(("database", db_ok, db_detail))
+
+    # --- Pi-hole DNS detector ---------------------------------------------
+    if cfg.pihole.dns_enabled:
+        ph_ok, ph_detail = _sqlite_db_growing(cfg.pihole.db_path)
+        results.append(("pihole_dns_source", ph_ok, ph_detail))
+
+    # --- Command-execution monitor (auditd execve log) --------------------
+    if cfg.execmon.enabled:
+        # Longer staleness window than the default: a quiet host can
+        # legitimately go a while without a new process exec, unlike DNS
+        # queries or Suricata/Wazuh event streams.
+        exec_ok, exec_detail = _file_exists_and_growing(
+            cfg.execmon.audit_log_path, staleness_sec=1800,
+        )
+        results.append(("execmon_audit_log", exec_ok, exec_detail))
 
     # --- Ollama (if configured) ------------------------------------------
     if cfg.ai.tier == "local" and cfg.ai.ollama_url:

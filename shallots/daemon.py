@@ -279,6 +279,12 @@ class Daemon:
             self._tasks.append(asyncio.create_task(self._argus_watchdog_worker()))
             log.info("Argus watchdog worker started (check every 10min)")
 
+        # Data-source health: file-growth/reachability checks that already
+        # existed as a manual CLI command, now run automatically and alert
+        # (LOW/suppressed, operational signal) when a source goes silent.
+        self._tasks.append(asyncio.create_task(self._source_health_worker()))
+        log.info("Source health watchdog started (check every 10min)")
+
         # Sigma rule engine
         if self.cfg.sigma.enabled and self.cfg.sigma.rules_dir:
             try:
@@ -932,6 +938,39 @@ class Daemon:
                     )
             except Exception:
                 log.exception("Argus watchdog error")
+
+    async def _source_health_worker(self) -> None:
+        """Run health.check_all() periodically and alert (LOW/suppressed) on
+        any failing check, same cooldown-plus-auto-recover pattern as the
+        Argus watchdog above. check_all() already existed - it was only ever
+        invoked by hand from the CLI, so a source going silent (Suricata,
+        Wazuh, Pi-hole, execmon, CrowdSec, disk/RAM) was invisible unless
+        someone happened to run `shallotctl health`.
+        """
+        from shallots import health, source_watchdog
+        from shallots.store.db import SQLITE_BUSY_TIMEOUT_MS, SQLITE_TIMEOUT_SECONDS
+
+        import sqlite3
+        conn = sqlite3.connect(self.db.db_path, timeout=SQLITE_TIMEOUT_SECONDS)
+        conn.row_factory = sqlite3.Row
+        conn.execute(f"PRAGMA busy_timeout={SQLITE_BUSY_TIMEOUT_MS}")
+        source_watchdog.ensure_state_table(conn)
+
+        # Give ingestors a chance to start producing data before the first check.
+        await asyncio.sleep(120)
+        while not self._shutdown.is_set():
+            try:
+                results = await health.check_all(self.cfg)
+                alerts = source_watchdog.results_to_alerts(conn, results)
+                for alert in alerts:
+                    await self.db.insert_alert(alert)
+                    log.warning("Source watchdog: %s - alert emitted", alert.source_ref)
+            except Exception:
+                log.exception("Source health watchdog error")
+            try:
+                await asyncio.sleep(600)  # 10 minutes
+            except asyncio.CancelledError:
+                break
 
     async def _stale_agent_worker(self) -> None:
         """Check for stale clove agents every 5 minutes and inject alerts."""
