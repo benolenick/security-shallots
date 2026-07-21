@@ -1,7 +1,13 @@
 """Tests for the flow-fan-out scan/sweep detector."""
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 from shallots.ingest.flow_scan import FlowScanDetector
+
+
+def _ts(base: datetime, offset_sec: float) -> str:
+    return (base + timedelta(seconds=offset_sec)).strftime("%Y-%m-%dT%H:%M:%S.%f+0000")
 
 
 def _flow(src, dst, port, t="2026-07-19T15:00:00.000000+00:00", pkts_client=1, bytes_client=40):
@@ -85,3 +91,45 @@ def test_no_duplicate_alert_same_window():
     alerts = [d.observe(_flow("192.168.0.50", "192.168.0.212", p)) for p in range(1, 40)]
     fired = [a for a in alerts if a]
     assert len(fired) == 1  # one alert per (src,dst) per window, not per packet
+
+
+def test_slow_scan_evades_fast_window_but_not_slow_window():
+    # Regression for the gap found live 2026-07-21: probes spaced ~90s apart
+    # reset the fast (60s) window every single time, so fan-out there never
+    # accumulates past 1 port - a real low-and-slow scanner's whole point.
+    d = FlowScanDetector(port_scan_threshold=15, window_sec=60,
+                         slow_port_scan_threshold=20, slow_window_sec=2700)
+    base = datetime(2026, 7, 21, 4, 0, 0, tzinfo=timezone.utc)
+    fired = []
+    for i in range(1, 26):  # 25 probes, 90s apart = 37.5 minutes total
+        a = d.observe(_flow("192.168.0.50", "192.168.0.212", 9000 + i,
+                            t=_ts(base, i * 90)))
+        if a:
+            fired.append(a)
+    # never enough fan-out within any single 60s window to trip the fast path
+    assert not any("Slow" not in a.title for a in fired)
+    # but the slow window (45min) accumulates all of it and does fire
+    assert any("Slow port scan" in a.title for a in fired)
+
+
+def test_slow_window_does_not_fire_before_its_own_threshold():
+    d = FlowScanDetector(slow_port_scan_threshold=20, slow_window_sec=2700)
+    base = datetime(2026, 7, 21, 4, 0, 0, tzinfo=timezone.utc)
+    fired = []
+    for i in range(1, 15):  # only 14 distinct ports - under the slow threshold
+        a = d.observe(_flow("192.168.0.51", "192.168.0.212", 9000 + i,
+                            t=_ts(base, i * 90)))
+        if a:
+            fired.append(a)
+    assert fired == []
+
+
+def test_slow_scan_still_ignores_established_data_flows():
+    d = FlowScanDetector(slow_port_scan_threshold=5, slow_window_sec=2700)
+    base = datetime(2026, 7, 21, 4, 0, 0, tzinfo=timezone.utc)
+    fired = False
+    for i, port in enumerate((80, 443, 53, 22, 8080, 9000), start=1):
+        if d.observe(_flow("192.168.0.61", "192.168.0.212", port,
+                           t=_ts(base, i * 300), pkts_client=100, bytes_client=200000)):
+            fired = True
+    assert not fired
