@@ -167,6 +167,13 @@ class IocFeedWorker:
         # Check domain candidates from title / description. Avoid scanning the
         # entire feed table; URLHaus alone can contribute thousands of hosts.
         for domain in extract_domain_candidates(text_blob):
+            if _is_mega_platform(domain):
+                # urlhaus_recent_hosts extracts URL hostnames, not domain-level
+                # indicators; free text merely mentioning google.com/github.com
+                # (e.g. a benign "curl drive.google.com" in an exec-monitoring
+                # alert) is not evidence of compromise. See pihole_dns.py for
+                # the same false positive caught live against DNS lookups.
+                continue
             hits = await self.db.check_ioc(domain)
             for hit in hits:
                 if hit["indicator_type"] != "domain":
@@ -241,6 +248,24 @@ def _normalize_domain_indicator(value: str) -> list[str]:
     if not _DOMAIN_RE.match(candidate):
         return []
     return [candidate]
+
+
+# The malware-domain feed (urlhaus_recent_hosts) extracts the HOSTNAME of
+# malicious URLs, not domain-level indicators - see the matching note above
+# match_alert's domain-candidate loop and shallots/ingest/pihole_dns.py,
+# which caught this same feed flagging www.google.com live in production.
+_MEGA_PLATFORM_APEX = {
+    "google.com", "googleapis.com", "gmail.com", "youtube.com", "goo.gl",
+    "github.com", "githubusercontent.com", "raw.githubusercontent.com",
+    "microsoft.com", "live.com", "office.com", "outlook.com", "msn.com",
+    "apple.com", "icloud.com", "amazon.com", "cloudflare.com",
+    "facebook.com", "instagram.com", "whatsapp.com", "fbcdn.net",
+    "twitter.com", "x.com", "linkedin.com", "dropbox.com",
+}
+
+
+def _is_mega_platform(domain: str) -> bool:
+    return any(domain == p or domain.endswith("." + p) for p in _MEGA_PLATFORM_APEX)
 
 
 def extract_domain_candidates(text: str) -> list[str]:
